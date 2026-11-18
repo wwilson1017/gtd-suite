@@ -167,14 +167,10 @@ def test_two_polls_cannot_deliver_twice(client):
     create(client, code)
     assert approve(client, code).status_code == 200
 
-    def collect():
-        try:
-            return connect.poll(code["device_token"])
-        finally:
-            db.close_db()
-
+    # No db.close_db() in the workers: it closes every thread's connection, so the first poll
+    # to finish could close the other's mid-transaction. The fixture's teardown closes them all.
     with ThreadPoolExecutor(max_workers=2) as pool:
-        results = list(pool.map(lambda _: collect(), range(2)))
+        results = list(pool.map(lambda _: connect.poll(code["device_token"]), range(2)))
     assert sum(result is not None for result in results) == 1
 
 
