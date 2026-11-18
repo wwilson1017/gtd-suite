@@ -6,7 +6,7 @@ a request from a web page never does."""
 import pytest
 from fastmcp.exceptions import ToolError
 
-from backend import apps, boards, brain, cleanup, db, keys, lists, notes, service
+from backend import apps, boards, brain, cleanup, db, keys, lists, mcp_server, notes, samples, service
 from backend.tests import test_mcp
 from backend.tests.conftest import only, turn_on
 from scripts import admin
@@ -270,3 +270,17 @@ def test_the_record_is_not_content_and_goes_with_its_list(todo_db, capsys):
     assert admin.main(["delete", str(deleted), f"--yes-delete-list-{deleted}", "--no-snapshot"]) == 0
     assert "1 ai tools" in capsys.readouterr().out
     assert [r[0] for r in db.get_db().execute("SELECT list_id FROM ai_tools")] == [kept]
+
+
+# ── The words that point at the new pages ─────────────────────────────────────
+
+
+async def test_the_agent_links_own_words_point_at_settings_and_your_ai(http, made):
+    assert apps.off_message("notes") == (
+        "Notes GTD is off for this account. The person can turn it on under Settings, in Apps, "
+        "in any app on their account."
+    )
+    only(made["list_id"])  # every app off
+    assert (await http.get(link(made))).json()["about"].endswith("can turn one on under Settings, in Apps.")
+    assert mcp_server._instructions([]).endswith("can turn one on under Settings, in Apps.")
+    assert "under [Connect your AI](/app/ai)." in str(samples._PROJECTS)

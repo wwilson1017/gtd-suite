@@ -295,7 +295,7 @@ def _instructions(on: list[str]) -> str:
     return (
         paragraphs + _UNTRUSTED_NOTE
         if paragraphs
-        else "No app is turned on for this account: the person can turn one on under Connect, in Apps."
+        else "No app is turned on for this account: the person can turn one on under Settings, in Apps."
     )
 
 

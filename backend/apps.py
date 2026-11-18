@@ -73,5 +73,5 @@ def off_message(key: str) -> str:
     """What the agent link answers for an app the account has turned off."""
     return (
         f"{APPS[key].title} is off for this account. The person can turn it on under "
-        "Connect, in Apps, in any app on their account."
+        "Settings, in Apps, in any app on their account."
     )

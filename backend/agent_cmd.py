@@ -1031,15 +1031,15 @@ def _guide(ctx: _Ctx) -> dict:
         f"{part.pop('about')} This link reads, adds and updates them; it cannot delete "
         "anything or see the list's other links."
         if "about" in part
-        else "No app is turned on for this account: the person can turn one on under Connect, in Apps."
+        else "No app is turned on for this account: the person can turn one on under Settings, in Apps."
     )
     return _describe(
         ctx.mcp["url"],
         _commands(ctx.on),
         app={
             "reaches": f"one person's {reaches}; they gave you this link so that you can work with them",
-            "get_only": "tell the user that Connect in their app shows how to add this same link "
-            "to their AI tool as a connector, which can then write too",
+            "get_only": "tell the user that Your AI in their app (Connect, in Simple Sites and Common Brain) "
+            "shows how to add this same link to their AI tool as a connector, which can then write too",
             "app": " and ".join(apps.APPS[app].title for app in ctx.on) or apps.APPS[apps.ANCHOR].title,
             "list": row["name"] or None,
             "about": about,
