@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+*.egg-info/
+
+# Node
+node_modules/
+dist/
+
+# Local data (SQLite database, snapshots)
+data/
+
+.playwright-cli/
+.claude/worktrees/
+.env
+
+# Frontend build output (served by backend/pages.py)
+backend/static/

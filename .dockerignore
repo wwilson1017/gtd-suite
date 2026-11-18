@@ -1,0 +1,25 @@
+# Everything the image does not need. The Dockerfile copies only pyproject.toml,
+# uv.lock, .python-version, backend/, scripts/ and frontend/.
+.git
+.github
+.claude
+.venv
+.env
+.env.*
+.pytest_cache
+**/__pycache__
+**/*.py[cod]
+**/node_modules
+frontend/dist
+# A local build; the image makes its own.
+backend/static
+backend/tests
+# Local databases and snapshots must never be baked into an image.
+data
+docs
+reports
+research_notes
+.playwright-cli
+*.md
+Dockerfile
+.dockerignore

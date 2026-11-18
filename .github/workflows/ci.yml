@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  # Run by hand to scan every pull request's commits too (see the secrets job).
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to a pull request replaces the run in progress; master runs all finish.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.12.11" # the Dockerfile's
+          enable-cache: true
+      # --locked: a uv.lock that no longer matches pyproject.toml fails here.
+      - name: Python lint
+        run: uv run --locked ruff check backend scripts
+      - name: Python format
+        run: uv run --locked ruff format --check backend scripts
+      - name: Python types
+        run: uv run --locked pyright
+      - run: uv run --locked pytest backend/tests
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Node 22, as the Dockerfile: on Node 20 the jsdom test files never start
+      # and vitest still prints "passed".
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Frontend lint
+        run: npm run lint
+      - name: Frontend format
+        run: npm run format:check
+      - run: npm test
+      - run: npm run build
+
+  secrets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GITLEAKS_VERSION: "8.30.1"
+      GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      # Every pull request's commits stay readable at refs/pull/N/head after its
+      # branch is deleted, and nobody can delete that ref. Scanned only on a run
+      # started by hand (the check before the repo goes public): on every run, one
+      # closed pull request holding a fake secret would fail CI for good.
+      - if: github.event_name == 'workflow_dispatch'
+        run: git fetch --quiet origin '+refs/pull/*/head:refs/remotes/pr/*'
+      - name: Install gitleaks
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/gitleaks.tar.gz" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  $RUNNER_TEMP/gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP" gitleaks
+      # Every branch and tag, and this pull request; merge commits included (-m).
+      - run: '"$RUNNER_TEMP/gitleaks" git --redact --no-banner --log-opts="--all -m" .'

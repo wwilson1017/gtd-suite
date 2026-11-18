@@ -1,0 +1,14 @@
+services:
+  suite:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DATA_DIR: /data
+      PUBLIC_BASE_URL: http://localhost:8000
+    volumes:
+      - suite-data:/data
+    restart: unless-stopped
+
+volumes:
+  suite-data:

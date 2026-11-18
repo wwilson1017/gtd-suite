@@ -1,0 +1,504 @@
+@import 'tailwindcss';
+
+/* Make dark: variants follow the .dark class toggle instead of the OS media query */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Light palette, with semantic tokens for each surface:
+     sand = page               cream = card surface
+     charcoal = primary text   muted = secondary text (AA on every surface)
+     line = strong borders     line-faint = subtle borders
+     brand = accent fill
+     brand-ink = accent text (the fill red fails AA as text)
+   Additional tokens: brand-dark / brand-deep (tomato fill and its hover),
+   brand-mark (the logo's red; lighter on dark) and the band-* tokens (a front door's band).
+   Two reds on purpose. Tomato (brand-dark, brand-mark) is the everyday red: buttons,
+   the logo, and every `border-brand` line such as the active tab. The bright `brand`
+   fill is kept for what should catch the eye: the inbox badge and counts. */
+@theme {
+  /* Brand colors */
+  --color-brand: #e31d3b;
+  --color-brand-dark: #c0272d;
+  --color-brand-deep: #a82226;
+  --color-brand-mark: #c0272d;
+  --border-color-brand: var(--color-brand-mark);
+  --color-brand-ink: #ba002a;
+  /* A front door's band (LandingPage's FrontDoor): its fill, the glow in its corner, its
+     text, its accent (eyebrow, prices, errors) and the white button's hover. */
+  --color-band: #6f1f1f;
+  --color-band-glow: rgb(227 29 59 / 0.4);
+  --color-band-text: #ecd6c8;
+  --color-band-accent: #f3c27a;
+  --color-band-hover: #f7ebe0;
+  /* The other apps' colours as text, for their names (Logo.tsx APP_TEXT); their marks
+     are public/icon-*.svg. Todo's is brand-mark. */
+  --color-notes-ink: #a16207;
+  --color-projects-ink: #0f766e;
+  --color-sites-ink: #1d4ed8;
+  --color-brain-ink: #6d4aff;
+
+  /* Neutral palette */
+  --color-cream: #fffffa;
+  --color-sand: #f1f1e8;
+  --color-charcoal: #292929;
+  --color-muted: #595959;
+
+  /* Borders / dividers */
+  --color-line: #d1d5db;
+  --color-line-faint: #e5e7eb;
+
+  /* Note colours (Notes GTD's cards, `bg-note-*`): Keep's palette; dark values below. */
+  --color-note-red: #faafa8;
+  --color-note-orange: #f39f76;
+  --color-note-yellow: #fff8b8;
+  --color-note-green: #e2f6d3;
+  --color-note-teal: #b4ddd3;
+  --color-note-blue: #d4e4ed;
+  --color-note-purple: #d3bfdb;
+  --color-note-gray: #efeff1;
+
+  /* Projects GTD (`*-bc-*`): the suite's shared look —
+     sand page, cream cards, charcoal ink, the tomato red for actions and links.
+     The names are kept so every screen follows. Dark values below. */
+  --color-bc-page: #f1f1e8;
+  --color-bc-canvas: #fffffa;
+  --color-bc-ink: #292929;
+  --color-bc-subtle: #595959;
+  --color-bc-faint: #8a8984;
+  --color-bc-line: #dcdcd2;
+  --color-bc-wash: #e9e9de;
+  --color-bc-tray: #e9e9de;
+  --color-bc-sand: #f7f3e8;
+  --color-bc-sand-2: #efe8d6;
+  --color-bc-blue: #c0272d;
+  --color-bc-heading: #292929;
+  --color-bc-green: #1f845a;
+  --color-bc-today: #fdf6d8;
+  --color-bc-unread: #e31d3b;
+  --color-bc-highlight: #fbeaea;
+
+  /* The shell's width cap — header, menu row and page content share it (`max-w-shell`). */
+  --container-shell: 1100px;
+
+  /* Fonts — system stacks only: every page must load with no outside request. */
+  --font-heading: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-body: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+:root {
+  color-scheme: light;
+  /* Height of the phone bottom bar; 0 wherever there is none. Page padding, the
+     toast stack and the More sheet all clear it by reading this. */
+  --bottom-bar: 0px;
+}
+.has-bottom-bar {
+  --bottom-bar: calc(3.5rem + env(safe-area-inset-bottom, 0px));
+}
+/* Keyboard focus and scroll-into-view stop above the bar, not underneath it. */
+html:has(.has-bottom-bar) {
+  scroll-padding-bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px) + 0.5rem);
+}
+
+/* Dark theme: the neutral tokens are semantic, so overriding
+   them here flips every component that uses them. Brand fills stay the same in both
+   themes; only brand-as-text lightens. `.dark` is set on <html> by core/theme.ts and,
+   before first paint, by the inline script in index.html. */
+.dark {
+  color-scheme: dark;
+  --color-sand: #1c1b19;
+  --color-cream: #2a2826;
+  --color-charcoal: #f0efe8;
+  --color-muted: #adaba5;
+  --color-line: #4a4845;
+  --color-line-faint: #3d3b38;
+  --color-brand-ink: #f0727f;
+  --color-brand-mark: #f0544f;
+  --color-notes-ink: #facc15;
+  --color-projects-ink: #2dd4bf;
+  --color-sites-ink: #60a5fa;
+  --color-brain-ink: #a99bff;
+  --color-note-red: #77172e;
+  --color-note-orange: #692b17;
+  --color-note-yellow: #7c4a03;
+  --color-note-green: #264d3b;
+  --color-note-teal: #0c625d;
+  --color-note-blue: #256377;
+  --color-note-purple: #472e5b;
+  --color-note-gray: #3c3f43;
+  --color-bc-page: #1c1b19;
+  --color-bc-canvas: #2a2826;
+  --color-bc-ink: #f0efe8;
+  --color-bc-subtle: #adaba5;
+  --color-bc-faint: #8a8883;
+  --color-bc-line: #4a4845;
+  --color-bc-wash: #33312e;
+  --color-bc-tray: #24221f;
+  --color-bc-sand: #33312e;
+  --color-bc-sand-2: #3d3b38;
+  --color-bc-blue: #f0544f;
+  --color-bc-heading: #f0efe8;
+  --color-bc-green: #7fd19b;
+  --color-bc-today: #3d3a2a;
+  --color-bc-unread: #f0544f;
+  --color-bc-highlight: #4a2a2a;
+}
+
+/* Common Brain (apps/brain) is its own brand: Night Network, always dark. On its
+   address (<html data-app="brain">, set by the server) the shared tokens take its
+   navy, violet and cyan, so the suite's own pieces (Connect's sections, the app bar)
+   sit on it without a seam. More specific than .dark, so it wins either way. */
+html[data-app='brain'] {
+  color-scheme: dark;
+  --color-sand: #070b1a;
+  --color-cream: #0d1230;
+  --color-charcoal: #e9ecff;
+  --color-muted: #9aa3c7;
+  --color-line: #2c3566;
+  --color-line-faint: #1c2350;
+  --color-brand: #7c5cff;
+  --color-brand-dark: #7c5cff;
+  --color-brand-deep: #6a48f5;
+  --color-brand-mark: #7c5cff;
+  --color-brand-ink: #a99bff;
+  --color-brain-ink: #22d3ee;
+  background: #070b1a;
+}
+
+body {
+  font-family: var(--font-body);
+  /* index.html asks for `viewport-fit=cover` so the phone bar can pad itself past the
+     home indicator; the price is that a notched phone held sideways no longer insets
+     the page by itself, so every page (list, capture, landing) does it here. */
+  padding-inline: env(safe-area-inset-left, 0px) env(safe-area-inset-right, 0px);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading);
+}
+
+button {
+  font-family: var(--font-heading);
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* A note's rendered markdown (notes-gtd/Markdown.tsx): Tailwind's reset strips list
+   bullets and heading sizes, so the few a note uses come back here, compact. */
+.note-md > * + * {
+  margin-top: 0.5em;
+}
+.note-md h1,
+.note-md h2,
+.note-md h3 {
+  font-weight: 700;
+}
+.note-md h1 {
+  font-size: 1.15em;
+}
+.note-md h2 {
+  font-size: 1.05em;
+}
+.note-md ul {
+  list-style: disc;
+  padding-left: 1.25em;
+}
+.note-md ol {
+  list-style: decimal;
+  padding-left: 1.5em;
+}
+.note-md li.task-list-item {
+  list-style: none;
+  margin-left: -1.25em;
+}
+.note-md li > ul,
+.note-md li > ol {
+  margin-top: 0.25em;
+}
+.note-md code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.9em;
+  background: rgb(0 0 0 / 0.06);
+  border-radius: 0.25em;
+  padding: 0 0.25em;
+}
+.note-md pre {
+  overflow-x: auto;
+  background: rgb(0 0 0 / 0.06);
+  border-radius: 0.4em;
+  padding: 0.5em;
+}
+.note-md pre code {
+  background: none;
+  padding: 0;
+}
+.note-md blockquote {
+  border-left: 3px solid var(--color-line);
+  padding-left: 0.75em;
+  color: var(--color-muted);
+}
+.note-md hr {
+  border-color: var(--color-line);
+}
+.note-md table {
+  border-collapse: collapse;
+}
+.note-md th,
+.note-md td {
+  border: 1px solid var(--color-line);
+  padding: 0.2em 0.5em;
+}
+
+/* ── Projects GTD's look: shared with Todo GTD ──────────────────────
+   Content in a cream, rounded card on the sand page, left-aligned bold titles,
+   outline buttons and a tomato primary; a board (`bc-perma-wide`) sits straight on
+   the page, Trello-style. In the components layer, so a utility on the same
+   element (w-auto, py-1) wins. */
+@layer components {
+  .bc {
+    background: var(--color-bc-page);
+    color: var(--color-bc-ink);
+  }
+  .bc-perma {
+    background: var(--color-bc-canvas);
+    border: 1px solid var(--color-bc-line);
+    border-radius: 16px;
+    max-width: var(--container-shell);
+    margin-inline: auto;
+    padding: 24px;
+  }
+  .bc-perma-wide {
+    background: transparent;
+    border: 0;
+    padding: 0 0 16px;
+    max-width: none;
+  }
+  @media (max-width: 767px) {
+    .bc-perma {
+      padding: 16px;
+      border-radius: 12px;
+    }
+    .bc-perma-wide {
+      padding: 0 0 12px;
+    }
+  }
+  .bc-title {
+    font-weight: 700;
+    line-height: 1.2;
+  }
+  .bc-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4em;
+    min-height: 40px;
+    padding: 0 0.85em;
+    border-radius: 8px;
+    font-weight: 600;
+    border: 1px solid color-mix(in srgb, var(--color-bc-ink) 25%, transparent);
+    background: var(--color-bc-canvas);
+    color: var(--color-bc-ink);
+  }
+  .bc-btn:hover {
+    background: color-mix(in srgb, var(--color-bc-canvas), var(--color-bc-ink) 4%);
+  }
+  .bc-btn:disabled {
+    opacity: 0.45;
+  }
+  .bc-btn-primary {
+    background: var(--color-bc-blue);
+    border-color: var(--color-bc-blue);
+    color: #fff;
+  }
+  .bc-btn-primary:hover {
+    background: color-mix(in srgb, var(--color-bc-blue), #000 12%);
+  }
+  .bc-btn-sm {
+    min-height: 32px;
+    font-size: 14px;
+  }
+  .bc-input {
+    width: 100%;
+    border: 1px solid var(--color-bc-line);
+    border-radius: 8px;
+    padding: 8px 12px;
+    background: var(--color-bc-canvas);
+    color: var(--color-bc-ink);
+    font-size: 16px;
+  }
+  .bc-input:focus {
+    outline: 2px solid var(--color-bc-blue);
+    outline-offset: -1px;
+  }
+  .bc-checkbox {
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    flex: none;
+    border-radius: 5px;
+    cursor: pointer;
+    border: 2px solid var(--color-bc-ink);
+    background: var(--color-bc-canvas);
+    display: inline-grid;
+    place-content: center;
+    margin-top: 2px;
+  }
+  .bc-checkbox:checked {
+    background: var(--color-bc-green);
+    border-color: var(--color-bc-green);
+  }
+  .bc-checkbox:checked::after {
+    content: '';
+    width: 10px;
+    height: 6px;
+    border: solid #fff;
+    border-width: 0 0 2.5px 2.5px;
+    transform: rotate(-45deg) translate(1px, -1px);
+  }
+  .bc-body {
+    font-size: 1.125rem;
+    line-height: 1.55;
+  }
+  .bc-body a {
+    color: var(--color-bc-blue);
+    text-decoration: underline;
+  }
+  .bc-boost {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 32px;
+    border-radius: 99rem;
+    padding: 2px 10px 2px 2px;
+    background: var(--color-bc-sand);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-bc-ink) 8%, transparent);
+  }
+  .bc-boost:hover {
+    background: var(--color-bc-sand-2);
+  }
+  /* Basecamp's palette for lists, groups and card columns: the strong colour and its fill. */
+  .bc-c-red {
+    --c: #fd6c44;
+    --c-fill: #fff0ec;
+  }
+  .bc-c-orange {
+    --c: #f58e02;
+    --c-fill: #fff4ea;
+  }
+  .bc-c-yellow {
+    --c: #e9b60f;
+    --c-fill: #fcf9e7;
+  }
+  .bc-c-green {
+    --c: #56b66f;
+    --c-fill: #eef7f1;
+  }
+  .bc-c-blue {
+    --c: #42a3ff;
+    --c-fill: #edf6ff;
+  }
+  .bc-c-aqua {
+    --c: #0db3c1;
+    --c-fill: #e7f7f9;
+  }
+  .bc-c-purple {
+    --c: #ae80ff;
+    --c-fill: #f7f3ff;
+  }
+  .bc-c-gray {
+    --c: #9a9fa2;
+    --c-fill: #f0f2f3;
+  }
+  .bc-c-pink {
+    --c: #ef63b8;
+    --c-fill: #fef1f8;
+  }
+  .bc-c-brown {
+    --c: #b59977;
+    --c-fill: #f7f1e9;
+  }
+  .bc-c-white,
+  .bc-c- {
+    --c: #c5c8c9;
+    --c-fill: transparent;
+  }
+  .dark [class*='bc-c-'] {
+    --c-fill: color-mix(in srgb, var(--c) 18%, var(--color-bc-canvas));
+  }
+}
+
+/* Each app's colours. pages._shell stamps the app on <html data-app="…"> before the
+   first paint; an app sets its brand and band tokens here, and every screen that uses
+   them follows (buttons, links, the active tab, the front door's band). Todo GTD, the
+   anchor, is the @theme values above. Unlayered and after .dark, so these win; an app's
+   dark values go under .dark[data-app="…"]. */
+[data-app='sites'] {
+  --color-brand: #2563eb;
+  --color-brand-dark: #1d4ed8;
+  --color-brand-deep: #1e40af;
+  --color-brand-mark: #1d4ed8;
+  --color-brand-ink: #1d4ed8;
+  --color-band: #0f1f5c;
+  --color-band-glow: rgb(61 125 255 / 0.5);
+  --color-band-text: #d6e2ff;
+  --color-band-accent: #6cf0ff;
+  --color-band-hover: #e6eeff;
+}
+.dark[data-app='sites'] {
+  --color-brand-ink: #60a5fa;
+  --color-brand-mark: #60a5fa;
+}
+/* Notes GTD, a yellow legal pad: mustard buttons, links in a darker gold that still
+   reads on a yellow note, and a coffee band lit by the pad's yellow. */
+[data-app='notes'] {
+  --color-brand: #b45309;
+  --color-brand-dark: #a16207;
+  --color-brand-deep: #854d0e;
+  --color-brand-mark: #a16207;
+  --color-brand-ink: #854d0e;
+  --color-band: #3b2a10;
+  --color-band-glow: rgb(249 207 58 / 0.4);
+  --color-band-text: #f6ead0;
+  --color-band-accent: #ffe37a;
+  --color-band-hover: #fff6d6;
+}
+.dark[data-app='notes'] {
+  --color-brand-ink: #fde047;
+  --color-brand-mark: #facc15;
+}
+/* Projects GTD, modern and clean: teal for links and buttons (its screens use bc-blue),
+   kept apart from the done green; a deep green band with the mark's mint. */
+[data-app='projects'] {
+  --color-brand: #0d9488;
+  --color-brand-dark: #0f766e;
+  --color-brand-deep: #115e59;
+  --color-brand-mark: #0f766e;
+  --color-brand-ink: #0f766e;
+  --color-bc-blue: #0f766e;
+  --color-bc-highlight: #e3f4f0;
+  --color-band: #06362f;
+  --color-band-glow: rgb(31 196 147 / 0.45);
+  --color-band-text: #d3f5ea;
+  --color-band-accent: #b8ffdf;
+  --color-band-hover: #e3faf1;
+}
+.dark[data-app='projects'] {
+  --color-brand-ink: #5eead4;
+  --color-brand-mark: #2dd4bf;
+  --color-bc-blue: #16a394;
+  --color-bc-highlight: #1f3833;
+}
+/* No one teal is both a readable link on the dark page and a readable fill under white
+   text, so what bc-blue fills takes the light theme's darker teal (5.5:1 with white). */
+.dark[data-app='projects'] :is(.bc-btn-primary, .bg-bc-blue) {
+  --color-bc-blue: #0f766e;
+}

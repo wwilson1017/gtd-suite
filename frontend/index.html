@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Todo GTD</title>
+    <script>
+      // Theme before first paint: the stored choice (core/theme/theme.ts), else the OS.
+      (function () {
+        var t = null;
+        try {
+          t = localStorage.getItem('todo-gtd-theme');
+        } catch (e) {}
+        // Common Brain is always dark (its own brand).
+        if (
+          document.documentElement.getAttribute('data-app') === 'brain' ||
+          t === 'dark' ||
+          (t !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+        ) {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
