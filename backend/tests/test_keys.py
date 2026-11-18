@@ -6,7 +6,7 @@ from fastmcp.exceptions import ToolError
 
 from backend import api_v1, brain, db, keys, lists, mcp_server, ratelimit
 from backend.common import NotFoundError, ValidationError
-from backend.tests.conftest import confirm_list, turn_on
+from backend.tests.conftest import confirm_list, only, turn_on
 from backend.tests.test_mcp import (  # noqa: F401 (fixtures)
     MCP_HEADERS,
     anyio_backend,
@@ -25,7 +25,7 @@ def acct(app, monkeypatch):
     """An account with Todo and Brain on and a confirmed email (so several AIs may write)."""
     monkeypatch.setenv("BRAIN_BASE_URL", BRAIN_URL)
     made = lists.create_list("UTC")
-    turn_on(made["list_id"], "brain")
+    only(made["list_id"], "todo", "brain")
     confirm_list(made["list_id"])
     return made
 

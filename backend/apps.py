@@ -59,6 +59,9 @@ APPS: dict[str, App] = {
     ),
 }
 ANCHOR = next(iter(APPS))
+# The apps that live together at the main address on the hosted service: Notes and
+# Projects at its /notes and /projects, whatever host they also have (settings.old_url).
+FAMILY = ("todo", "notes", "projects")
 
 
 def content_tables() -> tuple[str, ...]:

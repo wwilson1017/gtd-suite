@@ -6,7 +6,7 @@ from fastmcp.exceptions import ToolError
 
 from backend import common, db, lists, notes
 from backend.common import ConflictError, NotFoundError, ValidationError
-from backend.tests.conftest import confirm_list, turn_on
+from backend.tests.conftest import confirm_list, only, turn_on
 from backend.tests.test_mcp import (  # noqa: F401 (fixtures)
     anyio_backend,
     app,
@@ -266,6 +266,7 @@ async def test_note_commands_read_by_get_and_write_by_post(http, made):
 async def test_notes_off_means_no_note_tools_or_commands(connect, http, app, monkeypatch):
     monkeypatch.setenv("NOTES_BASE_URL", "https://notes.example")
     todo_only = lists.create_list("UTC")
+    only(todo_only["list_id"], "todo")
     async with connect(link(todo_only)) as c:
         assert not [t.name for t in await c.list_tools() if t.name.startswith("note_")]
     res = await http.get(f"/link/{todo_only['agent_token']}?cmd=NOTES")

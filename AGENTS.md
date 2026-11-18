@@ -9,10 +9,13 @@ for settings, deploy, backups and restore.
 ```
 backend/
   main.py        app, lifespan (snapshot + cleanup loop), /healthz, router mounts; _AppPrefix
-                 selects apps without configured addresses on the main host only
+                 selects apps without configured addresses, and family apps on an old address,
+                 on the main host only
   settings.py    shared environment variables; app_base_url (configured), app_url (reachable),
-                 app_for (host or prefix), on_main_host, _origin (request origin for worker link builders)
-  apps.py        the suite registry: each app's title, address variable and content tables; off_message
+                 app_for (host or prefix), on_main_host, _origin (request origin for worker link builders);
+                 old_url (a family app's own host on the hosted service), moved_to
+  apps.py        the suite registry: each app's title, address variable and content tables; FAMILY
+                 (Todo, Notes, Projects: together at the main address); off_message
   db.py          SQLite connections, schema, transaction() (write lock + BEGIN IMMEDIATE)
   common.py      constants, plan-aware caps_for (the per-list caps), validators, next_due,
                  the one clock (utcnow)
@@ -193,6 +196,17 @@ the call budget charged; every other request goes to FastMCP untouched.
   with `apps.off_message`, never 404 or 401. Off never touches data or the browser API.
   Creating a list on an app's host or path, or redeeming a sign-in link there, turns that app on.
   New self-host accounts start with all five on; their agent link stays at the main address.
+  A new hosted account made in a family app (`apps.FAMILY`) starts with those three, in Sites
+  with Sites alone, in Brain with all five. An existing account's apps never change by themselves.
+- **On the hosted service a family app's own host is an old address.** With open signup and a
+  main address configured, Notes and Projects live at the main address's `/notes` and
+  `/projects`: `settings.old_url` names their configured hosts, `app_url` names the paths, and
+  every link built on the main host uses the paths. The old host keeps answering. `base_url`
+  on it is still that host, so the agent links, capture links, guide and `_same_origin` check
+  there are what they were, and a signed-in browser keeps working there (`/api/config` says
+  `moved`, and the app bar offers the way over). Only a signed-out page request is sent on,
+  with 303, never 301 or 308; token routes and `/signin/<t>` are never redirected. Without
+  open signup nothing changes: a configured host stays that app's one address.
 - **Exactly one worker.** `db.transaction()` is a process-wide lock plus `BEGIN IMMEDIATE`
   around each whole read-check-write sequence. A second worker or replica breaks the caps,
   the first-list claim, rotation and sign-in redemption. Every write goes through

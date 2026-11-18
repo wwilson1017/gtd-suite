@@ -1022,6 +1022,7 @@ def test_config_is_public_and_says_whether_this_browser_is_signed_in(client):
             "sites": {"title": "Simple Sites", "url": "http://testserver/sites"},
             "brain": {"title": "Common Brain", "url": "http://testserver/brain"},
         },
+        "moved": "",
         "sites_short_host": "",
     }
     client.post("/api/lists")

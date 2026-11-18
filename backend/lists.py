@@ -59,8 +59,9 @@ def create_list(
 ) -> dict | None:
     """Create a list and sign its creator in: the result carries the new
     session's token, for the cookie. ``app`` is the app it was made in, the one
-    app it starts with on; made at Common Brain, the suite's front door, it starts
-    with every app on. A new self-host account also starts with every app on.
+    app it starts with on; made in Todo, Notes or Projects it starts with those
+    three, and made at Common Brain, the suite's front door, with every app on.
+    A new self-host account also starts with every app on.
 
     ``only_if_none`` is the self-host claim: the check, the insert and the
     session are one transaction, so of two first visitors exactly one gets a
@@ -81,7 +82,13 @@ def create_list(
                 zone,
                 name,
                 common.now_iso(),
-                json.dumps(list(apps.APPS) if app == "brain" or not settings.open_signup() else [app]),
+                json.dumps(
+                    list(apps.APPS)
+                    if app == "brain" or not settings.open_signup()
+                    else list(apps.FAMILY)
+                    if app in apps.FAMILY
+                    else [app]
+                ),
                 account_no_in(conn),
             ),
         ).lastrowid

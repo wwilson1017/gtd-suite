@@ -287,7 +287,7 @@ export function TodoFront({
               <div className="fact">
                 <b>{family + 1}</b>
                 <span>
-                  apps on one account:
+                  apps on that link:
                   <br />
                   {['to-dos', notes && 'notes', projects && 'projects'].filter(Boolean).join(', ')}
                 </span>
@@ -370,8 +370,9 @@ export function TodoFront({
                     </a>
                     <h3>A board for the bigger things.</h3>
                     <p>
-                      When something takes more than a few to-dos, give it a board. Cards move from To do to Done,
-                      whether you drag them or your AI moves them.
+                      A to-do is one action. A project in Todo GTD is an outcome that takes a few of them. Work that
+                      needs files, research and other people gets a board here: cards move from To do to Done, whether
+                      you drag them or your AI moves them.
                     </p>
                   </div>
                   <Shot src={boardShot} alt="Projects GTD: a board with To do, Doing and Done columns" />
@@ -387,7 +388,8 @@ export function TodoFront({
                   <a href={brain.url} style={{ color: '#6d4aff' }}>
                     Common Brain
                   </a>
-                  , where you see and control what your AIs know about you.
+                  . Todo GTD is what your AI helps you do; Common Brain is what your AI knows about you, where you can
+                  see it and change it.
                 </p>
               )}
             </div>

@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 //
-// The suite's app bar and its hops (hop.ts): every app with an address, in the bar's
-// order, this one marked; another app is a plain link to its /app carrying this
-// list's id. Arriving there: the same list stays, another list or none goes back for
+// The suite's app bar and its hops (hop.ts): the family, this app and the apps the
+// account has on are tabs, in the bar's order, this one marked; the rest wait in
+// More; on an app's old address the bar is a notice. Another app is a plain link to
+// its /app carrying this list's id. Arriving there: the same list stays, another list or none goes back for
 // a sign-in link, and #to= mints one and goes. Never an address from the URL.
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -74,17 +75,67 @@ afterEach(async () => {
 });
 
 describe('the app bar', () => {
-  it('names every app with an address in the bar order, this one marked, the rest hops', async () => {
+  it('makes the family tabs, on or off, this one marked, and keeps an app that is off in More', async () => {
     await signIn();
     await act(async () => {
       root.render(<AppBar />);
     });
     const items = [...host.querySelectorAll('nav[aria-label="Apps"] > *')];
-    expect(items.map((i) => i.textContent)).toEqual(['Todo', 'Notes', 'Sites']);
+    // Notes is off for this account and still a tab: its address shows how to turn it on.
+    expect(items.map((i) => i.textContent)).toEqual(['Todo', 'Notes']);
     expect(items[0].getAttribute('aria-current')).toBe('page');
     expect(items[0].tagName).toBe('SPAN');
     expect(items[1].getAttribute('href')).toBe('https://notes.example/app#from=todo.7');
-    expect(items[2].getAttribute('href')).toBe('https://sites.example/app#from=todo.7');
+
+    const more = [...host.querySelectorAll('button')].find((b) => b.textContent?.startsWith('More'))!;
+    expect(host.textContent).not.toContain('Simple Sites');
+    await act(async () => {
+      more.click();
+    });
+    const offered = [...document.getElementById(more.getAttribute('aria-controls')!)!.querySelectorAll('a')];
+    expect(offered.map((a) => a.getAttribute('href'))).toEqual(['https://sites.example/app#from=todo.7']);
+    expect(offered[0].textContent).toBe('Simple Sites' + 'A place to park the pages your AI makes.');
+  });
+
+  it('makes an app the account has on a tab, and drops More when nothing is left for it', async () => {
+    resetSession();
+    api.getSession.mockResolvedValue({ ...SESSION, apps: ['todo', 'sites'] });
+    await act(async () => {
+      await bootstrap();
+    });
+    await act(async () => {
+      root.render(<AppBar />);
+    });
+    const items = [...host.querySelectorAll('nav[aria-label="Apps"] > *')];
+    expect(items.map((i) => i.textContent)).toEqual(['Todo', 'Notes', 'Sites']);
+    expect([...host.querySelectorAll('button')].some((b) => b.textContent?.startsWith('More'))).toBe(false);
+  });
+});
+
+describe("the app bar on an app's old address", () => {
+  it('is a notice with one button, which mints a sign-in link for this app and goes there', async () => {
+    vi.resetModules();
+    api.getConfig.mockResolvedValue({ ...SUITE, moved: 'https://todo.example/notes' });
+    api.createSignInLink.mockResolvedValue({ url: 'https://todo.example/notes/signin/T', expires_at: '' });
+    const { AppBar: Bar } = await import('./AppBar');
+    const session = await import('../session');
+    session.resetSession();
+    api.getSession.mockResolvedValue(SESSION);
+    await act(async () => {
+      await session.bootstrap();
+    });
+    await act(async () => {
+      root.render(<Bar />);
+    });
+    expect(host.querySelector('nav')).toBeNull();
+    expect(host.querySelectorAll('a')).toHaveLength(0);
+    expect(host.textContent).toContain('now lives at todo.example/notes');
+    await act(async () => {
+      host.querySelector('button')!.click();
+    });
+    // This page's app: the link opens it at its new address, on this account.
+    expect(api.createSignInLink).toHaveBeenCalledWith('todo');
+    expect(nav.replace).toHaveBeenCalledWith('https://todo.example/notes/signin/T');
   });
 });
 

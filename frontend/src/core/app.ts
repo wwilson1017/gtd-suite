@@ -13,11 +13,21 @@ export const APP_TITLES: Record<string, string> = {
 
 /** Each app's name in the suite's app bar, in the bar's order. */
 export const APP_SHORT: Record<string, string> = {
-  brain: 'Brain',
   todo: 'Todo',
   notes: 'Notes',
-  sites: 'Sites',
   projects: 'Projects',
+  sites: 'Sites',
+  brain: 'Brain',
+};
+
+/** The apps that live together at the main address (backend/apps.py FAMILY): always
+ *  tabs in the app bar. Another app is a tab once the account has it on. */
+export const FAMILY = ['todo', 'notes', 'projects'];
+
+/** One line about an app, where the app bar's "More" menu offers it. */
+export const APP_LINES: Record<string, string> = {
+  sites: 'A place to park the pages your AI makes.',
+  brain: 'What your AI knows, shared by every AI you use.',
 };
 
 function detectApp(): string {

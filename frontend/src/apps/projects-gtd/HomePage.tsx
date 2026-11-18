@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { apiErrorMessage } from '../../core/api/client';
+import { useAppHref } from '../todo-gtd/hop';
 import { createBoard, getHome, getTemplates, listBoards, startFromTemplate, updateBoard } from './api';
 import { ProjectsShell } from './ProjectsShell';
 import { ownProjectMade, useSamplesOnHome } from './SampleData';
@@ -219,6 +220,7 @@ export function byFolder<P extends { folder?: string; pinned?: number | boolean 
 
 export function HomePage() {
   const [home, setHome] = useState<Home | null>(null);
+  const todoGtd = useAppHref('todo');
   const [filter, setFilter] = useState('');
   const [making, setMaking] = useState<boolean | number>(false);
   const [archived, setArchived] = useState<BoardSummary[] | null>(null);
@@ -338,6 +340,16 @@ export function HomePage() {
                 ))}
               </ul>
             </div>
+          )}
+          {todoGtd && (
+            <p className="mt-8 text-sm text-bc-subtle">
+              A project here is for work that needs a board, files and other people. An outcome that only takes a few
+              next actions fits a project in{' '}
+              <a href={todoGtd} className="underline">
+                Todo GTD
+              </a>
+              .
+            </p>
           )}
           <div className="mt-8">
             {archived === null ? (

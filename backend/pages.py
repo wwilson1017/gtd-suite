@@ -238,6 +238,13 @@ def _to(path: str) -> RedirectResponse:
     return RedirectResponse(path, status_code=303, headers=PAGE_HEADERS)
 
 
+def _moved(request: Request) -> RedirectResponse | None:
+    """A signed-out visitor on an app's old host: on to its address today. A 303, never a
+    permanent redirect: the old host still serves the browsers signed in there."""
+    moved = settings.moved_to(request)
+    return _to(moved) if moved and _signed_in_list(request) is None else None
+
+
 # ── Web app ───────────────────────────────────────────────────────────────────
 # The manifest route MUST stay registered before the page's path catch-all.
 
@@ -268,7 +275,7 @@ def app_page(request: Request, rest: str = ""):
     touch, so opening the app never counts as using the list by itself."""
     list_id = _signed_in_list(request)
     if list_id is None:
-        return _to(request.scope.get("app_prefix", "") + "/")
+        return _to(settings.moved_to(request) or request.scope.get("app_prefix", "") + "/")
     app = settings.app_for(request)
     return _shell(request, _pwa_head(request.scope.get("app_prefix", "") + "/app", _installed_name(app), app))
 
@@ -319,10 +326,11 @@ def capture_page(request: Request, token: str = "", rest: str = ""):
 
 @router.get("/")
 def landing(request: Request):
-    """The plain shell, or the app for a browser that is signed in."""
-    return (
-        _to(request.scope.get("app_prefix", "") + "/app") if _signed_in_list(request) is not None else _shell(request)
-    )
+    """The plain shell, or the app for a browser that is signed in. On an old host
+    (settings.old_url) a signed-out visitor goes to where the app lives now."""
+    if _signed_in_list(request) is not None:
+        return _to(request.scope.get("app_prefix", "") + "/app")
+    return _moved(request) or _shell(request)
 
 
 @router.get("/signin/{token}")
@@ -546,4 +554,4 @@ def root_file(name: str, request: Request):
         candidate = STATIC_DIR / name
     if name != "index.html" and candidate.is_file():
         return FileResponse(candidate)
-    return _shell(request)
+    return _moved(request) or _shell(request)

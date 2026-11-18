@@ -5,7 +5,7 @@ import datetime
 import pytest
 from fastapi.testclient import TestClient
 
-from backend import common, db, lists, ratelimit, sessions, settings, signin
+from backend import apps, common, db, lists, ratelimit, sessions, settings, signin
 
 # What a browser sends with every request from the app's own pages
 # (router._same_origin).
@@ -146,3 +146,11 @@ def turn_on(list_id: int, app: str) -> None:
     """Turn an app on for a list, as Apps under Connect does (test_apps.py tests that)."""
     with db.transaction() as conn:
         lists.set_app_in(conn, list_id, app, True)
+
+
+def only(list_id: int, *on: str) -> None:
+    """Leave exactly these apps on for a list. A new hosted list starts with Todo, Notes
+    and Projects; an older account, or one that turned some off, has fewer."""
+    with db.transaction() as conn:
+        for app in apps.APPS:
+            lists.set_app_in(conn, list_id, app, app in on)

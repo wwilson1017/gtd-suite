@@ -117,7 +117,7 @@ describe('LandingPage', () => {
       ['Notes GTD', 'https://notes.example/'],
       ['Projects GTD', 'https://projects.example/'],
     ]);
-    expect(host.textContent).toContain('3apps on one account:to-dos, notes, projects');
+    expect(host.textContent).toContain('3apps on that link:to-dos, notes, projects');
   });
 
   it('promises more room for an email only where there is mail and open sign-up', async () => {

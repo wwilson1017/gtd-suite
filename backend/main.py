@@ -166,7 +166,9 @@ async def lifespan(app: FastAPI):
 
 
 class _AppPrefix:
-    """Select path-based apps only on the main host; carry the origin to workers."""
+    """Select path-based apps only on the main host; carry the origin to workers.
+    An app is path-based when it has no host of its own, or when that host is an
+    old address (settings.old_url)."""
 
     def __init__(self, app):
         self.app = app
@@ -184,7 +186,7 @@ class _AppPrefix:
             if (
                 key in apps.APPS
                 and key != apps.ANCHOR
-                and not settings.app_base_url(key)
+                and (not settings.app_base_url(key) or settings.old_url(key))
                 and settings.on_main_host(request)
             ):
                 parts = rest.split("/")

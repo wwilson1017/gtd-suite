@@ -56,6 +56,7 @@ def test_one_list_mode_is_the_default_and_the_first_visit_claims_it(single, new_
             "sites": {"title": "Simple Sites", "url": "http://testserver/sites"},
             "brain": {"title": "Common Brain", "url": "http://testserver/brain"},
         },
+        "moved": "",
         "sites_short_host": "",
     }
     first = new_list("Europe/Paris")
@@ -101,6 +102,7 @@ def test_open_signup_makes_many_lists_and_never_reports_claimed(client, create):
             "sites": {"title": "Simple Sites", "url": "http://testserver/sites"},
             "brain": {"title": "Common Brain", "url": "http://testserver/brain"},
         },
+        "moved": "",
         "sites_short_host": "",
     }
 

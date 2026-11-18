@@ -4,6 +4,7 @@ import { apiErrorMessage } from '../../core/api/client';
 import { createProject, listProjects, listTodos } from './api';
 import { ProjectCard } from './components/ProjectCard';
 import { PROJECT_STATUSES } from './constants';
+import { useAppHref } from './hop';
 import { updateProjectStatus } from './projectActions';
 import { EmptyState, FilterEmptyState, LoadFailed, LoadingRows, TodoShell } from './TodoShell';
 import type { TodoProject, TodoProjectStatus } from './types';
@@ -28,6 +29,7 @@ export function ProjectsPage() {
   const areas = useListFilters()?.areas ?? [];
   const [formError, setFormError] = useState('');
   const [search, setSearch] = useState('');
+  const projectsGtd = useAppHref('projects');
 
   // Only the latest load for the tab now showing may land. `shown` covers a caller
   // holding a tab the user has since left (a create or close-out that awaited its
@@ -205,6 +207,16 @@ export function ProjectsPage() {
             ))}
           </div>
         </>
+      )}
+      {projectsGtd && (
+        <p className="mt-6 text-sm text-muted">
+          A project here is an outcome that takes a few next actions. Work that needs files, research and other people
+          has a home in{' '}
+          <a href={projectsGtd} className="underline hover:text-charcoal">
+            Projects GTD
+          </a>
+          .
+        </p>
       )}
     </TodoShell>
   );

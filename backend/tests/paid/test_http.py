@@ -229,7 +229,7 @@ def test_the_session_names_the_list_and_needs_no_x_list(new_list):
             "storage_used": 0,
         },
         "brains": [{"id": brain.first_brain(made["list_id"]), "name": "", "folder": "brain", "status": "active"}],
-        "apps": ["todo"],
+        "apps": ["todo", "projects", "notes"],  # a hosted account made in Todo starts with the family
         "plan": {
             "pro": False,
             "tier": None,
