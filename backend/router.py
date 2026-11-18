@@ -743,7 +743,10 @@ def create_list(request: Request, response: Response, body: ListCreate | None = 
         raise HTTPException(
             status_code=409,
             headers=_NO_STORE,
-            detail=("This browser is already signed in to a list. Sign out in Settings to make another."),
+            detail=(
+                "This browser is already signed in to a list. Sign out in "
+                f"{apps.settings_page(settings.app_for(request))} to make another."
+            ),
         )
     if not create_limiter.allow(client_ip(request)):
         raise _too_many()

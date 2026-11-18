@@ -8,7 +8,7 @@ import sqlite3
 import pytest
 from fastmcp.exceptions import ToolError
 
-from backend import apps, boards, brain, cleanup, db, keys, lists, mcp_server, notes, samples, service
+from backend import apps, automation, boards, brain, cleanup, db, keys, lists, mcp_server, notes, samples, service
 from backend.tests import test_mcp
 from backend.tests.conftest import only, turn_on
 from scripts import admin
@@ -167,6 +167,10 @@ async def test_a_rest_tool_call_records_under_its_keys_name(http, made):
     assert (await http.post("/api/v1/tools/todo_nope", json={}, headers=auth)).status_code == 404
     assert (await http.post("/api/v1/tools/todo_get", json={"id": 999}, headers=auth)).status_code == 400
     assert seen(made["list_id"]) == []
+    # A web page holding the key is not an AI tool either.
+    page = {**auth, "Origin": "https://page.example"}
+    assert (await http.post("/api/v1/tools/todo_list", json={}, headers=page)).status_code == 200
+    assert seen(made["list_id"]) == []
     assert (await http.post("/api/v1/tools/todo_list", json={}, headers=auth)).status_code == 200
     assert names(made["list_id"]) == ["vm-jobs"]
 
@@ -230,7 +234,7 @@ async def test_a_request_from_a_web_page_is_never_an_ai_tool(http, made, monkeyp
 
 def test_the_step_that_makes_the_table_fills_it_from_what_tools_already_left(todo_db, monkeypatch):
     monkeypatch.setenv("BRAIN_BASE_URL", "https://brain.example")
-    wrote, edited, quiet = (lists.create_list("UTC")["list_id"] for _ in range(3))
+    wrote, edited, quiet, ruled = (lists.create_list("UTC")["list_id"] for _ in range(4))
     # One tool across four apps, another in one, and one that never gave a name.
     service.create_todo(wrote, "x", source="agent", source_client="Claude")
     notes.create(wrote, body="n", source="agent", source_client="Claude")
@@ -242,16 +246,36 @@ def test_the_step_that_makes_the_table_fills_it_from_what_tools_already_left(tod
     # An account whose only trace is an AI's edit to a note the person made.
     notes.append(edited, notes.create(edited, body="mine")["id"], "more", by="Grok")
     notes.create(quiet, body="mine")
+    # Card Table automation writes as a tool of its own: a rule that fired is not an AI.
+    rule_board = boards.create_board(ruled, "Kitchen", columns=["Doing", "Done"])["id"]
+    automation.create_rule(
+        ruled, rule_board, "rule", "Done", {"on": "card_moved", "column": "Done"}, [{"do": "comment", "text": "Ok."}]
+    )
+    boards.move_card(ruled, boards.create_card(ruled, rule_board, "c", column="Doing")["id"], "Done")
+    # More names than an account may hold: the fill keeps the cap, earliest first.
+    many = lists.create_list("UTC")["list_id"]
+    monkeypatch.setattr(lists, "MAX_AI_TOOLS", 3)
+    for n, name in enumerate(("First", "Second", "Third", "Fourth")):
+        todo = service.create_todo(many, "x", source="agent", source_client=name)
+        with db.transaction() as conn:
+            conn.execute(
+                "UPDATE todos SET created_at = ? WHERE id = ?", (f"2020-01-0{n + 1}T00:00:00.000Z", todo["id"])
+            )
     with db.transaction() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM recordings WHERE source_client = ?", (automation.ACTOR,)).fetchone()[
+            0
+        ]
         assert conn.execute("SELECT COUNT(*) FROM ai_tools").fetchone()[0] == 0  # none of that was a call
         conn.execute("DROP TABLE ai_tools")
 
     db.init_db()
-    assert {a: sorted(names(a)) for a in (wrote, edited, quiet)} == {
+    assert {a: sorted(names(a)) for a in (wrote, edited, quiet, ruled)} == {
         wrote: ["", "Claude", "Codex"],
         edited: ["Grok"],
         quiet: [],
+        ruled: [],
     }
+    assert names(many) == ["First", "Second", "Third"]
     assert {last for a in (wrote, edited) for _, last in seen(a)} == {None}
     assert lists.ai_tools(edited) == [{"name": "Grok", "last_used": None, "days_ago": None}]
     # A filled tool's next call gives it a day.
@@ -283,15 +307,30 @@ def test_the_record_is_not_content_and_goes_with_its_list(todo_db, capsys):
     assert [r[0] for r in db.get_db().execute("SELECT list_id FROM ai_tools")] == [kept]
 
 
+def test_a_version_that_does_not_know_the_table_can_still_delete_a_list(todo_db, monkeypatch, capsys):
+    # After a rollback the older code deletes a list without this table in its own list of them.
+    monkeypatch.setattr(admin, "_LIST_TABLES", tuple(t for t in admin._LIST_TABLES if t != "ai_tools"))
+    gone = lists.create_list("UTC")["list_id"]
+    lists.seen_ai(gone, "Claude")
+    assert admin.main(["delete", str(gone), f"--yes-delete-list-{gone}", "--no-snapshot"]) == 0
+    assert lists.get_list(gone) is None and seen(gone) == []
+
+
 # ── The words that point at the new pages ─────────────────────────────────────
 
 
 async def test_the_agent_links_own_words_point_at_settings_and_your_ai(http, made):
+    # A message any account may get names the page both ways: Simple Sites and Common Brain kept Connect.
+    both = "Settings (Connect, in Simple Sites and Common Brain)"
+    assert (apps.settings_page(), apps.settings_page("notes"), apps.settings_page("sites")) == (
+        both,
+        "Settings",
+        "Connect",
+    )
     assert apps.off_message("notes") == (
-        "Notes GTD is off for this account. The person can turn it on under Settings, in Apps, "
-        "in any app on their account."
+        f"Notes GTD is off for this account. The person can turn it on in any app on their account: under Apps, in {both}."
     )
     only(made["list_id"])  # every app off
-    assert (await http.get(link(made))).json()["about"].endswith("can turn one on under Settings, in Apps.")
-    assert mcp_server._instructions([]).endswith("can turn one on under Settings, in Apps.")
+    assert (await http.get(link(made))).json()["about"].endswith(f"can turn one on under Apps, in {both}.")
+    assert mcp_server._instructions([]).endswith(f"can turn one on under Apps, in {both}.")
     assert "under [Connect your AI](/app/ai)." in str(samples._PROJECTS)

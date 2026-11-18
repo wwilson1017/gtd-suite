@@ -1019,7 +1019,7 @@ def _guide(ctx: _Ctx) -> dict:
     hosted, verified = settings.open_signup(), row["email_verified_at"] is not None
     if "limits" in part:  # a copy: an app's part may hand back a shared dict
         if hosted and not verified:
-            raising = "confirming an email in Settings raises the caps"
+            raising = f"confirming an email in {apps.settings_page()} raises the caps"
         elif hosted and not plans.active(row) and billing.selling():
             raising = plans.guide_upsell()
         else:
@@ -1031,7 +1031,7 @@ def _guide(ctx: _Ctx) -> dict:
         f"{part.pop('about')} This link reads, adds and updates them; it cannot delete "
         "anything or see the list's other links."
         if "about" in part
-        else "No app is turned on for this account: the person can turn one on under Settings, in Apps."
+        else f"No app is turned on for this account: the person can turn one on under Apps, in {apps.settings_page()}."
     )
     return _describe(
         ctx.mcp["url"],

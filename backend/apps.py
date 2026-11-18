@@ -69,9 +69,18 @@ def content_tables() -> tuple[str, ...]:
     return tuple(t for app in APPS.values() for t in app.tables)
 
 
+def settings_page(app: str | None = None) -> str:
+    """What the page with a person's apps, email and sign-out is called: Settings in Todo,
+    Notes and Projects, and still Connect in Simple Sites and Common Brain. Without an app
+    (a message that an account with any of them may get), both."""
+    if app is None:
+        return "Settings (Connect, in Simple Sites and Common Brain)"
+    return "Settings" if app in FAMILY else "Connect"
+
+
 def off_message(key: str) -> str:
     """What the agent link answers for an app the account has turned off."""
     return (
-        f"{APPS[key].title} is off for this account. The person can turn it on under "
-        "Settings, in Apps, in any app on their account."
+        f"{APPS[key].title} is off for this account. The person can turn it on in any app "
+        f"on their account: under Apps, in {settings_page()}."
     )

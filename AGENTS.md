@@ -329,8 +329,13 @@ the call budget charged; every other request goes to FastMCP untouched.
   not an AI tool), tool discovery or the bare guide. It runs after the work, off the event
   loop, never inside another transaction. It is not sync state (the rule above still holds).
   The name is the tool's own untrusted claim: cleaned by `common.clean_source_client`, shown
-  as text, never logged, and it grants nothing. The table is account bookkeeping, not content:
-  in `admin._LIST_TABLES` and `cleanup.py`, out of `apps.content_tables()`.
+  as text, never logged, and it grants nothing. A stamp that fails is logged and swallowed,
+  because the call it records has already been answered for. The table is account bookkeeping,
+  not content: in `admin._LIST_TABLES` and `cleanup.py`, out of `apps.content_tables()`, and its
+  rows cascade with their list, so a version that does not know the table can still delete one.
+  A REST call reaches the tools without the HTTP request: `api_v1._as` passes its `Origin` on.
+  Messages name the account page through `apps.settings_page` (Settings in Todo, Notes and
+  Projects; Connect in Simple Sites and Common Brain).
 - **Schema changes** go in `db._migrate` as idempotent steps (`CREATE TABLE IF NOT EXISTS`
   does not alter a table that exists, and the live database does).
 - **One place decides the client address:** `ratelimit.client_ip`. Do not read

@@ -79,6 +79,9 @@ _apps_on: contextvars.ContextVar[list[str]] = contextvars.ContextVar("todo_gtd_a
 _brains: contextvars.ContextVar[list[dict]] = contextvars.ContextVar("common_brain_grant", default=[])
 # A program key or staff link (keys.py), or None for the main agent link.
 _key: contextvars.ContextVar[dict | None] = contextvars.ContextVar("todo_gtd_key", default=None)
+# Whether the REST call in hand carried an Origin header (api_v1._as): its tool calls reach
+# the middleware without FastMCP's HTTP request, so _seen cannot read the header itself.
+_from_page: contextvars.ContextVar[bool] = contextvars.ContextVar("todo_gtd_from_page", default=False)
 
 
 # ── Guidance ──────────────────────────────────────────────────────────────────
@@ -277,7 +280,7 @@ def _client_name() -> str | None:
 async def _seen(name: str | None) -> None:
     """Record a call that succeeded (lists.seen_ai) for the person's Your AI page, off the
     event loop. Never a request with an Origin header: that is a web page, not an AI tool."""
-    if "origin" not in get_http_headers():
+    if not _from_page.get() and "origin" not in get_http_headers():
         await asyncio.to_thread(lists.seen_ai, _list_id.get(), name)
 
 
@@ -295,7 +298,7 @@ def _instructions(on: list[str]) -> str:
     return (
         paragraphs + _UNTRUSTED_NOTE
         if paragraphs
-        else "No app is turned on for this account: the person can turn one on under Settings, in Apps."
+        else f"No app is turned on for this account: the person can turn one on under Apps, in {apps.settings_page()}."
     )
 
 
