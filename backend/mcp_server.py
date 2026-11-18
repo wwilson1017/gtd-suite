@@ -274,6 +274,13 @@ def _client_name() -> str | None:
     return common.client_name(declared, get_http_headers().get("user-agent"))
 
 
+async def _seen(name: str | None) -> None:
+    """Record a call that succeeded (lists.seen_ai) for the person's Your AI page, off the
+    event loop. Never a request with an Origin header: that is a web page, not an AI tool."""
+    if "origin" not in get_http_headers():
+        await asyncio.to_thread(lists.seen_ai, _list_id.get(), name)
+
+
 # ── Tools ─────────────────────────────────────────────────────────────────────
 
 
@@ -346,7 +353,11 @@ class _AppsOn(Middleware):
     async def on_call_tool(self, context, call_next):
         if why := refusal(context.message.name):
             raise ToolError(why)
-        return await call_next(context)
+        # FastMCP raises for an unknown tool, bad arguments and a tool's own refusal.
+        result = await call_next(context)
+        if not result.is_error:
+            await _seen(_client_name())
+        return result
 
     async def _instructed(self, context, call_next):
         result = await call_next(context)
@@ -354,7 +365,16 @@ class _AppsOn(Middleware):
             result.instructions = _instructions(_apps_on.get())
         return result
 
-    on_initialize = on_discover = _instructed
+    async def on_initialize(self, context, call_next):
+        result = await self._instructed(context, call_next)
+        # The handshake is where an older client names itself, and _client_name() does not
+        # read it. A program key's name still comes first.
+        info, key = context.message.params.client_info, _key.get()
+        declared = info.title or info.name
+        await _seen(key["name"] if key else common.client_name(declared, get_http_headers().get("user-agent")))
+        return result
+
+    on_discover = _instructed
 
 
 mcp = FastMCP("gtd", middleware=[_AppsOn()])

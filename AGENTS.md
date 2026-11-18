@@ -89,7 +89,8 @@ backend/
                  eval and signed-in export links, pass labels on writes
   lists.py       list rows, the account number, the agent and capture tokens, rotate, claim, reset,
                  email (+ confirmed stamp),
-                 weekly-review stamp, the apps turned on (apps_on, served, set_app_in)
+                 weekly-review stamp, the apps turned on (apps_on, served, set_app_in), the AI
+                 tools that have called (seen_ai, ai_tools: the Your AI page's status)
   sessions.py    the session cookie: one hashed row per signed-in browser, ≤20 per list, revoke, expire
   keys.py        program keys (kind=key, cb_…, Bearer only) and staff links (kind=link, path only):
                  named, hashed, shown once, revoke; ordered brains, scope (brain | all), access
@@ -321,6 +322,15 @@ the call budget charged; every other request goes to FastMCP untouched.
   belonging to one row. Never write `rev` from code, and never remember who has synced: each
   tool keeps its own number. The same triggers stamp `lists.changed_at` with the database's
   clock; `service.changes_count` (`CHANGES_COUNT`, `todo_changes_count`) reads the two.
+- **Which AI tools have called, and when, is kept for the person's screen only.**
+  `lists.seen_ai` writes `ai_tools` (a row per account and name, at most once an hour) after a
+  call that succeeded: an MCP initialize, a tool call whose result is not an error, or a
+  `?cmd=` command answered below 400. Never a request with an `Origin` header (a web page is
+  not an AI tool), tool discovery or the bare guide. It runs after the work, off the event
+  loop, never inside another transaction. It is not sync state (the rule above still holds).
+  The name is the tool's own untrusted claim: cleaned by `common.clean_source_client`, shown
+  as text, never logged, and it grants nothing. The table is account bookkeeping, not content:
+  in `admin._LIST_TABLES` and `cleanup.py`, out of `apps.content_tables()`.
 - **Schema changes** go in `db._migrate` as idempotent steps (`CREATE TABLE IF NOT EXISTS`
   does not alter a table that exists, and the live database does).
 - **One place decides the client address:** `ratelimit.client_ip`. Do not read

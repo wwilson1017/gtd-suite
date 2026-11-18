@@ -1064,4 +1064,10 @@ async def dispatch(list_id: int, on: list[str], request: Request, mcp: dict) -> 
     transport, the tools of those apps), for the guide."""
     ctx = _Ctx(list_id, common.client_name(None, request.headers.get("user-agent")), mcp, on)
     off = {name: apps.off_message(app) for app, part in _APPS.items() if app not in on for name in part.commands}
-    return await serve(request, _commands(on), _guide, ctx, mcp["url"], off)
+    response = await serve(request, _commands(on), _guide, ctx, mcp["url"], off)
+    # A command that was asked for and answered is an AI tool at work (lists.seen_ai). The
+    # bare guide is not (a browser opening the link), and nothing with an Origin header is:
+    # that is a web page, this app's own included.
+    if "cmd" in request.query_params and response.status_code < 400 and "origin" not in request.headers:
+        await asyncio.to_thread(lists.seen_ai, list_id, ctx.client)
+    return response
