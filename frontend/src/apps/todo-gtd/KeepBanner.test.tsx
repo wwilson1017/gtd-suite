@@ -102,12 +102,12 @@ afterEach(async () => {
 });
 
 describe('the keep-this-list banner', () => {
-  it('asks a hosted, unconfirmed list for an email, pointing at Connect', async () => {
+  it('asks a hosted, unconfirmed list for an email, pointing at Settings', async () => {
     await signedIn();
     await render();
     expect(banner()?.textContent).toContain(KEEP);
     expect(banner()?.textContent).toContain(
-      'Add your email under Connect to keep it, use it on other devices and raise its limits.',
+      'Add your email in Settings to keep it, use it on other devices and raise its limits.',
     );
     expect(host.querySelector('a')!.getAttribute('href')).toContain('/connect');
   });

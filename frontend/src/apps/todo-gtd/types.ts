@@ -124,8 +124,21 @@ export interface Session {
   /** The apps (backend/apps.py keys) turned on for the account: the agent link offers
    *  only these, and an app that is off shows AppOff on its own address. */
   apps: string[];
+  /** The AI tools that have called the agent link, the latest caller first (Your AI,
+   *  the pinned Connect card). Empty until one has. */
+  ai_tools?: AiTool[];
   /** The account’s plan, as last synced from the payment service. */
   plan?: Plan;
+}
+
+/** An AI tool that has called the account's agent link. */
+export interface AiTool {
+  /** What the tool calls itself: its own claim, shown as text. '' when it gave no name. */
+  name: string;
+  /** The day it last called, YYYY-MM-DD in the list's time zone, and how many calendar
+   *  days ago that was. Both null for a tool known only from what it wrote earlier. */
+  last_used: string | null;
+  days_ago: number | null;
 }
 
 /** What saving the list's email answers. */
