@@ -26,12 +26,14 @@ interface Row {
   repeat: boolean;
   /** Its own page in Projects GTD, under that app's /app. */
   path: string;
-  /** A card as last read while open: the version its completion names, and the column
-   *  and On Hold that Undo puts back. Null for a to-do. */
+  /** A card as read: the column and On Hold that Undo puts back. Null for a to-do. */
   card: Card | null;
+  /** The card's latest version, as read or as the last write answered: the next write
+   *  names it. */
+  version?: number;
+  /** As the last write answered: Card Table automation can move a card out of Done
+   *  right after it was completed, or into Done after a move. */
   done: boolean;
-  /** A completed card's version, as the completion answered: Undo's move names it. */
-  doneVersion?: number;
   busy: boolean;
   error: string;
 }
@@ -60,6 +62,7 @@ function toRows({ todos, cards }: { todos: Item[]; cards: Card[] }): Row[] {
       repeat: !!c.repeat,
       path: `/p/${c.board_id}/cards?card=${c.id}`,
       card: c,
+      version: c.version,
     })),
     // Soonest due first, the undated last: '9' sorts after any date.
   ].sort((a, b) => (a.due ?? '9').localeCompare(b.due ?? '9'));
@@ -117,8 +120,8 @@ export function FromProjects({ search, facets }: { search: string; facets: boole
           await completeItem(row.id, true);
           return { done: true };
         }
-        const done = await updateCard(row.id, { completed: true, version: row.card.version });
-        return { done: true, doneVersion: done.version };
+        const after = await updateCard(row.id, { completed: true, version: row.version });
+        return { done: after.completed, version: after.version };
       },
       'Could not check it off. Try again.',
     );
@@ -133,10 +136,10 @@ export function FromProjects({ search, facets }: { search: string; facets: boole
         }
         // Completing took the card to Done and off hold, and re-opening one sends it to
         // the first work column. So Undo is one move: back to the column it was read
-        // in, on hold if it was, refused if the card has changed since it was completed.
+        // in, on hold if it was, refused if the card has changed since the last write.
         // simplification: it goes to the bottom of that column, not back to its place there; the way up is to remember its position and send it with the move.
-        const back = await moveCard(row.id, row.card.column_id, undefined, !!row.card.on_hold, row.doneVersion);
-        return { done: false, card: back };
+        const after = await moveCard(row.id, row.card.column_id, undefined, !!row.card.on_hold, row.version);
+        return { done: after.completed, version: after.version };
       },
       'Could not undo it. Try again.',
     );

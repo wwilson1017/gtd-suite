@@ -6,7 +6,8 @@
 // call, a card through its update with the version read. A checked row stays, struck
 // through, with its own Undo: a to-do is un-checked, a card goes back in one move to
 // the column and On Hold it was read in, naming the version its completion answered.
-// A card that changed meanwhile is never overwritten. The group is absent with
+// A card row shows what each write answered, so a Card Table rule that moved the card
+// in or out of Done shows. A card that changed meanwhile is never overwritten. The group is absent with
 // Projects GTD off and with nothing assigned.
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -295,6 +296,44 @@ describe('the "From Projects GTD" group', () => {
     await click(box('Order the umbrellas'));
     await click(box('Order the umbrellas')); // un-ticking the box is the same Undo
     expect(projects.moveCard).toHaveBeenCalledExactlyOnceWith(21, 52, undefined, true, 5);
+    expect(struck('Order the umbrellas')).toBe(false);
+  });
+
+  it('shows a card as its completion answered when a rule moved it straight out of Done', async () => {
+    // A Card Table rule on "card completed" moves it to Review (column 53), open.
+    projects.updateCard.mockResolvedValue({ ...card(), column_id: 53, column_name: 'Review', version: 6 });
+    await show();
+
+    await click(box('Order the umbrellas'));
+    expect([box('Order the umbrellas').checked, struck('Order the umbrellas')]).toEqual([false, false]);
+    expect(undo('Order the umbrellas')).toBeNull();
+
+    // Checked again, it names the version that answer carried, and Undo still goes back
+    // to the column it was read in.
+    projects.updateCard.mockResolvedValue(completed(card({ version: 6 })));
+    projects.moveCard.mockResolvedValue({ ...card(), version: 8 });
+    await click(box('Order the umbrellas'));
+    expect(projects.updateCard).toHaveBeenLastCalledWith(21, { completed: true, version: 6 });
+    expect(struck('Order the umbrellas')).toBe(true);
+    await click(undo('Order the umbrellas')!);
+    expect(projects.moveCard).toHaveBeenCalledExactlyOnceWith(21, 52, undefined, false, 7);
+  });
+
+  it('keeps a card checked when a rule completed it again after Undo', async () => {
+    projects.updateCard.mockResolvedValue(completed(card()));
+    // A rule on a move into "Doing" sends it to Done.
+    projects.moveCard.mockResolvedValueOnce(completed(card({ version: 5 })));
+    await show();
+
+    await click(box('Order the umbrellas'));
+    await click(undo('Order the umbrellas')!);
+    expect([box('Order the umbrellas').checked, struck('Order the umbrellas')]).toEqual([true, true]);
+    expect(undo('Order the umbrellas')).not.toBeNull();
+
+    // The next Undo names the version the move answered.
+    projects.moveCard.mockResolvedValueOnce({ ...card(), version: 7 });
+    await click(undo('Order the umbrellas')!);
+    expect(projects.moveCard).toHaveBeenLastCalledWith(21, 52, undefined, false, 6);
     expect(struck('Order the umbrellas')).toBe(false);
   });
 
