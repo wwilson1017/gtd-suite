@@ -5,9 +5,9 @@ description = "A no-login GTD todo list that AI tools can read and write"
 license = "MIT"
 requires-python = ">=3.12,<3.13"
 dependencies = [
-    "fastapi==0.162.0",
+    "fastapi==0.163.0",
     "uvicorn==0.54.0",
-    "fastmcp==4.1.6",  # the MCP server (backend/mcp_server.py), on the official mcp SDK
+    "fastmcp==4.2.0",  # the MCP server (backend/mcp_server.py), on the official mcp SDK
     "httpx2==2.16.0",  # sign-in mail (Resend's HTTP API); also what the test client uses
 ]
 
@@ -15,7 +15,7 @@ dependencies = [
 dev = [
     "pyright==1.1.414",
     "pytest==9.2.0",
-    "ruff==0.17.4",
+    "ruff==0.17.5",
 ]
 
 [tool.uv]
