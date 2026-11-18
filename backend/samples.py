@@ -23,7 +23,7 @@ from backend.common import ValidationError
 
 STATES = ("on", "off")
 
-_CONNECT = "/app/connect"
+_CONNECT = "/app/ai"
 
 # Each project: its name, description, tools, whether it is starred, labels (name → colour), and per column
 # (To do, Doing, Done) its cards. A card: title, and optional notes, labels, due (days

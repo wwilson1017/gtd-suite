@@ -410,6 +410,13 @@ def rotate_agent_link(request: Request, owner: int = Depends(active_owner)):
     return _agent_link(request, cast(str, lists.rotate_agent(owner)))
 
 
+@links_router.get("/ai-tools")
+def get_ai_tools(owner: int = Depends(active_owner)):
+    """Which AI tools have called the account, read again by a page that is waiting for
+    one to (the session answer carries the same list at page load)."""
+    return {"ai_tools": lists.ai_tools(owner)}
+
+
 @links_router.get("/capture-link")
 def get_capture_link(request: Request, owner: int = Depends(active_owner)):
     return _capture_link(request, cast(dict, lists.get_list(owner))["capture_token"])
@@ -654,6 +661,7 @@ def get_session(request: Request, response: Response):
         },
         "brains": [{k: b[k] for k in ("id", "name", "folder", "status")} for b in brain.brains(owner)],
         "apps": row["apps"],  # the apps turned on (lists.apps_on)
+        "ai_tools": lists.ai_tools(owner),  # which AI tools have called: Your AI, the pinned card
         "plan": paid_routes.session_plan(row),
     }
 
@@ -727,7 +735,7 @@ def approve_connect(user_code: str, body: ConnectApproval | None = None, owner: 
 @router.post("/lists")
 def create_list(request: Request, response: Response, body: ListCreate | None = None):
     """Create a list and sign this browser in to it. The answer carries the
-    agent link (the app shows it again under Connect); the session is only in
+    agent link (the app shows it again on Your AI); the session is only in
     the cookie."""
     _same_origin(request)
     if sessions.resolve(request.cookies.get(sessions.COOKIE)) is not None:
@@ -735,7 +743,10 @@ def create_list(request: Request, response: Response, body: ListCreate | None = 
         raise HTTPException(
             status_code=409,
             headers=_NO_STORE,
-            detail=("This browser is already signed in to a list. Sign out under Connect to make another."),
+            detail=(
+                "This browser is already signed in to a list. Sign out in "
+                f"{apps.settings_page(settings.app_for(request))} to make another."
+            ),
         )
     if not create_limiter.allow(client_ip(request)):
         raise _too_many()

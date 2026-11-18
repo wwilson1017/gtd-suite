@@ -686,7 +686,7 @@ def test_total_caps_over_http(client, new_list, monkeypatch):
     res = c.post(f"{api}/todos", json={"title": "c"})
     # The detail is the sentence the app shows (and what its "add your email" banner keys on).
     assert res.status_code == 400 and res.json()["detail"] == (
-        "This list holds 2 todos until an email is confirmed under Connect. Nothing was changed."
+        "This list holds 2 todos until an email is confirmed in Settings (Connect, in Simple Sites and Common Brain). Nothing was changed."
     )
     assert client.post(f"/api/c/{made['capture_token']}", json={"text": "d"}).status_code == 400
     assert c.post(f"{api}/projects", json={"name": "Q"}).status_code == 400

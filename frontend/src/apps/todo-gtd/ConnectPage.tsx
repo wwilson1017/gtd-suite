@@ -1,7 +1,8 @@
 import { BASE } from '../../core/app';
-// Todo GTD — Connect (the ⚙ in the shell): the agent link and how to point an AI
-// tool at the list, the capture link, the list's name, email and time zone,
-// signing in on another device, and signing this one out.
+// Todo GTD — Settings (the ⚙ in the shell, at /connect): how the app looks, the apps,
+// the capture link, the list's name, email and time zone, signing in on another device,
+// and signing this one out. Connecting an AI has its own page, Your AI
+// (components/YourAI.tsx), which shows the AgentLink card defined here.
 import { useEffect, useId, useMemo, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useLocation } from 'react-router-dom';
@@ -23,6 +24,7 @@ import {
 } from './api';
 import { BRAIN_TICKLE_PROMPT, pastePrompt } from './clients';
 import { ClientSteps } from './components/ClientSteps';
+import { ClientTabs } from './components/ClientTabs';
 import { ConnectAnimation } from './components/ConnectAnimation';
 import { CopyButton } from './components/CopyButton';
 import { LinkCard } from './components/LinkCard';
@@ -42,7 +44,7 @@ const btnCls =
   'shrink-0 rounded-lg border border-line bg-cream px-3 py-2 text-sm font-heading text-charcoal hover:bg-sand disabled:opacity-40';
 /** A copyable text snippet (the paste message, the brain tickle), beside its CopyButton. */
 const snippetCls =
-  'min-w-0 flex-1 select-all whitespace-pre-wrap rounded-lg border border-line bg-sand px-3 py-2 font-sans text-xs text-charcoal';
+  'min-w-0 flex-1 select-all whitespace-pre-wrap break-words rounded-lg border border-line bg-sand px-3 py-2 font-sans text-xs text-charcoal';
 
 type Saved = { kind: 'idle' | 'saving' | 'saved' } | { kind: 'error'; text: string };
 
@@ -298,8 +300,9 @@ const REACHES: Record<string, string[]> = {
 
 /** The agent link, always on show, with the per-tool setup filled in with it.
  *  A signed-in browser can read and change everything, so showing the agent
- *  link here gives away nothing it did not already have. */
-export function AgentLink() {
+ *  link here gives away nothing it did not already have. `tabs`: the tools as
+ *  pick-your-AI tabs (Your AI) instead of one disclosure each. */
+export function AgentLink({ tabs = false }: { tabs?: boolean }) {
   const [url, setUrl] = useState('');
   const apps = useSession().session?.apps ?? [];
   const reaches = new Intl.ListFormat('en').format(apps.flatMap((key) => REACHES[key] ?? []));
@@ -346,7 +349,7 @@ export function AgentLink() {
         add the link once in the app&rsquo;s connector settings to write too. Coding tools take it as an MCP server.
         Pick yours; your agent link is filled in.
       </p>
-      <ClientSteps url={url} />
+      {tabs ? <ClientTabs url={url} /> : <ClientSteps url={url} />}
     </LinkCard>
   );
 }
@@ -524,8 +527,6 @@ export function ConnectPage() {
             <TriageLayoutToggle />
           </div>
         </section>
-
-        <AgentLink />
 
         <OtherApps />
 

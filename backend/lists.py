@@ -21,7 +21,9 @@ everything, and it is the only thing that can fetch them.
 import datetime
 import hashlib
 import json
+import logging
 import secrets
+import sqlite3
 import string
 
 from backend.paid import caps as paid_caps
@@ -31,6 +33,10 @@ from backend import apps, common, db, lifecycle, sessions, settings
 # markdown pass escapes or italicises, so a pasted link survives a round trip as text.
 _TOKEN_ALPHABET, _TOKEN_LENGTH = string.ascii_letters + string.digits, 43
 _TOUCH_INTERVAL_SECONDS = 3600
+# AI tools remembered per account (seen_ai): a name is the tool's own say-so, so it is capped.
+MAX_AI_TOOLS = 50
+
+logger = logging.getLogger(__name__)
 
 
 def mint_token() -> str:
@@ -340,3 +346,68 @@ def touch(list_id: int) -> None:
         return
     with db.transaction() as conn:
         conn.execute("UPDATE lists SET last_used_at = ? WHERE id = ?", (common.now_iso(), list_id))
+
+
+def seen_ai(list_id: int, name: str | None) -> None:
+    """Record that an AI tool's call on the agent link succeeded (mcp_server._AppsOn and
+    agent_cmd.dispatch decide what counts): which tools have called the account and when
+    each last did, for the person's Your AI page. Not sync state: nothing but that page
+    reads it. `name` is the tool's own claim, untrusted: cleaned, shown as text, never
+    logged; a tool that gives none is stored as ''. A new name is written at once, until
+    the account holds MAX_AI_TOOLS; after that only the names it knows are stamped.
+
+    # simplification: hour-granular like touch, so the page says a day, never a time
+    """
+    name = common.clean_source_client(name) or ""
+    try:
+        row = (
+            db.get_db()
+            .execute("SELECT last_seen_at FROM ai_tools WHERE list_id = ? AND name = ?", (list_id, name))
+            .fetchone()
+        )
+        now = common.utcnow()
+        stale_before = common.to_iso(now - datetime.timedelta(seconds=_TOUCH_INTERVAL_SECONDS))
+        if row and row["last_seen_at"] and row["last_seen_at"] >= stale_before:
+            return
+        at = common.to_iso(now)
+        with db.transaction() as conn:
+            known = conn.execute(
+                "UPDATE ai_tools SET last_seen_at = ? WHERE list_id = ? AND name = ?", (at, list_id, name)
+            ).rowcount
+            held = conn.execute("SELECT COUNT(*) FROM ai_tools WHERE list_id = ?", (list_id,)).fetchone()[0]
+            if not known and held < MAX_AI_TOOLS:
+                conn.execute(
+                    "INSERT INTO ai_tools (list_id, name, first_seen_at, last_seen_at) VALUES (?, ?, ?, ?)",
+                    (list_id, name, at, at),
+                )
+    except sqlite3.Error as e:
+        # The call this records has already been answered for: a stamp that fails (a busy
+        # database) must not turn that answer into an error the tool would retry.
+        logger.warning("an AI tool's call was not recorded: %s", type(e).__name__)
+
+
+def ai_tools(list_id: int) -> list[dict]:
+    """The AI tools that have called the account, the latest caller first: each one's name
+    ('' when it gave none), the day it last called in the list's time zone and how many
+    calendar days ago that was. Both are None for a tool known only from what it wrote
+    before the record began (db._fill_ai_tools)."""
+    rows = (
+        db.get_db()
+        .execute(
+            "SELECT name, last_seen_at, (SELECT tz FROM lists WHERE id = ai_tools.list_id) AS tz FROM ai_tools "
+            "WHERE list_id = ? ORDER BY last_seen_at IS NULL, last_seen_at DESC, first_seen_at, name",
+            (list_id,),
+        )
+        .fetchall()
+    )
+    out = []
+    for row in rows:
+        day = common.local_date(row["last_seen_at"], row["tz"]) if row["last_seen_at"] else None
+        out.append(
+            {
+                "name": row["name"],
+                "last_used": day.isoformat() if day else None,
+                "days_ago": max(0, (common.business_today(row["tz"]) - day).days) if day else None,
+            }
+        )
+    return out

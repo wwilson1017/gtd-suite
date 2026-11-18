@@ -159,7 +159,7 @@ export function NotesPage({ status }: { status: Note['status'] }) {
               ? 'No notes match.'
               : archive
                 ? 'Nothing archived.'
-                : 'No notes yet. Take one above, or connect your AI under Connect so it can keep notes here too.'}
+                : 'No notes yet. Take one above, or connect your AI under Your AI so it can keep notes here too.'}
           </p>
         )}
         {pinned.length > 0 && (
