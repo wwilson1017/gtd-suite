@@ -39,12 +39,31 @@ from backend import apps
 _origin: ContextVar[str] = ContextVar("request_origin", default="")
 
 
+def old_url(app: str) -> str:
+    """A family app's own host on the hosted service: an old address. The app lives at its
+    path on the main address; the host keeps answering for the agent links handed out there
+    and for the browsers signed in there. "" for every other app, and for a self-hosted
+    install, where a configured host stays the app's one address."""
+    if app == apps.ANCHOR or app not in apps.FAMILY or not open_signup() or not configured_base_url():
+        return ""
+    return app_base_url(app)
+
+
+def moved_to(request: Request) -> str:
+    """Where this request's app lives now, when the request came in on its old host."""
+    if request.scope.get("app_prefix"):
+        return ""
+    app = app_for(request)
+    return app_url(app) if old_url(app) else ""
+
+
 def app_url(app: str, request: Request | None = None) -> str:
-    """Where an app is reached: its configured address, else its path on the main address.
+    """Where an app is reached: its configured address, else its path on the main address
+    (a family app's configured host on the hosted service is an old address: old_url).
     With no address configured at all, the main address is the request's own, and only
     when the request came in on the main host: another app's host serves no paths."""
     own = app_base_url(app)
-    if own:
+    if own and not old_url(app):
         return own
     if request is None:
         origin = configured_base_url() or _origin.get()
@@ -198,10 +217,14 @@ def base_url(request: Request) -> str:
     """What every generated link (agent, capture, sign-in) starts with: the
     request's app's configured address or its path on the main address (falling
     back to the request origin when unconfigured). Sign-in mail
-    never uses the fallback: see signin.py."""
+    never uses the fallback: see signin.py. On an old host (old_url) links keep
+    starting with that host, so nothing handed out there changes."""
     if on_short_host(request):  # only pages are served there (main.py), so only for _same_origin
         return sites_short_url()
-    return app_url(app_for(request), request)
+    app = app_for(request)
+    if not request.scope.get("app_prefix") and (old := old_url(app)):
+        return old
+    return app_url(app, request)
 
 
 def cookie_secure() -> bool:

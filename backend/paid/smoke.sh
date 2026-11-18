@@ -27,8 +27,13 @@ else
   failed=1
 fi
 check_status GET "$base/api/config" 200
-for host in todogtd.com projectsgtd.com notesgtd.com commonbrain.ai simplesites.app; do
+for host in todogtd.com commonbrain.ai simplesites.app; do
   check_status GET "https://$host/" 200
+done
+# Notes and Projects live at the main address; their old hosts send a signed-out visitor there.
+for app in notes projects; do
+  check_status GET "https://todogtd.com/$app" 200
+  check_status GET "https://${app}gtd.com/" 303
 done
 check_status GET https://ss.page/ 302
 check_status POST "$base/mcp" 401

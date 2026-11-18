@@ -279,9 +279,24 @@ describe('the boot path', () => {
     async () => {
       overrides['/api/app/session'] = { status: 200, body: { ...SESSION, apps: ['projects'] } };
       overrides['/api/app/apps/todo'] = { status: 200, body: { apps: ['todo', 'projects'] } };
+      overrides['/api/config'] = {
+        status: 200,
+        body: {
+          ...answer('/api/config').body!,
+          app: 'todo',
+          apps: {
+            todo: { title: 'Todo GTD', url: 'https://main.example' },
+            projects: { title: 'Projects GTD', url: 'https://main.example/projects' },
+          },
+        },
+      };
       await bootApp();
       await settle('Turn on Todo GTD');
       expect(host.textContent).not.toContain('Inbox');
+      // The app bar stays, so a tab that led to an app that is off is not a dead end.
+      const tabs = [...host.querySelectorAll('nav[aria-label="Apps"] > *')];
+      expect(tabs.map((t) => t.textContent)).toEqual(['Todo', 'Projects']);
+      expect(tabs[1].getAttribute('href')).toBe('https://main.example/projects/app#from=todo.7');
       expect(requests().some((r) => r.path === '/api/app/today')).toBe(false);
 
       const button = [...host.querySelectorAll('button')].find((b) => b.textContent === 'Turn on Todo GTD')!;

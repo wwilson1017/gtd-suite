@@ -220,18 +220,20 @@ def test_the_board_api_round_trip(new_list):
     assert other["client"].get(f"{api}/boards/{board['id']}").status_code == 404
 
 
-def test_projects_host_serves_the_projects_app(client, built, new_list, monkeypatch):
+def test_projects_is_served_at_its_path_and_on_its_old_host(client, built, new_list, monkeypatch):
     monkeypatch.setenv("PUBLIC_BASE_URL", "https://todo.example")
     monkeypatch.setenv("PROJECTS_BASE_URL", "https://projects.example")
     on_projects = {"Host": "projects.example"}
-    page = client.get("/", headers=on_projects).text
+    page = client.get("/projects").text
     assert '<meta name="gtd-app" content="projects">' in page and "<title>Projects GTD</title>" in page
-    # The same account's agent link, on the Projects address; and the way across.
+    # The same account's agent link on the Projects host, as it always was there; the
+    # way across from Todo goes to the path.
     made = new_list()
     c = made["client"]
     url = c.get("/api/app/agent-link", headers=on_projects).json()["url"]
     assert url.startswith("https://projects.example/") and url.endswith(made["agent_token"])
-    assert c.post("/api/app/signin-link?app=projects").json()["url"].startswith("https://projects.example/signin/")
+    way = c.post("/api/app/signin-link?app=projects").json()["url"]
+    assert way.startswith("https://todo.example/projects/signin/")
 
 
 # ── The agent link ────────────────────────────────────────────────────────────

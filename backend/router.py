@@ -684,6 +684,8 @@ def get_config(request: Request, response: Response):
             for key, app in apps.APPS.items()
             if (url := settings.app_url(key, request))
         },
+        # On an app's old host: where it lives now ("" anywhere else). The page offers the way over.
+        "moved": settings.moved_to(request),
         # Where Simple Sites hands its addresses out, when that is not its own host.
         "sites_short_host": urlsplit(settings.sites_short_url()).netloc,
     }
@@ -746,7 +748,7 @@ def create_list(request: Request, response: Response, body: ListCreate | None = 
         only_if_none=not settings.open_signup(),
         app=settings.app_for(request),
         connect=body.connect,
-    )  # it starts with this host's app on
+    )  # its starting apps follow the app it was made in (lists.create_list)
     if created is None:
         raise HTTPException(status_code=409, detail="This list is already set up.", headers=_NO_STORE)
     sessions.set_cookie(response, created["session_token"])

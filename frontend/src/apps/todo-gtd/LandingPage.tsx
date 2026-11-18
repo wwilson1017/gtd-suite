@@ -5,6 +5,7 @@ import { lazy, Suspense, useId, useState, type ReactNode } from 'react';
 import { ApiError, apiErrorMessage } from '../../core/api/client';
 import { BASE, APP } from '../../core/app';
 import { createList, requestSignIn, resetAccess } from './api';
+import { Logo } from './components/Logo';
 import { PageFrame } from './components/PageFrame';
 import { useConfig } from './useConfig';
 
@@ -313,10 +314,11 @@ export function LandingPage() {
           </>
         }
         points={NOTE_POINTS}
+        partOf={config?.apps.todo?.url}
         footnote={
           <>
-            Already use Todo GTD? Open Notes from Connect there: it is the same account and the same agent link. Nothing
-            is ever deleted: notes are archived, and you can bring them back.
+            Already use Todo GTD? Notes is a tab at the top there: the same account and the same agent link. Nothing is
+            ever deleted: notes are archived, and you can bring them back.
           </>
         }
         demo={
@@ -353,6 +355,7 @@ export function LandingPage() {
           </>
         }
         points={PROJECT_POINTS}
+        partOf={config?.apps.todo?.url}
         footnote={
           <>
             Already use Todo GTD, Notes or Sites? It is the same account and the same agent link: open Projects from
@@ -456,7 +459,8 @@ const bandBtn =
   'rounded-lg bg-white px-6 py-3 font-heading text-lg font-semibold text-band hover:bg-band-hover disabled:opacity-40';
 
 /** An app's front door: the band with its pitch, its points and a working demo
- *  beside them. `children` is the way in (the button); `signIn` closes the column. */
+ *  beside them. `children` is the way in (the button); `signIn` closes the column.
+ *  `partOf` is Todo GTD's address, on the apps that live inside it. */
 function FrontDoor({
   title,
   lead,
@@ -465,6 +469,7 @@ function FrontDoor({
   demo,
   signIn,
   children,
+  partOf,
   eyebrow = 'Free \u00b7 one click \u00b7 nothing to install',
 }: {
   title: string;
@@ -474,12 +479,22 @@ function FrontDoor({
   demo: ReactNode;
   signIn: ReactNode;
   children: ReactNode;
+  partOf?: string;
   eyebrow?: string;
 }) {
   return (
     <PageFrame wide>
       <div className="grid gap-x-16 gap-y-10 rounded-3xl bg-band bg-[radial-gradient(520px_circle_at_100%_0,var(--color-band-glow),transparent)] px-5 py-10 text-band-text lg:grid-cols-[minmax(0,1fr)_400px] lg:rounded-[32px] lg:px-14 lg:py-16">
         <div className="min-w-0">
+          {partOf && (
+            <a
+              href={partOf}
+              className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/10 py-1 pl-1.5 pr-3 text-sm font-semibold text-white hover:bg-white/20"
+            >
+              <Logo app="todo" className="h-5 w-5" />
+              Part of Todo GTD
+            </a>
+          )}
           <p className="text-[13px] font-bold uppercase tracking-widest text-band-accent">{eyebrow}</p>
           <h1 className="mt-2 text-balance font-heading text-4xl font-bold tracking-tight text-white lg:text-5xl">
             {title}

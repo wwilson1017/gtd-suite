@@ -8,8 +8,10 @@
 //   there. That page asks for one press, as every sign-in link does: no hop signs a
 //   browser in by itself.
 // Every address comes from the server's own list (config.apps), never from the URL.
+import { useEffect, useState } from 'react';
 import { APP } from '../../core/app';
 import { createSignInLink, getConfig, type AppConfig } from './api';
+import { useSession } from './session';
 
 let asked: Promise<AppConfig> | null = null;
 let known: AppConfig | null = null;
@@ -34,8 +36,36 @@ export function knownSuite(): AppConfig | null {
   return known;
 }
 
+/** The config for a component: null until it has arrived (and if it cannot be read). */
+export function useSuite(): AppConfig | null {
+  const [config, setConfig] = useState(knownSuite);
+  useEffect(() => {
+    let live = true;
+    suiteConfig().then(
+      (c) => {
+        if (live) setConfig(c);
+      },
+      () => {},
+    );
+    return () => {
+      live = false;
+    };
+  }, []);
+  return config;
+}
+
 export function hopHref(url: string, listId: number): string {
   return `${url}/app#from=${APP}.${listId}`;
+}
+
+/** A link that opens another app on this account, or null where there is none to
+ *  offer: the app has no address on this server, or this page is on an app's old
+ *  address (config.moved), which a hop could not come back to. */
+export function useAppHref(app: string): string | null {
+  const config = useSuite();
+  const listId = useSession().session?.list_id ?? null;
+  const url = config?.apps[app]?.url;
+  return !config || config.moved || !url || listId === null ? null : hopHref(url, listId);
 }
 
 export type Hop = { from: string; list: number } | { to: string };

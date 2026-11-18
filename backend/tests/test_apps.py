@@ -8,7 +8,7 @@ import pytest
 from fastmcp.exceptions import ToolError
 
 from backend import apps, cleanup, common, db, lists, notes, pages, signin
-from backend.tests.conftest import turn_on
+from backend.tests.conftest import only, turn_on
 from backend.tests.test_mcp import anyio_backend, app, connect, http, link  # noqa: F401 (fixtures)
 from backend.tests.test_pages import built  # noqa: F401  (fixture)
 
@@ -26,7 +26,9 @@ def test_the_host_picks_the_app_and_its_links(suite, client, built):
     on_notes = {"Host": "notes.example"}
     assert client.get("/api/config", headers=on_notes).json()["app"] == "notes"
     assert client.get("/api/config").json()["app"] == "todo"
-    page = client.get("/", headers=on_notes).text
+    # With open signup Notes lives at the main address's /notes (test_one_address.py has
+    # what its own host does now).
+    page = client.get("/notes").text
     assert '<meta name="gtd-app" content="notes">' in page
     assert "<title>Notes GTD</title>" in page
     assert '<html lang="en" data-app="notes">' in page  # its colours from the first paint
@@ -62,7 +64,7 @@ def test_a_host_with_no_configured_address_is_the_anchor(suite, client, monkeypa
 def test_config_lists_every_app_with_its_reachable_address(suite, client):
     assert client.get("/api/config").json()["apps"] == {
         "todo": {"title": "Todo GTD", "url": "https://todo.example"},
-        "notes": {"title": "Notes GTD", "url": NOTES},
+        "notes": {"title": "Notes GTD", "url": "https://todo.example/notes"},
         "projects": {"title": "Projects GTD", "url": "https://todo.example/projects"},
         "sites": {"title": "Simple Sites", "url": "https://todo.example/sites"},
         "brain": {"title": "Common Brain", "url": "https://todo.example/brain"},
@@ -71,7 +73,7 @@ def test_config_lists_every_app_with_its_reachable_address(suite, client):
 
 def test_a_signin_link_can_be_for_another_app(suite, new_list):
     c = new_list()["client"]
-    assert c.post("/api/app/signin-link?app=notes").json()["url"].startswith(f"{NOTES}/signin/")
+    assert c.post("/api/app/signin-link?app=notes").json()["url"].startswith("https://todo.example/notes/signin/")
     assert c.post("/api/app/signin-link").json()["url"].startswith("https://todo.example/signin/")
     assert c.post("/api/app/signin-link?app=nope").status_code == 404
 
@@ -127,7 +129,8 @@ def two(app, monkeypatch):
     before the switch, and a new one made on todo's host), one with Projects on too."""
     monkeypatch.setenv("PROJECTS_BASE_URL", "https://projects.example")
     todo_only, both = lists.create_list("UTC"), lists.create_list("UTC")
-    turn_on(both["list_id"], "projects")
+    only(todo_only["list_id"], "todo")
+    only(both["list_id"], "todo", "projects")
     return todo_only, both
 
 
@@ -208,19 +211,27 @@ def made_on(create, host: str | None = None) -> list[str]:
     return lists.apps_on(lists.resolve_agent(res.json()["agent_token"]))
 
 
-def test_a_list_made_on_an_apps_host_starts_with_that_app_on(suite, create):
-    assert made_on(create, "notes.example") == ["notes"]
-    assert made_on(create) == ["todo"]
+FAMILY = ["todo", "projects", "notes"]  # apps.FAMILY, in the registry's order
 
 
-def test_a_list_made_on_an_unknown_or_unconfigured_host_has_the_anchor_on(suite, create, monkeypatch):
-    assert made_on(create, "elsewhere.example") == ["todo"]
+def test_a_hosted_list_made_in_a_family_app_starts_with_the_family(suite, create, monkeypatch):
+    assert made_on(create) == made_on(create, "notes.example") == FAMILY
+    # An unknown host, or one no longer configured, is the anchor's.
+    assert made_on(create, "elsewhere.example") == FAMILY
     monkeypatch.delenv("NOTES_BASE_URL")
-    assert made_on(create, "notes.example") == ["todo"]
+    assert made_on(create, "notes.example") == FAMILY
+
+
+def test_a_hosted_list_made_in_sites_or_brain(suite, create, monkeypatch):
+    monkeypatch.setenv("SITES_BASE_URL", "https://sites.example")
+    monkeypatch.setenv("BRAIN_BASE_URL", "https://brain.example")
+    assert made_on(create, "sites.example") == ["sites"]
+    assert made_on(create, "brain.example") == list(apps.APPS)
 
 
 def test_signing_in_on_an_apps_host_turns_it_on(suite, new_list, client):
     made = new_list()
+    only(made["list_id"], "todo")
     url = made["client"].post("/api/app/signin-link?app=notes").json()["url"]
     client.cookies.clear()
     res = client.post(f"/api/signin/{url.rsplit('/', 1)[1]}", headers={"Host": "notes.example"})
@@ -231,6 +242,7 @@ def test_signing_in_on_an_apps_host_turns_it_on(suite, new_list, client):
 def test_apps_turns_an_app_on_and_off(suite, new_list, monkeypatch):
     made = new_list()
     c, lid = made["client"], made["list_id"]
+    only(lid, "todo")
     assert c.put("/api/app/apps/notes", json={"on": True}).json() == {"apps": ["todo", "notes"]}
     assert c.get("/api/app/session").json()["apps"] == ["todo", "notes"]
     assert c.put("/api/app/apps/todo", json={"on": False}).json() == {"apps": ["notes"]}

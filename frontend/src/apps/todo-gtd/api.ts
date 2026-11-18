@@ -294,6 +294,8 @@ export interface AppConfig extends PaidConfig {
   /** This page's app (backend/apps.py), and every app with an address: the way across. */
   app: string;
   apps: Record<string, { title: string; url: string }>;
+  /** Where this app lives now, when this page is on the app's old address ("" otherwise). */
+  moved?: string;
   /** The host Simple Sites hands its addresses out on, when not its own ("" then). */
   sites_short_host?: string;
 }
