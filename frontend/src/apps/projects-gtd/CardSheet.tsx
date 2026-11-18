@@ -7,6 +7,7 @@ import { formatAge } from '../todo-gtd/util';
 import {
   boostCard,
   boostItem,
+  CARD_CHANGED,
   cardThread,
   commentOnCard,
   completeItem,
@@ -497,10 +498,7 @@ export function CardSheet({ card: opened, board, onClose, reload, buttons = [] }
       if (e instanceof ApiError && e.status === 409) {
         const fresh = (await reload())?.columns.flatMap((c) => c.cards).find((c) => c.id === card.id);
         if (fresh) adopt(fresh, true);
-        setNote(
-          'This card changed somewhere else (your AI, or another device). Showing the latest; ' +
-            'make your change again.',
-        );
+        setNote(CARD_CHANGED);
       } else {
         setNote(apiErrorMessage(e, 'Could not save. Try again.'));
       }

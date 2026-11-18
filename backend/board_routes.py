@@ -150,8 +150,18 @@ def update_card(card_id: int, body: CardUpdate, owner: int = Depends(active_owne
 
 @router.post("/cards/{card_id}/move")
 def move_card(card_id: int, body: CardMove, owner: int = Depends(active_owner)):
+    """409 when ``version`` is given and the card has changed since."""
     column = body.column_id if body.column_id is not None else "triage"
-    return _call(boards.move_card, owner, card_id, column, body.position, body.project_id, on_hold=body.on_hold)
+    return _call(
+        boards.move_card,
+        owner,
+        card_id,
+        column,
+        body.position,
+        body.project_id,
+        on_hold=body.on_hold,
+        version=body.version,
+    )
 
 
 @router.get("/card-templates")

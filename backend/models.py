@@ -234,6 +234,7 @@ class CardMove(BaseModel):
     project_id: int | None = None  # another project
     position: int | str | None = None
     on_hold: bool | None = None
+    version: int | None = None  # the card's version as last read; an older one is a 409
 
 
 class RuleCreate(BaseModel):
