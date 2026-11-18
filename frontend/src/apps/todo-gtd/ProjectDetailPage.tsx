@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { createTodo, listProjects, listTodos, updateProject } from './api';
+import { createProjectLink, createTodo, listProjects, listTodos, updateProject } from './api';
 import { PROJECT_STATUSES } from './constants';
+import { useCrossAppHref } from './hop';
+import { linkShown, useProjectLinks } from './projectLinks';
 import { todoPath } from './publicMode';
 import { updateProjectStatus } from './projectActions';
 import { isTypingTarget, projectNeighbours } from './projectNav';
+import { Logo } from './components/Logo';
 import { TodoEditSheet } from './components/TodoEditSheet';
 import { TodoRow } from './components/TodoRow';
 import { useRowActions, useTodosChanged } from './hooks';
@@ -25,13 +28,17 @@ const WHY_AND_WHAT: { field: 'purpose' | 'outcome'; heading: string; placeholder
   { field: 'outcome', heading: 'Outcome', placeholder: 'What does done look like?' },
 ];
 
+const FINISHED = 'Finished';
 const GROUPS: { title: string; match: (t: Todo) => boolean }[] = [
   { title: 'Next actions', match: (t) => t.status === 'next_action' },
   { title: 'Waiting / Delegated', match: (t) => t.status === 'waiting_for' || t.status === 'delegated' },
   { title: 'Someday', match: (t) => t.status === 'someday_maybe' },
   { title: 'Inbox', match: (t) => t.status === 'inbox' },
-  { title: 'Finished', match: (t) => t.status === 'done' || t.status === 'dropped' },
+  { title: FINISHED, match: (t) => t.status === 'done' || t.status === 'dropped' },
 ];
+
+/** The tint of what points at Projects GTD from here: its teal, as the page's other callouts are tinted. */
+const PROJECTS_TINT = 'border-teal-300 bg-teal-50 dark:border-teal-800 dark:bg-teal-950/30';
 
 export function ProjectDetailPage() {
   const { id } = useParams();
@@ -107,6 +114,26 @@ export function ProjectDetailPage() {
 
   const { toggleDone, toggleStar, after } = useRowActions(reload);
 
+  // Its home in Projects GTD: the link when it has one, and the way to make one.
+  const { links, add: addLink } = useProjectLinks();
+  const link = links?.find((l) => l.project_id === projectId) ?? null;
+  const projectsHref = useCrossAppHref('projects');
+  const [givingHome, setGivingHome] = useState(false);
+  // Tagged with its project: the previous / next arrows keep this page mounted.
+  const [homeRefused, setHomeRefused] = useState<{ project: number; why: string } | null>(null);
+  const homeError = homeRefused?.project === projectId ? homeRefused.why : '';
+  const giveHome = async () => {
+    setGivingHome(true);
+    setHomeRefused(null);
+    try {
+      addLink(await createProjectLink(projectId));
+    } catch (e) {
+      setHomeRefused({ project: projectId, why: apiErrorMessage(e, 'Could not make it. Try again.') });
+    } finally {
+      setGivingHome(false);
+    }
+  };
+
   const addNextAction = async () => {
     const title = newAction.trim();
     if (!title) return;
@@ -178,6 +205,13 @@ export function ProjectDetailPage() {
 
   const open = (todos ?? []).filter((t) => !['done', 'dropped'].includes(t.status));
   const hasNext = open.some((t) => t.status === 'next_action');
+  const homeHref = project && linkShown(link, project.status) ? projectsHref(`/p/${link.board_id}/overview`) : null;
+  // Offered only where the way there can be shown afterwards, and not on a closed project.
+  const offerHome =
+    links !== null &&
+    !link &&
+    projectsHref('') !== null &&
+    (project?.status === 'active' || project?.status === 'someday');
 
   return (
     <TodoShell active="projects" onAdded={reload}>
@@ -336,6 +370,20 @@ export function ProjectDetailPage() {
             </p>
           )}
 
+          {homeHref && (
+            <p
+              className={`mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border px-3 py-2 text-sm text-charcoal ${PROJECTS_TINT}`}
+            >
+              <Logo app="projects" className="h-5 w-5 shrink-0" />
+              <span className="min-w-0 flex-1">
+                <strong>Board, files and messages</strong> are in Projects GTD
+              </span>
+              <a href={homeHref} className="shrink-0 font-heading font-semibold text-projects-ink hover:underline">
+                Open <span aria-hidden="true">→</span>
+              </a>
+            </p>
+          )}
+
           {project.status === 'active' && !hasNext && (
             <p className="mt-3 rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 px-3 py-2 text-sm text-charcoal">
               This active project has <strong>no next action</strong> — decide the very next physical step, or it will
@@ -368,22 +416,50 @@ export function ProjectDetailPage() {
           <div className="mt-5 space-y-6">
             {GROUPS.map(({ title, match }) => {
               const items = todos.filter(match);
-              if (items.length === 0) return null;
               return (
-                <section key={title}>
-                  <h3 className="mb-2 text-xs font-heading font-bold uppercase tracking-wide text-muted">{title}</h3>
-                  <div className="space-y-2">
-                    {items.map((t) => (
-                      <TodoRow
-                        key={t.id}
-                        todo={t}
-                        onToggleDone={toggleDone}
-                        onToggleStar={toggleStar}
-                        onEdit={setEditTodo}
-                      />
-                    ))}
-                  </div>
-                </section>
+                <Fragment key={title}>
+                  {/* Under the working lists, above the finished ones, which only grow. */}
+                  {title === FINISHED && offerHome && (
+                    <section className={`rounded-xl border px-4 py-3 ${PROJECTS_TINT}`}>
+                      <h3 className="font-heading font-semibold text-charcoal">Outgrowing a list?</h3>
+                      <p className="mt-0.5 text-sm text-muted">
+                        Give this project a board, files and messages. Your to-dos stay here.
+                      </p>
+                      <button
+                        type="button"
+                        disabled={givingHome}
+                        onClick={() => void giveHome()}
+                        className="mt-3 inline-flex items-center gap-2 rounded-lg bg-teal-700 px-3 py-1.5 text-sm font-heading font-semibold text-white hover:bg-teal-800 disabled:opacity-40"
+                      >
+                        <Logo app="projects" className="h-5 w-5" />
+                        Give it a home in Projects GTD
+                      </button>
+                      {homeError && (
+                        <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">
+                          {homeError}
+                        </p>
+                      )}
+                    </section>
+                  )}
+                  {items.length > 0 && (
+                    <section>
+                      <h3 className="mb-2 text-xs font-heading font-bold uppercase tracking-wide text-muted">
+                        {title}
+                      </h3>
+                      <div className="space-y-2">
+                        {items.map((t) => (
+                          <TodoRow
+                            key={t.id}
+                            todo={t}
+                            onToggleDone={toggleDone}
+                            onToggleStar={toggleStar}
+                            onEdit={setEditTodo}
+                          />
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                </Fragment>
               );
             })}
           </div>

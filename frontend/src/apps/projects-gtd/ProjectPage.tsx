@@ -1,9 +1,15 @@
 // Projects GTD — a project's Overview tab, showing the project home: who's in it
 // and the ••• menu on top, its description, dates and status, the latest activity,
-// then a card for each tool with a live preview, and the dashed "+" that adds one.
+// the next actions of the Todo project it is the home of (when it is one's), then a
+// card for each tool with a live preview, and the dashed "+" that adds one.
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { apiErrorMessage } from '../../core/api/client';
+import { listTodos } from '../todo-gtd/api';
+import { Logo } from '../todo-gtd/components/Logo';
+import { useCrossAppHref } from '../todo-gtd/hop';
+import { useSession } from '../todo-gtd/session';
+import type { Todo } from '../todo-gtd/types';
 import { getActivity, getMuted, getProject, setBookmark, setDock, setMuted, updateBoard } from './api';
 import { DatesEditor, scheduleText } from './CheckinsPage';
 import { Hill } from './HillChart';
@@ -317,6 +323,71 @@ function AddTool({ dock, onAdd }: { dock: DockEntry[]; onAdd: (tool: Tool) => vo
   );
 }
 
+/** "Next actions, from Todo": on a project that is the home of a Todo project
+ *  (backend/project_links.py), that project's open next actions and the way back to
+ *  it. They are read from Todo and stay there; deferred ones are left out, as on
+ *  Todo's working lists. Nothing for a dropped Todo project, or with Todo off. */
+export function TodoNextActions({ project }: { project: Project }) {
+  const todoOn = useSession().session?.apps.includes('todo') ?? false;
+  const linked = project.todo_project;
+  return todoOn && linked && linked.status !== 'dropped' ? (
+    <NextActions key={linked.id} todoProjectId={linked.id} />
+  ) : null;
+}
+
+function NextActions({ todoProjectId }: { todoProjectId: number }) {
+  const [todos, setTodos] = useState<Todo[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  const todoHref = useCrossAppHref('todo')(`/projects/${todoProjectId}`);
+  useEffect(() => {
+    let live = true;
+    listTodos({ project: String(todoProjectId), status: 'next_action' }).then(
+      (found) => {
+        if (live) setTodos(found);
+      },
+      () => {
+        if (live) setFailed(true);
+      },
+    );
+    return () => {
+      live = false;
+    };
+  }, [todoProjectId]);
+  return (
+    <section
+      aria-label="Next actions, from Todo"
+      className="mt-6 rounded-xl border border-bc-line bg-bc-canvas px-4 py-3"
+    >
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <Logo app="todo" className="h-5 w-5 shrink-0" />
+        <h2 className="text-[13px] font-bold uppercase tracking-wider text-bc-subtle">Next actions</h2>
+        <span className="text-[13px] text-bc-subtle">from Todo</span>
+        {todoHref && (
+          <a href={todoHref} className="ml-auto text-[14px] text-bc-blue underline">
+            Open in Todo <span aria-hidden="true">→</span>
+          </a>
+        )}
+      </div>
+      {failed ? (
+        <p className="mt-2 text-[15px] text-bc-subtle">Could not load them.</p>
+      ) : todos === null ? (
+        <p className="mt-2 text-[15px] text-bc-subtle">Loading…</p>
+      ) : todos.length === 0 ? (
+        <p className="mt-2 text-[15px] text-bc-subtle">No next actions in Todo right now.</p>
+      ) : (
+        <ul className="mt-2 divide-y divide-bc-line">
+          {todos.map((t) => (
+            <li key={t.id} className="flex items-baseline gap-2 py-1.5 text-[15px]">
+              <span className="min-w-0 flex-1">{t.title}</span>
+              {t.context && <span className="shrink-0 text-[13px] text-bc-subtle">{t.context}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 export function ProjectPage() {
   const id = Number(useParams().id);
   const [project, setProject] = useState<Project | null>(null);
@@ -587,6 +658,8 @@ export function ProjectPage() {
             </ul>
           </section>
         )}
+
+        <TodoNextActions project={project} />
 
         {on.every((t) => t.tool === 'kanban_board') && (
           <div className="mt-8 max-w-xl">

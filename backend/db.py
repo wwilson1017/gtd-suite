@@ -802,6 +802,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
     31. `ai_tools` (lists.seen_ai): which AI tools have called an account's agent link and
         when each last did. Made here, not in _SCHEMA, so the step knows the table is new
         and fills it once from what the tools already left behind (_fill_ai_tools).
+    32. `project_links`: a new table (project_links.py); no existing project has a link.
     """
     from backend import brain, lists, sites  # here, not at the top: lists imports this module
 
@@ -992,6 +993,17 @@ def _migrate(conn: sqlite3.Connection) -> None:
                     "name TEXT NOT NULL, first_seen_at TEXT NOT NULL, last_seen_at TEXT, PRIMARY KEY (list_id, name))"
                 )
                 _fill_ai_tools(conn)
+            # Step 32: a Todo project and the Projects GTD project made for it, each linked once.
+            # ON DELETE CASCADE: after a rollback, a version that does not know the table can
+            # still delete a list's projects and boards (admin.py delete, restore_list.py).
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS project_links ("
+                "list_id INTEGER NOT NULL REFERENCES lists(id) ON DELETE CASCADE, "
+                "project_id INTEGER NOT NULL UNIQUE REFERENCES projects(id) ON DELETE CASCADE, "
+                "board_id INTEGER NOT NULL UNIQUE REFERENCES boards(id) ON DELETE CASCADE, "
+                "created_at TEXT NOT NULL)"
+            )
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_project_links_list ON project_links(list_id)")
             # After the rebuild: SQLite refuses to drop a table a trigger names.
             for trigger in _rev_triggers():
                 conn.execute(trigger)

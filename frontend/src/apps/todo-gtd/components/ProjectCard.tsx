@@ -1,9 +1,12 @@
 import { Link } from 'react-router-dom';
 import { todoPath } from '../publicMode';
 import type { TodoProject } from '../types';
+import { Logo } from './Logo';
 
 interface Props {
   project: TodoProject;
+  /** It has a home in Projects GTD (a link that shows: projectLinks.ts). */
+  board?: boolean;
   /** True only on the `active` tab and only when the project has no next action. */
   stalled: boolean;
   onCloseOut: (e: React.MouseEvent, p: TodoProject) => void;
@@ -21,7 +24,7 @@ interface Props {
  * content sits above it with `pointer-events-none` so clicks fall through to the link, and only
  * the button opts back in with `pointer-events-auto`. One card, two honest targets, no nesting.
  */
-export function ProjectCard({ project, stalled, onCloseOut }: Props) {
+export function ProjectCard({ project, board = false, stalled, onCloseOut }: Props) {
   const closed = project.status === 'completed' || project.status === 'dropped';
   return (
     <div className="relative rounded-xl border border-line-faint bg-cream p-4 transition hover:border-brand/50">
@@ -36,6 +39,15 @@ export function ProjectCard({ project, stalled, onCloseOut }: Props) {
       <div className="pointer-events-none relative flex flex-wrap items-start justify-between gap-2">
         <p className="min-w-0 break-words font-heading font-semibold text-charcoal">{project.name}</p>
         <div className="flex max-w-full flex-wrap items-center gap-2">
+          {board && (
+            <span
+              title="This project has a board, files and messages in Projects GTD"
+              className="inline-flex items-center gap-1 rounded-full border border-teal-300 bg-teal-50 px-2 py-0.5 text-xs font-semibold text-projects-ink dark:border-teal-800 dark:bg-teal-950/30"
+            >
+              <Logo app="projects" className="h-3.5 w-3.5" />
+              Board
+            </span>
+          )}
           <span className="rounded-full bg-sand px-2 py-0.5 text-xs text-muted">{project.open_count} open</span>
           <button
             type="button"

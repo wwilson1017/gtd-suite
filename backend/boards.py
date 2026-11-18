@@ -499,6 +499,54 @@ def _add_fixed_in(conn, list_id: int, board_id: int, now: str) -> None:
     )
 
 
+def create_board_in(
+    conn,
+    list_id: int,
+    name: str,
+    notes: str = "",
+    columns: list[str] | None = None,
+    *,
+    tools: list[str] | None = None,
+    source: str = "ui",
+    client: str | None = None,
+) -> int:
+    """create_board's checks and writes, inside the caller's transaction, which a
+    caller already in one uses: db.transaction() is not re-entrant, so create_board
+    must never be called there. Returns the new project's id."""
+    name = _name(name)
+    notes = common.validate_notes(notes)
+    columns = [_name(c, "column name") for c in (columns or DEFAULT_COLUMNS)]
+    if len(columns) + len(FIXED) > common.MAX_COLUMNS:
+        raise ValidationError(
+            f"A project has at most {common.MAX_COLUMNS - len(FIXED)} columns besides Triage and Not now"
+        )
+    if len({c.lower() for c in [*columns, *FIXED.values()]}) != len(columns) + len(FIXED):
+        raise ValidationError("Column names must differ (Triage and Not now are there already)")
+    for work in columns[:-1]:
+        _work_name(work)
+    if conn.execute("SELECT 1 FROM boards WHERE list_id = ? AND lower(name) = lower(?)", (list_id, name)).fetchone():
+        raise ValidationError(f'Project "{name}" already exists')
+    _check_cap(conn, list_id, "boards")
+    now = common.now_iso()
+    dock = None if tools is None else json.dumps([{"tool": t, "enabled": True} for t in tools if t in recordings.TOOLS])
+    board_id = conn.execute(
+        "INSERT INTO boards (list_id, name, notes, dock, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+        (list_id, name, notes, dock, now, now),
+    ).lastrowid
+    assert board_id is not None  # A successful INSERT into a rowid table.
+    _add_fixed_in(conn, list_id, board_id, now)
+    conn.executemany(
+        "INSERT INTO board_columns (list_id, board_id, name, position, kind, created_at, updated_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [
+            (list_id, board_id, c, n, "done" if n == len(columns) - 1 else "column", now, now)
+            for n, c in enumerate(columns)
+        ],
+    )
+    _trail(conn, list_id, board_id, "started", source, client)
+    return board_id
+
+
 def create_board(
     list_id: int,
     name: str,
@@ -513,44 +561,8 @@ def create_board(
     work columns, and Done (the last of `columns` names it). `tools` are the ones
     it starts with (recordings.TOOLS keys); None keeps the card table alone, []
     starts it empty as Basecamp 5 does."""
-    name = _name(name)
-    notes = common.validate_notes(notes)
-    columns = [_name(c, "column name") for c in (columns or DEFAULT_COLUMNS)]
-    if len(columns) + len(FIXED) > common.MAX_COLUMNS:
-        raise ValidationError(
-            f"A project has at most {common.MAX_COLUMNS - len(FIXED)} columns besides Triage and Not now"
-        )
-    if len({c.lower() for c in [*columns, *FIXED.values()]}) != len(columns) + len(FIXED):
-        raise ValidationError("Column names must differ (Triage and Not now are there already)")
-    for work in columns[:-1]:
-        _work_name(work)
     with db.transaction() as conn:
-        if conn.execute(
-            "SELECT 1 FROM boards WHERE list_id = ? AND lower(name) = lower(?)", (list_id, name)
-        ).fetchone():
-            raise ValidationError(f'Project "{name}" already exists')
-        _check_cap(conn, list_id, "boards")
-        now = common.now_iso()
-        dock = (
-            None
-            if tools is None
-            else json.dumps([{"tool": t, "enabled": True} for t in tools if t in recordings.TOOLS])
-        )
-        board_id = conn.execute(
-            "INSERT INTO boards (list_id, name, notes, dock, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
-            (list_id, name, notes, dock, now, now),
-        ).lastrowid
-        assert board_id is not None  # A successful INSERT into a rowid table.
-        _add_fixed_in(conn, list_id, board_id, now)
-        conn.executemany(
-            "INSERT INTO board_columns (list_id, board_id, name, position, kind, created_at, updated_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
-            [
-                (list_id, board_id, c, n, "done" if n == len(columns) - 1 else "column", now, now)
-                for n, c in enumerate(columns)
-            ],
-        )
-        _trail(conn, list_id, board_id, "started", source, client)
+        board_id = create_board_in(conn, list_id, name, notes, columns, tools=tools, source=source, client=client)
     return get_board(list_id, board_id)
 
 

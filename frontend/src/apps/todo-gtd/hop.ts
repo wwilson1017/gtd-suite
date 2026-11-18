@@ -8,6 +8,8 @@
 //   there. That page asks for one press, as every sign-in link does: no hop signs a
 //   browser in by itself.
 // Every address comes from the server's own list (config.apps), never from the URL.
+// A link to one page of another app (crossAppHref) is that page itself where the two
+// apps share an address, and this hop where they do not.
 import { useEffect, useState } from 'react';
 import { APP } from '../../core/app';
 import { createSignInLink, getConfig, type AppConfig } from './api';
@@ -66,6 +68,27 @@ export function useAppHref(app: string): string | null {
   const listId = useSession().session?.list_id ?? null;
   const url = config?.apps[app]?.url;
   return !config || config.moved || !url || listId === null ? null : hopHref(url, listId);
+}
+
+/** A link to one page of another app on this account (`path` is under its /app), or
+ *  null where none is offered: the app has no address here, or this page is on an
+ *  app's old address (config.moved), where the moved notice is the way over. */
+export function crossAppHref(config: AppConfig, app: string, path: string, listId: number): string | null {
+  const url = config.apps[app]?.url;
+  if (config.moved || !url) return null;
+  // One address, one session: the page itself.
+  if (new URL(url, window.location.href).origin === window.location.origin) return `${url}/app${path}`;
+  // Cookies are per host, so the page could open signed out, or in another account.
+  // simplification: opens the app, not the item, when the hosts differ; the way up is a hop that carries a path checked against the app's own routes.
+  return hopHref(url, listId);
+}
+
+/** crossAppHref for a component: `(path) => link or null`; null for every path until
+ *  the config and the session are known. */
+export function useCrossAppHref(app: string): (path: string) => string | null {
+  const config = useSuite();
+  const listId = useSession().session?.list_id ?? null;
+  return (path) => (config && listId !== null ? crossAppHref(config, app, path, listId) : null);
 }
 
 export type Hop = { from: string; list: number } | { to: string };

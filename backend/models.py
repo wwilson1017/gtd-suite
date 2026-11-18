@@ -76,6 +76,12 @@ class ProjectUpdate(BaseModel):
     area_id: int | None = None
 
 
+class ProjectLinkCreate(BaseModel):
+    """The Todo project to give a home in Projects GTD (project_links.py)."""
+
+    project_id: int
+
+
 class AreaCreate(BaseModel):
     name: str = Field(max_length=MAX_SHORT_CHARS)
     notes: str = Field(default="", max_length=MAX_TEXT_CHARS)
