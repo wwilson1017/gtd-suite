@@ -23,6 +23,7 @@ import {
 } from './api';
 import { BRAIN_TICKLE_PROMPT, pastePrompt } from './clients';
 import { ClientSteps } from './components/ClientSteps';
+import { ConnectAnimation } from './components/ConnectAnimation';
 import { CopyButton } from './components/CopyButton';
 import { LinkCard } from './components/LinkCard';
 import { OtherApps } from './components/OtherApps';
@@ -323,6 +324,7 @@ export function AgentLink() {
       copyLabel="Copy the agent link"
       onUrl={setUrl}
     >
+      <ConnectAnimation />
       <h3 className="mt-4 text-sm font-semibold text-charcoal">
         Paste into an AI agent{' '}
         <span className="rounded border border-line px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted">
