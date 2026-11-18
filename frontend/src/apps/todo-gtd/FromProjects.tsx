@@ -8,7 +8,14 @@
 // a Projects GTD to-do or card can carry the number of one of Todo's.
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError, apiErrorMessage } from '../../core/api/client';
-import { CARD_CHANGED, completeItem, getAssignments, moveCard, updateCard } from '../projects-gtd/api';
+import {
+  CARD_CHANGED,
+  CARD_CHANGED_UNREAD,
+  completeItem,
+  getAssignments,
+  moveCard,
+  updateCard,
+} from '../projects-gtd/api';
 import type { Card, Item } from '../projects-gtd/types';
 import { Logo } from './components/Logo';
 import { useCrossAppHref } from './hop';
@@ -78,12 +85,15 @@ export function FromProjects({ search, facets }: { search: string; facets: boole
   const href = useCrossAppHref('projects');
   const today = todayStr(new Date(), useListTz());
 
-  // An extra: when it cannot be read, the page shows without it.
+  // An extra: when it cannot be read, the page shows without it. Answers whether it was read.
   const load = useCallback(
     () =>
       getAssignments().then(
-        (mine) => setRows(toRows(mine)),
-        () => {},
+        (mine) => {
+          setRows(toRows(mine));
+          return true;
+        },
+        () => false,
       ),
     [],
   );
@@ -105,10 +115,8 @@ export function FromProjects({ search, facets }: { search: string; facets: boole
     } catch (e) {
       const changed = row.card !== null && e instanceof ApiError && e.status === 409;
       patch(row.key, { busy: false, error: changed ? '' : apiErrorMessage(e, fallback) });
-      if (changed) {
-        setNote(CARD_CHANGED);
-        void load();
-      }
+      // The message says "showing the latest" only once the latest has been read.
+      if (changed) setNote((await load()) ? CARD_CHANGED : CARD_CHANGED_UNREAD);
     }
   };
 

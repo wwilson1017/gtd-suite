@@ -109,6 +109,9 @@ export const updateLabel = (id: number, fields: { name?: string; color?: string;
 /** What a card's 409 says, wherever a card is written from; the writer then shows the latest. */
 export const CARD_CHANGED =
   'This card changed somewhere else (your AI, or another device). Showing the latest; make your change again.';
+/** The same, where the latest could not then be read: what is on screen is still the old card. */
+export const CARD_CHANGED_UNREAD =
+  'This card changed somewhere else (your AI, or another device). Reload the page to see the latest.';
 
 /** With `version`, the server refuses (409) when the card changed since it was read. */
 export function updateCard(id: number, fields: CardFields & { version?: number }): Promise<Card> {

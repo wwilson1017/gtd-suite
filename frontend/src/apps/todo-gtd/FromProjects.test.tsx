@@ -38,7 +38,7 @@ vi.mock('../projects-gtd/api', async (original) => ({
   ...projects,
 }));
 
-import { CARD_CHANGED } from '../projects-gtd/api';
+import { CARD_CHANGED, CARD_CHANGED_UNREAD } from '../projects-gtd/api';
 import { NextActionsPage } from './NextActionsPage';
 import { bootstrap, resetSession } from './session';
 import { resetUndoQueue, takeAll } from './undoQueue';
@@ -366,6 +366,18 @@ describe('the "From Projects GTD" group', () => {
     // The message outlives the rows it was about.
     expect(rows()).toEqual([]);
     expect(alerts(group())).toEqual([CARD_CHANGED]);
+  });
+
+  it('does not claim the latest when the card changed and the group cannot be read again', async () => {
+    projects.updateCard.mockRejectedValueOnce(changed());
+    await show();
+    projects.getAssignments.mockRejectedValue(new Error('offline'));
+
+    await click(box('Order the umbrellas'));
+    expect(projects.getAssignments).toHaveBeenCalledTimes(2);
+    expect(alerts(group())).toEqual([CARD_CHANGED_UNREAD]);
+    // The rows are the ones read before, unchecked.
+    expect([box('Order the umbrellas').checked, box('Order the umbrellas').disabled]).toEqual([false, false]);
   });
 
   it('leaves the row unchecked, with the reason, when a completion fails', async () => {
