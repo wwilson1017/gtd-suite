@@ -690,8 +690,9 @@ class TestCaps:
         return refusals
 
     def test_a_hosted_list_without_a_confirmed_email_holds_the_anonymous_caps(self, L, small):
+        page = "Settings (Connect, in Simple Sites and Common Brain)"  # an AI's person may be in any app
         assert self._fill(L, 1) == [
-            f"This list holds 1 {kind} until an email is confirmed in Settings. Nothing was changed."
+            f"This list holds 1 {kind} until an email is confirmed in {page}. Nothing was changed."
             for kind in ("todos", "projects", "areas")
         ]
 
