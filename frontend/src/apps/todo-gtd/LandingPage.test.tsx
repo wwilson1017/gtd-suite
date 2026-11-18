@@ -170,7 +170,7 @@ describe('LandingPage', () => {
 
   it('shows the server’s reason when a signed-in browser tries to make another list', async () => {
     api.createList.mockRejectedValue(
-      new ApiError(409, 'This browser is already signed in to a list. Sign out under Connect to make another.', 'x'),
+      new ApiError(409, 'This browser is already signed in to a list. Sign out in Settings to make another.', 'x'),
     );
     await mount({ ...OPEN, signed_in: true });
     expect(host.querySelector('a[href="/app"]')!.textContent).toBe('Open my list');

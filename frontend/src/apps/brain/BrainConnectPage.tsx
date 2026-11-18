@@ -6,9 +6,8 @@ import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { apiErrorMessage } from '../../core/api/client';
 import { getAgentLink } from '../todo-gtd/api';
-import { CLIENTS, type ClientSetup } from '../todo-gtd/clients';
 import { AccountNumber, AgentLink, EmailSection, SignInElsewhere, ThisDevice } from '../todo-gtd/ConnectPage';
-import { ClientSteps } from '../todo-gtd/components/ClientSteps';
+import { ClientTabs } from '../todo-gtd/components/ClientTabs';
 import { CopyButton } from '../todo-gtd/components/CopyButton';
 import { OtherApps } from '../todo-gtd/components/OtherApps';
 import { PlanCard } from '../../paid/PlanCard';
@@ -20,22 +19,12 @@ import { ImportMarkdown } from './ImportMarkdown';
 import { MainLinkBrains } from './BrainGrants';
 import { ProgramKeys } from './ProgramKeys';
 
-/** The tabs, in the order most people need them; the rest are under More. */
-const TABS: [string, string][] = [
-  ['ChatGPT', 'ChatGPT'],
-  ['Claude', 'Claude (claude.ai)'],
-  ['Grok', 'Grok'],
-  ['Gemini', 'Gemini'],
-  ['Claude Code', 'Claude Code'],
-  ['Codex', 'Codex'],
-];
 const CURATE_PROMPT = 'Tidy my brain: call brain_curate and follow it, a few items at a time.';
 const code =
   'min-w-0 flex-1 select-all break-all rounded-lg border border-line bg-sand px-3 py-2 text-xs text-charcoal';
 
 export function BrainConnectPage() {
   const [url, setUrl] = useState('');
-  const [tab, setTab] = useState('ChatGPT');
   const [line, setLine] = useState('');
   const [exportSince, setExportSince] = useState('');
   const [error, setError] = useState('');
@@ -54,7 +43,6 @@ export function BrainConnectPage() {
   useEffect(() => {
     if (hash) document.getElementById(hash.slice(1))?.scrollIntoView();
   }, [hash, session]);
-  const client = CLIENTS.find((c) => c.name === TABS.find(([t]) => t === tab)?.[1]);
   const save = (sub: string, name: string) =>
     download(sub, name).catch((e) => setError(apiErrorMessage(e, 'Could not download it.')));
 
@@ -66,23 +54,12 @@ export function BrainConnectPage() {
           <p className="mt-1 text-sm text-muted">
             One link connects every AI to the same brain. Pick yours: its steps have your link filled in.
           </p>
-          <div role="tablist" aria-label="Your AI" className="mt-4 flex flex-wrap gap-1.5">
-            {[...TABS.map(([t]) => t), 'More'].map((t) => (
-              <button
-                key={t}
-                type="button"
-                role="tab"
-                aria-selected={tab === t}
-                onClick={() => setTab(t)}
-                className={`rounded-full px-3 py-1.5 text-sm font-heading ${tab === t ? 'bg-[#7c5cff] text-white' : 'bg-white/5 text-muted hover:text-white'}`}
-              >
-                {t}
-              </button>
-            ))}
+          <div className="mt-4">
+            <ClientTabs url={url} />
           </div>
-          <div role="tabpanel" className="mt-4">
-            {tab === 'More' ? <ClientSteps url={url} /> : client && <Steps client={client} url={url} />}
-          </div>
+          <p className="mt-3 text-xs text-muted">
+            Treat the link like a key: anyone holding it can read and change your brain.
+          </p>
           {error && (
             <p role="alert" className="mt-3 text-sm text-[#ff9db0]">
               {error}
@@ -187,32 +164,5 @@ export function BrainConnectPage() {
         <ThisDevice />
       </div>
     </BrainShell>
-  );
-}
-
-function Steps({ client, url }: { client: ClientSetup; url: string }) {
-  return (
-    <div className="space-y-3 text-sm text-charcoal">
-      {client.note && <p className="text-xs text-muted">{client.note}</p>}
-      {client.steps && (
-        <ol className="list-decimal space-y-1.5 pl-5">
-          {client.steps.map((s) => (
-            <li key={s}>{s}</li>
-          ))}
-        </ol>
-      )}
-      {client.command ? (
-        <div className="flex items-start gap-2">
-          <code className={code}>{client.command(url)}</code>
-          <CopyButton text={() => client.command!(url)} label={`Copy the ${client.name} setup`} />
-        </div>
-      ) : (
-        <div className="flex items-start gap-2">
-          <code className={code}>{url}</code>
-          <CopyButton text={() => url} label="Copy your agent link" />
-        </div>
-      )}
-      <p className="text-xs text-muted">Treat the link like a key: anyone holding it can read and change your brain.</p>
-    </div>
   );
 }

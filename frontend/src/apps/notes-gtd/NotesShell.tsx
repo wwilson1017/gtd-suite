@@ -1,4 +1,4 @@
-// Notes GTD — the frame around every page: the name, three links, the theme.
+// Notes GTD — the frame around every page: the name, its links, the theme.
 import { useEffect, type ReactNode } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { ThemeToggle } from '../../core/theme/ThemeToggle';
@@ -6,7 +6,7 @@ import { AppBar } from '../todo-gtd/components/AppBar';
 import { AppName, Logo } from '../todo-gtd/components/Logo';
 
 const navCls = ({ isActive }: { isActive: boolean }) =>
-  `rounded-lg px-3 py-1.5 font-heading ${isActive ? 'bg-sand text-charcoal' : 'text-muted hover:text-charcoal'}`;
+  `whitespace-nowrap rounded-lg px-3 py-1.5 font-heading ${isActive ? 'bg-sand text-charcoal' : 'text-muted hover:text-charcoal'}`;
 
 export function NotesShell({ title, children }: { title?: string; children: ReactNode }) {
   useEffect(() => {
@@ -16,7 +16,8 @@ export function NotesShell({ title, children }: { title?: string; children: Reac
     <div className="min-h-screen bg-sand">
       <AppBar />
       <header className="border-b border-line-faint bg-cream">
-        <div className="flex items-center gap-2 px-4 py-2">
+        {/* On a phone the links take a row of their own, under the name. */}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-4 py-2">
           <Link to="/" className="flex items-center gap-2">
             <Logo className="h-7 w-7" />
             <span className="font-heading text-lg font-bold text-charcoal">
@@ -30,8 +31,11 @@ export function NotesShell({ title, children }: { title?: string; children: Reac
             <NavLink to="/archive" className={navCls}>
               Archive
             </NavLink>
+            <NavLink to="/ai" className={navCls}>
+              Your AI
+            </NavLink>
             <NavLink to="/connect" className={navCls}>
-              Connect
+              Settings
             </NavLink>
           </nav>
           <ThemeToggle className="hidden sm:block" />

@@ -24,7 +24,8 @@ const SESSION: Session = {
   caps: { todos: 200, projects: 20, areas: 10 },
   apps: ['todo'],
 };
-const CAP = 'This list holds 200 todos until an email is confirmed under Connect. Nothing was changed.';
+const CAP =
+  'This list holds 200 todos until an email is confirmed in Settings (Connect, in Simple Sites and Common Brain). Nothing was changed.';
 const KEEP = 'This list lives in this browser.';
 
 let host: HTMLDivElement;
@@ -102,12 +103,12 @@ afterEach(async () => {
 });
 
 describe('the keep-this-list banner', () => {
-  it('asks a hosted, unconfirmed list for an email, pointing at Connect', async () => {
+  it('asks a hosted, unconfirmed list for an email, pointing at Settings', async () => {
     await signedIn();
     await render();
     expect(banner()?.textContent).toContain(KEEP);
     expect(banner()?.textContent).toContain(
-      'Add your email under Connect to keep it, use it on other devices and raise its limits.',
+      'Add your email in Settings to keep it, use it on other devices and raise its limits.',
     );
     expect(host.querySelector('a')!.getAttribute('href')).toContain('/connect');
   });

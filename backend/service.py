@@ -21,7 +21,7 @@ from typing import cast
 from backend.paid import caps as paid_caps
 from backend.paid import plans
 from backend.paid import billing
-from backend import common, db, settings
+from backend import apps, common, db, settings
 from backend.common import (
     AREA_FIELDS,
     MAX_TEXT_CHARS,
@@ -117,7 +117,7 @@ def _check_cap(conn, list_id: int, table: str) -> None:
         return
     if hosted and not verified:
         raise ValidationError(
-            f"This list holds {cap} {table} until an email is confirmed under Connect. Nothing was changed."
+            f"This list holds {cap} {table} until an email is confirmed in {apps.settings_page()}. Nothing was changed."
         )
     raise ValidationError(f"{_FULL[table].format(cap)}{billing.upsell(hosted and not plan)} Nothing was changed.")
 

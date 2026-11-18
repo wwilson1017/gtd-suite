@@ -330,7 +330,9 @@ function AddTool({ dock, onAdd }: { dock: DockEntry[]; onAdd: (tool: Tool) => vo
 export function TodoNextActions({ project }: { project: Project }) {
   const todoOn = useSession().session?.apps.includes('todo') ?? false;
   const linked = project.todo_project;
-  return todoOn && linked && linked.status !== 'dropped' ? <NextActions todoProjectId={linked.id} /> : null;
+  return todoOn && linked && linked.status !== 'dropped' ? (
+    <NextActions key={linked.id} todoProjectId={linked.id} />
+  ) : null;
 }
 
 function NextActions({ todoProjectId }: { todoProjectId: number }) {

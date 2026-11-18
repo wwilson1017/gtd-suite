@@ -12,6 +12,7 @@ import { TODO_API_BASE } from './publicMode';
 import { listChanged, pinnedListId, putAway, setCapped, signedOut } from './session';
 import type {
   AgentLink,
+  AiTool,
   CaptureLink,
   EmailStatus,
   NewList,
@@ -233,6 +234,11 @@ export function getAgentLink(): Promise<AgentLink> {
 /** A new agent link. Signed-in browsers are untouched; connected AI tools must be re-added. */
 export function regenerateAgentLink(): Promise<AgentLink> {
   return todoFetch<AgentLink>('/agent-link/rotate', { method: 'POST' });
+}
+
+/** Which AI tools have called the agent link: the session's `ai_tools`, read again. */
+export function getAiTools(): Promise<AiTool[]> {
+  return todoFetch<{ ai_tools: AiTool[] }>('/ai-tools').then((r) => r.ai_tools);
 }
 
 /** '' clears the name. It is read back with the filters payload. */

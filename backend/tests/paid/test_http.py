@@ -28,6 +28,7 @@ def test_route_table_is_exactly_the_planned_surface(client):
         ("POST", f"{a}/review/done"),
         ("GET", f"{a}/capture-link"),
         ("POST", f"{a}/capture-link/rotate"),
+        ("GET", f"{a}/ai-tools"),
         ("GET", f"{a}/agent-link"),
         ("POST", f"{a}/agent-link/rotate"),
         # Program keys (keys.py) and the REST API they use (api_v1.py)
@@ -232,6 +233,7 @@ def test_the_session_names_the_list_and_needs_no_x_list(new_list):
         },
         "brains": [{"id": brain.first_brain(made["list_id"]), "name": "", "folder": "brain", "status": "active"}],
         "apps": ["todo", "projects", "notes"],  # a hosted account made in Todo starts with the family
+        "ai_tools": [],  # no AI tool has called yet
         "plan": {
             "pro": False,
             "tier": None,

@@ -1019,7 +1019,7 @@ def _guide(ctx: _Ctx) -> dict:
     hosted, verified = settings.open_signup(), row["email_verified_at"] is not None
     if "limits" in part:  # a copy: an app's part may hand back a shared dict
         if hosted and not verified:
-            raising = "confirming an email under Connect raises the caps"
+            raising = f"confirming an email in {apps.settings_page()} raises the caps"
         elif hosted and not plans.active(row) and billing.selling():
             raising = plans.guide_upsell()
         else:
@@ -1031,15 +1031,15 @@ def _guide(ctx: _Ctx) -> dict:
         f"{part.pop('about')} This link reads, adds and updates them; it cannot delete "
         "anything or see the list's other links."
         if "about" in part
-        else "No app is turned on for this account: the person can turn one on under Connect, in Apps."
+        else f"No app is turned on for this account: the person can turn one on under Apps, in {apps.settings_page()}."
     )
     return _describe(
         ctx.mcp["url"],
         _commands(ctx.on),
         app={
             "reaches": f"one person's {reaches}; they gave you this link so that you can work with them",
-            "get_only": "tell the user that Connect in their app shows how to add this same link "
-            "to their AI tool as a connector, which can then write too",
+            "get_only": "tell the user that Your AI in their app (Connect, in Simple Sites and Common Brain) "
+            "shows how to add this same link to their AI tool as a connector, which can then write too",
             "app": " and ".join(apps.APPS[app].title for app in ctx.on) or apps.APPS[apps.ANCHOR].title,
             "list": row["name"] or None,
             "about": about,
@@ -1064,4 +1064,11 @@ async def dispatch(list_id: int, on: list[str], request: Request, mcp: dict) -> 
     transport, the tools of those apps), for the guide."""
     ctx = _Ctx(list_id, common.client_name(None, request.headers.get("user-agent")), mcp, on)
     off = {name: apps.off_message(app) for app, part in _APPS.items() if app not in on for name in part.commands}
-    return await serve(request, _commands(on), _guide, ctx, mcp["url"], off)
+    response = await serve(request, _commands(on), _guide, ctx, mcp["url"], off)
+    # A command that was asked for and answered is an AI tool at work (lists.seen_ai). The
+    # bare guide is not (a browser opening the link; an empty `?cmd=` is the same guide), and
+    # nothing with an Origin header is: that is a web page, this app's own included.
+    named = (request.query_params.get("cmd") or "").strip()
+    if named and response.status_code < 400 and "origin" not in request.headers:
+        await asyncio.to_thread(lists.seen_ai, list_id, ctx.client)
+    return response

@@ -91,7 +91,8 @@ backend/
                  eval and signed-in export links, pass labels on writes
   lists.py       list rows, the account number, the agent and capture tokens, rotate, claim, reset,
                  email (+ confirmed stamp),
-                 weekly-review stamp, the apps turned on (apps_on, served, set_app_in)
+                 weekly-review stamp, the apps turned on (apps_on, served, set_app_in), the AI
+                 tools that have called (seen_ai, ai_tools: the Your AI page's status)
   sessions.py    the session cookie: one hashed row per signed-in browser, ≤20 per list, revoke, expire
   keys.py        program keys (kind=key, cb_…, Bearer only) and staff links (kind=link, path only):
                  named, hashed, shown once, revoke; ordered brains, scope (brain | all), access
@@ -332,6 +333,20 @@ the call budget charged; every other request goes to FastMCP untouched.
   a page leaves out a link to an archived board or from a dropped project. Its rows cascade
   with the list, the project and the board, so a version that does not know the table (after
   a rollback) can still delete them.
+- **Which AI tools have called, and when, is kept for the person's screen only.**
+  `lists.seen_ai` writes `ai_tools` (a row per account and name, at most once an hour) after a
+  call that succeeded: an MCP initialize, a tool call whose result is not an error, or a
+  `?cmd=` command answered below 400. Never a request with an `Origin` header (a web page is
+  not an AI tool), tool discovery or the bare guide. It runs after the work, off the event
+  loop, never inside another transaction. It is not sync state (the rule above still holds).
+  The name is the tool's own untrusted claim: cleaned by `common.clean_source_client`, shown
+  as text, never logged, and it grants nothing. A stamp that fails is logged and swallowed,
+  because the call it records has already been answered for. The table is account bookkeeping,
+  not content: in `admin._LIST_TABLES` and `cleanup.py`, out of `apps.content_tables()`, and its
+  rows cascade with their list, so a version that does not know the table can still delete one.
+  A REST call reaches the tools without the HTTP request: `api_v1._as` passes its `Origin` on.
+  Messages name the account page through `apps.settings_page` (Settings in Todo, Notes and
+  Projects; Connect in Simple Sites and Common Brain).
 - **Schema changes** go in `db._migrate` as idempotent steps (`CREATE TABLE IF NOT EXISTS`
   does not alter a table that exists, and the live database does).
 - **One place decides the client address:** `ratelimit.client_ip`. Do not read

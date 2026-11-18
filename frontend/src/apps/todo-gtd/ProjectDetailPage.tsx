@@ -205,7 +205,7 @@ export function ProjectDetailPage() {
 
   const open = (todos ?? []).filter((t) => !['done', 'dropped'].includes(t.status));
   const hasNext = open.some((t) => t.status === 'next_action');
-  const homeHref = link && linkShown(link) ? projectsHref(`/p/${link.board_id}/overview`) : null;
+  const homeHref = project && linkShown(link, project.status) ? projectsHref(`/p/${link.board_id}/overview`) : null;
   // Offered only where the way there can be shown afterwards, and not on a closed project.
   const offerHome =
     links !== null &&

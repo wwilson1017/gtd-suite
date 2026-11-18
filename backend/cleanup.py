@@ -29,7 +29,8 @@ def delete_unused_lists(days: int = 30) -> int:
     its first todo in the meantime is kept.
 
     "Never used" is about content, not visits: a list that has only ever been
-    opened still qualifies, and its sessions, sign-in links and program keys go with it. The
+    opened still qualifies, and its sessions, sign-in links, program keys and record of AI
+    tools (lists.seen_ai: an AI that connected and wrote nothing) go with it. The
     browser that made it then answers 401 on its next request and lands on the
     home page."""
     cutoff = common.to_iso(common.utcnow() - datetime.timedelta(days=days))
@@ -40,7 +41,7 @@ def delete_unused_lists(days: int = 30) -> int:
             f"OR created_list_id IN (SELECT id FROM lists WHERE {unused})",
             (cutoff, cutoff),
         )
-        for table in ("sessions", "signin_tokens", "api_keys", "brains"):
+        for table in ("sessions", "signin_tokens", "api_keys", "brains", "ai_tools"):
             conn.execute(
                 f"DELETE FROM {table} WHERE list_id IN (SELECT id FROM lists WHERE {unused})",
                 (cutoff,),

@@ -26,7 +26,7 @@ Would rather not host it? The same code runs at https://todogtd.com.
    at `/data`. Check `curl http://localhost:8000/healthz`.
 4. Open the address and press **Start**. It is yours: one account, all five apps at `/`,
    `/notes`, `/projects`, `/sites` and `/brain`. The first visitor claims the account.
-   Use Connect to sign in on another device.
+   Use Settings (the ⚙) to sign in on another device.
 
 Keep one worker and one replica. Do not remove the data volume when upgrading:
 `docker compose up --build -d` rebuilds and starts the new version with the existing data.
@@ -40,7 +40,7 @@ Keep one worker and one replica. Do not remove the data volume when upgrading:
 4. **Settings → Networking → Generate domain** (or add your own).
 5. **Settings → Deploy → Healthcheck path**: `/healthz`.
 6. Open the address and press **Start**. This browser is now signed in to it; use
-   Connect → **Sign in on another device** for your phone. All five apps are available at
+   Settings → **Sign in on another device** for your phone. All five apps are available at
    `/`, `/notes`, `/projects`, `/sites` and `/brain`. From then on the home page shows
    "This list is set up" to everyone else.
 
@@ -52,7 +52,7 @@ the service, so expect a few seconds of downtime.
 redeploy, open the home page, choose **Reset access** and type the code. Every browser is
 signed out, unused sign-in links stop working, program keys are revoked, the list's email is
 removed, the agent and capture links are replaced — and the browser you typed the code in is signed in, with the new
-links under Connect. Then remove the variable. The same steps recover a deployment that a
+links under Your AI and Settings. Then remove the variable. The same steps recover a deployment that a
 stranger claimed before you did. Or, from the service's shell, `python -m scripts.admin
 signin-link 1` prints a one-hour sign-in link and changes nothing else.
 
@@ -100,10 +100,12 @@ those links would pass through a third party.
 
 ## Connecting an AI tool
 
-Open **Connect** in an app and copy the agent link. Give it to an AI tool that can fetch
-URLs, or use it as the server address in an MCP client. The link contains a secret: anyone
-who has it can use the account's enabled apps. Connect has setup steps and can replace the
-link. The write-only capture link is separate and can add todos without reading them.
+Open **Your AI** in Todo GTD, Notes GTD or Projects GTD (**Connect** in Simple Sites and
+Common Brain) and copy the agent link. Give it to an AI tool that can fetch URLs, or use it
+as the server address in an MCP client. The link contains a secret: anyone who has it can
+use the account's enabled apps. The page has setup steps for each AI tool, can replace the
+link, and says which tools have connected and the day each last called. The write-only
+capture link, under Settings, is separate and can add todos without reading them.
 
 The same link speaks **Agent Commands** for HTTP clients and scripts. A plain GET returns
 the guide. Reads such as `?cmd=LIST` use GET; writes such as `?cmd=ADD` use POST.
@@ -112,7 +114,7 @@ MCP or the REST API below. No agent tool deletes content.
 
 ### How access works
 
-- Browsers sign in with a cookie, not a secret URL. Use Connect → **Sign in on another
+- Browsers sign in with a cookie, not a secret URL. Use Settings → **Sign in on another
   device** for a one-hour, single-use link or QR code. A confirmed email also allows sign-in
   by email when mail is configured. Changing the email cancels links sent to the old address.
 - Browser writes require the same origin. Every `/api/app` call except `GET /session` must
@@ -122,7 +124,7 @@ MCP or the REST API below. No agent tool deletes content.
   valid links are still served. Accounts also have write and call budgets.
 - Program keys and named staff links are hashed and shown once. Keys travel only as Bearer
   headers; staff links travel only in paths. Their grants control which brains they reach.
-- One account has one main agent link. **Apps** under Connect controls its available tools.
+- One account has one main agent link. **Apps** under Settings controls its available tools.
   New self-hosted accounts start with all five apps on. On an open-signup server, starting
   in Todo, Notes or Projects enables those three, starting in Sites enables Sites, and
   starting in Brain enables all five; signing in on an app's address enables that app.
@@ -475,7 +477,7 @@ Anywhere else, run it from the app directory with the same `DATA_DIR` as the app
 
 `stats`, `lists`, `find`, `show` and `snapshots` take `--json`. Write `--link=<token>` (with
 the `=`) when passing a bare token, since a token may start with `-`. Wherever a command takes
-a list id, the account number the person sees under Connect works too, with or without its dash.
+a list id, the account number the person sees under Settings works too, with or without its dash.
 
 **Privacy.** The tool never prints an agent or capture link, and the only link it prints is
 the one-hour sign-in link from `signin-link`. By default it shows only metadata: counts, dates, the

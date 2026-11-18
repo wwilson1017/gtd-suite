@@ -21,6 +21,7 @@ const api = vi.hoisted(() => ({
   listTodos: vi.fn(),
   listProjectLinks: vi.fn(),
   createProjectLink: vi.fn(),
+  updateProject: vi.fn(),
 }));
 vi.mock('./api', () => api);
 
@@ -234,6 +235,44 @@ describe("a Todo project's page", () => {
     expect(bar()!.querySelector('a')!.getAttribute('href')).toBe(`${HERE}/projects/app/p/32/overview`);
   });
 
+  it("follows the project's status as it changes, without reading the links again", async () => {
+    await signIn();
+    api.listProjectLinks.mockResolvedValue([link()]);
+    api.updateProject.mockResolvedValue(project());
+    await show('/projects/5');
+    expect(bar()).toBeDefined();
+
+    // Dropped through the status selector: the project reloads, the links do not.
+    api.listProjects.mockResolvedValue([project({ status: 'dropped' })]);
+    const select = container.querySelector<HTMLSelectElement>('select[aria-label="Project status"]')!;
+    await act(async () => {
+      select.value = 'dropped';
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    expect(api.updateProject).toHaveBeenCalledWith(5, { status: 'dropped' });
+    expect(select.value).toBe('dropped');
+    expect(bar()).toBeUndefined();
+    expect(card()).toBeNull();
+    expect(api.listProjectLinks).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the bar once a project fetched as dropped is made active again', async () => {
+    await signIn();
+    api.listProjects.mockResolvedValue([project({ status: 'dropped' })]);
+    api.listProjectLinks.mockResolvedValue([link({ project_status: 'dropped' })]);
+    api.updateProject.mockResolvedValue(project());
+    await show('/projects/5');
+    expect(bar()).toBeUndefined();
+
+    api.listProjects.mockResolvedValue([project()]);
+    await act(async () => {
+      [...container.querySelectorAll('button')].find((b) => b.textContent === 'Reactivate')!.click();
+    });
+    expect(api.updateProject).toHaveBeenCalledWith(5, { status: 'active' });
+    expect(bar()!.querySelector('a')!.getAttribute('href')).toBe(`${HERE}/projects/app/p/31/overview`);
+    expect(card()).toBeNull();
+  });
+
   it('shows neither, and asks for nothing, with Projects GTD off for the account', async () => {
     await signIn(['todo']);
     api.listProjectLinks.mockResolvedValue([link()]);
@@ -271,6 +310,18 @@ describe("Todo's Projects list", () => {
     await show('/projects');
     expect(container.textContent).toContain('Replace the cooler door');
     expect(chips()).toEqual(['Plan the fall menu']);
+  });
+
+  it("puts the chip by the project's own status, not the one the link was read with", async () => {
+    await signIn();
+    api.listProjects.mockResolvedValue([
+      project({ status: 'dropped' }),
+      project({ id: 6, name: 'Renew the certificate' }),
+    ]);
+    api.listProjectLinks.mockResolvedValue([link(), link({ project_id: 6, board_id: 32, project_status: 'dropped' })]);
+    await show('/projects');
+    expect(container.textContent).toContain('Plan the fall menu');
+    expect(chips()).toEqual(['Renew the certificate']);
   });
 
   it('has no chips with Projects GTD off for the account', async () => {
