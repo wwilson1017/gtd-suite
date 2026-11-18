@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 //
-// The Connect page: the agent link (always shown, copyable, regenerated on its own,
-// filled into every tool's setup steps); the list's email in its three states (none,
-// waiting for confirmation, confirmed), read and written through the session store;
-// signing in on another device by QR code; signing this device out; and no web link
-// anywhere.
+// Settings (the ⚙, at /connect): the list's email in its three states (none, waiting
+// for confirmation, confirmed), read and written through the session store; signing in
+// on another device by QR code; signing this device out; and no web link anywhere. The
+// agent link's card is defined here too (always shown, copyable, regenerated on its
+// own, filled into every tool's setup steps), but it is on Your AI, not on this page.
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
@@ -103,7 +103,7 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-describe('the agent link on the Connect page', () => {
+describe('the agent link card', () => {
   beforeEach(async () => {
     await render(<AgentLink />);
   });
@@ -161,7 +161,7 @@ describe('the agent link on the Connect page', () => {
 
 // The email card has three states, and the limits it quotes come from the session.
 // (The card itself is only rendered when the server can send mail.)
-describe('the email on the Connect page', () => {
+describe('the email in Settings', () => {
   const NONE = 'Add your email to keep this list, use it on other devices and raise its limits.';
   const PENDING =
     'Not confirmed yet — check your inbox. If this email already has an account, the link takes you back to it.';
@@ -310,7 +310,7 @@ describe('the email on the Connect page', () => {
   });
 });
 
-describe('the list name on the Connect page', () => {
+describe('the list name in Settings', () => {
   it('keeps the stored name when Save is pressed without editing', async () => {
     api.setName.mockImplementation(async (name: string) => name);
     await render(<ListName />);
@@ -401,7 +401,7 @@ describe('signing this device out', () => {
   });
 });
 
-describe('the whole Connect page', () => {
+describe('the whole Settings page', () => {
   it('goes straight to the email field when opened from an "Add your email" link', async () => {
     api.getCaptureLink.mockResolvedValue({ url: 'https://todo.example/c/CAP', token: 'CAP' });
     window.matchMedia = ((q: string) => ({
@@ -457,5 +457,30 @@ describe('the whole Connect page', () => {
     expect(host.textContent).toContain('Sign in on another device');
     expect(host.textContent).toContain('Your email');
     expect(button('Sign out everywhere')).toBeTruthy();
+  });
+
+  it('keeps everything but connecting an AI, which has its own page', async () => {
+    api.getCaptureLink.mockResolvedValue({ url: 'https://todo.example/c/CAP', token: 'CAP' });
+    window.matchMedia = ((q: string) => ({
+      matches: false,
+      media: q,
+      addEventListener() {},
+      removeEventListener() {},
+    })) as unknown as typeof window.matchMedia;
+    await render(
+      <MemoryRouter>
+        <ConnectPage />
+      </MemoryRouter>,
+    );
+    expect(api.getAgentLink).not.toHaveBeenCalled();
+    expect(host.textContent).not.toContain('Connect your AI to GTD');
+    expect(host.textContent).not.toContain(OLD);
+    expect(host.querySelector('[role="tab"]')).toBeNull();
+    for (const kept of ['Appearance', 'Capture link', 'List name', 'Time zone', 'Daily brain tickle', 'This device']) {
+      expect(host.textContent).toContain(kept);
+    }
+    // The header says so: Your AI beside the gear, which is Settings.
+    expect(host.querySelector('a[href="/ai"]')!.textContent).toBe('Your AI');
+    expect(host.querySelector('a[href="/connect"]')!.getAttribute('aria-label')).toBe('Settings');
   });
 });

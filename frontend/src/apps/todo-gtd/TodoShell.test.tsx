@@ -2,8 +2,10 @@
 //
 // The shell marks the current list — once, with aria-current="page" — in each of
 // its three menus: top row, phone bottom bar, sidebar. The mode comes from two
-// media queries plus the stored layout preference, so matchMedia is stubbed. It also
-// mounts the "keep this list" banner under the header on every page but Connect.
+// media queries plus the stored layout preference, so matchMedia is stubbed. Its header
+// carries Your AI and the Settings gear, and under it sit the "Connect your AI" card
+// (until an AI tool has called, or the person dismisses it) and the "keep this list"
+// banner (on every page but Settings).
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
@@ -13,10 +15,11 @@ vi.mock('./api', () => ({
   getFilters: vi.fn().mockResolvedValue({ contexts: [], tags: [], status_counts: { inbox: 3 } }),
   listProjects: vi.fn().mockResolvedValue([]),
   getSession: vi.fn(),
+  getAiTools: vi.fn(),
 }));
 
 import { saveMenuLayout } from '../../core/theme/menuLayout';
-import { getFilters, getSession } from './api';
+import { getAiTools, getFilters, getSession } from './api';
 import { PHONE_QUERY, SIDEBAR_QUERY } from './menu';
 import { bootstrap, resetSession } from './session';
 import { TodoShell, type TodoTab } from './TodoShell';
@@ -186,11 +189,20 @@ describe('TodoShell menus', () => {
     expect(current()).toEqual(['Done']);
   });
 
-  it('Connect marks no list, only the gear', async () => {
+  it('Settings marks no list, only the gear; Your AI only its own button beside it', async () => {
     setScreen([]);
     await render('connect');
     expect(container.querySelectorAll('nav [aria-current="page"]')).toHaveLength(0);
-    expect(container.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
+    expect(current()).toEqual(['⚙']);
+    const gear = container.querySelector('[aria-current="page"]')!;
+    expect(gear.getAttribute('aria-label')).toBe('Settings');
+    expect(gear.getAttribute('href')).toBe('/connect'); // the address is older than the name
+    expect(gear.previousElementSibling!.textContent).toBe('Your AI');
+    expect(gear.previousElementSibling!.getAttribute('href')).toBe('/ai');
+
+    await render('ai');
+    expect(container.querySelectorAll('nav [aria-current="page"]')).toHaveLength(0);
+    expect(current()).toEqual(['Your AI']);
   });
 });
 
@@ -226,7 +238,7 @@ describe('the list name in the shell', () => {
 describe('the keep-this-list banner in the shell', () => {
   const KEEP = 'This list lives in this browser.';
 
-  it('sits under the header on every page but Connect, where the email field is right there', async () => {
+  it('sits under the header on every page but Settings, where the email field is right there', async () => {
     vi.mocked(getSession).mockResolvedValue({
       list_id: 7,
       state: 'active',
@@ -250,5 +262,122 @@ describe('the keep-this-list banner in the shell', () => {
 
     await render('inbox');
     expect(container.textContent).toContain(KEEP);
+  });
+});
+
+describe('the Connect your AI card in the shell', () => {
+  const CARD = 'Give Claude, ChatGPT or another AI one link';
+  const CLAUDE = { name: 'Claude', last_used: '2026-11-02', days_ago: 0 };
+
+  async function signedIn(session: object = {}) {
+    vi.mocked(getSession).mockResolvedValue({
+      list_id: 7,
+      state: 'active',
+      email: null,
+      verified: false,
+      hosted: true,
+      mail: true,
+      caps: { todos: 200, projects: 20, areas: 10 },
+      apps: ['todo', 'notes', 'projects'],
+      ai_tools: [],
+      ...session,
+    });
+    resetSession();
+    await act(async () => {
+      await bootstrap();
+    });
+    setScreen([]);
+  }
+  const focus = () =>
+    act(async () => {
+      window.dispatchEvent(new Event('focus'));
+    });
+
+  beforeEach(() => {
+    localStorage.clear();
+    vi.mocked(getAiTools).mockReset();
+  });
+
+  it('is pinned above the keep banner until an AI tool has called, and opens Your AI', async () => {
+    await signedIn();
+    await render('today');
+    const text = container.textContent!;
+    expect(text).toContain(CARD);
+    expect(text.indexOf(CARD)).toBeLessThan(text.indexOf('This list lives in this browser.'));
+    const open = [...container.querySelectorAll('a')].filter((a) => a.textContent === 'Connect your AI');
+    expect(open.map((a) => a.getAttribute('href'))).toEqual(['/ai']);
+    // Not on the page it opens, nor on Settings.
+    await render('ai');
+    expect(container.textContent).not.toContain(CARD);
+    await render('connect');
+    expect(container.textContent).not.toContain(CARD);
+
+    // An account an AI has already called never sees it.
+    await signedIn({ ai_tools: [CLAUDE] });
+    await render('today');
+    expect(container.textContent).not.toContain(CARD);
+  });
+
+  it('goes by itself, without a reload, once an AI has made its first call', async () => {
+    await signedIn();
+    const loads = vi.mocked(getSession).mock.calls.length;
+    await render('inbox');
+    expect(container.textContent).toContain(CARD);
+    expect(getAiTools).not.toHaveBeenCalled(); // the session answer already said: none
+
+    // The person comes back to the window before anything has called: still there.
+    vi.mocked(getAiTools).mockResolvedValue([]);
+    await focus();
+    expect(getAiTools).toHaveBeenCalledTimes(1);
+    expect(container.textContent).toContain(CARD);
+
+    // Their AI makes its first call, elsewhere; then the window is in focus again.
+    vi.mocked(getAiTools).mockResolvedValue([CLAUDE]);
+    await focus();
+    expect(container.textContent).not.toContain(CARD);
+    expect(container.textContent).toContain('page body');
+    expect(getSession).toHaveBeenCalledTimes(loads); // the same page load throughout
+
+    // Gone, it stops asking.
+    await focus();
+    expect(getAiTools).toHaveBeenCalledTimes(2);
+  });
+
+  it('stays through a failed ask, and asks again the next time', async () => {
+    await signedIn();
+    await render('today');
+    vi.mocked(getAiTools).mockRejectedValueOnce(new Error('offline')).mockResolvedValue([CLAUDE]);
+    await focus();
+    expect(container.textContent).toContain(CARD);
+    await focus();
+    expect(container.textContent).not.toContain(CARD);
+  });
+
+  it('can be dismissed, for this list on this device', async () => {
+    await signedIn();
+    await render('today');
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('button[aria-label="Dismiss Connect your AI"]')!.click();
+    });
+    expect(container.textContent).not.toContain(CARD);
+    // The keep banner has its own dismissal.
+    expect(container.textContent).toContain('This list lives in this browser.');
+    await focus();
+    expect(getAiTools).not.toHaveBeenCalled();
+
+    // A new page of the same list: still dismissed. Another list: its own card.
+    await act(async () => {
+      root.unmount();
+    });
+    root = createRoot(container);
+    await render('today');
+    expect(container.textContent).not.toContain(CARD);
+    await signedIn({ list_id: 8 });
+    await act(async () => {
+      root.unmount();
+    });
+    root = createRoot(container);
+    await render('today');
+    expect(container.textContent).toContain(CARD);
   });
 });

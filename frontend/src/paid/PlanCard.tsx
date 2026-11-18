@@ -138,7 +138,7 @@ export function PlanCard() {
             ))}
           </ul>
           {!session.verified && (
-            <p className="mt-2 text-sm text-muted">Confirm your email under Connect first: Pro's receipts go there.</p>
+            <p className="mt-2 text-sm text-muted">Confirm your email first: Pro's receipts go there.</p>
           )}
           <div className="mt-3 flex flex-wrap gap-2">
             <button

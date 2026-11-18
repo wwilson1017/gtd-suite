@@ -197,7 +197,7 @@ function UniversalMenu({ onClose }: { onClose: () => void }) {
         {shown.length === 0 && <li className="px-3 py-1.5 text-sm text-bc-subtle">No project by that name.</li>}
       </ul>
       <div className="mt-3 flex items-center gap-3 border-t border-bc-line pt-3 text-sm">
-        <button type="button" className="text-bc-blue underline" onClick={() => go('/connect')}>
+        <button type="button" className="text-bc-blue underline" onClick={() => go('/ai')}>
           Connect your AI
         </button>
         <button type="button" className="text-bc-blue underline" onClick={() => go('/people')}>
@@ -363,7 +363,8 @@ export function ProjectsShell({
               { label: 'My Bookmarks (Shift+B)', onClick: () => navigate('/my/bookmarks') },
               'sep',
               { label: 'People', onClick: () => navigate('/people') },
-              { label: 'Connect your AI', onClick: () => navigate('/connect') },
+              { label: 'Connect your AI', onClick: () => navigate('/ai') },
+              { label: 'Settings', onClick: () => navigate('/connect') },
             ]}
           />
           {me && (
@@ -398,8 +399,11 @@ export function ProjectsShell({
             <NavLink to="/people" className={sideCls}>
               People
             </NavLink>
+            <NavLink to="/ai" className={sideCls}>
+              Your AI
+            </NavLink>
             <NavLink to="/connect" className={sideCls}>
-              Connect
+              Settings
             </NavLink>
           </span>
         </nav>

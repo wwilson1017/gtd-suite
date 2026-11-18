@@ -190,7 +190,7 @@ def _check_cap(conn, list_id: int, adding: int = 1) -> None:
         return
     if hosted and not verified:
         raise ValidationError(
-            f"This account holds {cap} items until an email is confirmed under Connect. Nothing was changed."
+            f"This account holds {cap} items until an email is confirmed in Settings. Nothing was changed."
         )
     raise ValidationError(
         f"An account holds at most {cap} items.{billing.upsell(hosted and not plan)} Nothing was changed."

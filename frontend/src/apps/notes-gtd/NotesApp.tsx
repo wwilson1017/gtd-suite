@@ -5,7 +5,7 @@ import { BASE } from '../../core/app';
 // closes it and a link to it opens it.
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { SessionGate } from '../todo-gtd/PublicTodoApp';
-import { NotesConnectPage } from './NotesConnectPage';
+import { NotesConnectPage, NotesYourAIPage } from './NotesConnectPage';
 import { NotesPage } from './NotesPage';
 
 export function NotesApp() {
@@ -17,6 +17,7 @@ export function NotesApp() {
           <Route path="/n/:id" element={<NotesPage status="active" />} />
           <Route path="/archive" element={<NotesPage status="archived" />} />
           <Route path="/archive/n/:id" element={<NotesPage status="archived" />} />
+          <Route path="/ai" element={<NotesYourAIPage />} />
           <Route path="/connect" element={<NotesConnectPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

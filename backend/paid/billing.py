@@ -28,7 +28,7 @@ import httpx2 as httpx
 from backend.paid import settings as paid_settings
 from backend.paid import caps as paid_caps
 from backend.paid import plans
-from backend import common, db, settings
+from backend import apps, common, db, settings
 
 API = "https://api.stripe.com/v1"
 VERSION = "2026-04-22.dahlia"  # the version that added managed_payments to Checkout
@@ -94,7 +94,7 @@ def upsell(eligible: bool, to: int | None = None) -> str:
     account could buy it (hosted, not on Pro already)."""
     if not (eligible and selling()):
         return ""
-    return f" Pro raises it{f' to {to}' if to else ''}, for {PRICE}: Upgrade under Connect."
+    return f" Pro raises it{f' to {to}' if to else ''}, for {PRICE}: Upgrade in {apps.settings_page()}."
 
 
 def _stripe(method: str, path: str, data: dict | None = None, key: str | None = None) -> dict:

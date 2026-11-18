@@ -107,17 +107,20 @@ def _allow(
 
 
 @contextlib.contextmanager
-def _as(key: dict):
-    """The MCP server's contextvars for this key's call, reset however it ends."""
+def _as(key: dict, from_page: bool = False):
+    """The MCP server's contextvars for this key's call, reset however it ends. `from_page`:
+    the request carried an Origin header, so its tool call is not an AI tool's (lists.seen_ai)."""
     resets = (
         mcp_server._list_id.set(key["list_id"]),
         mcp_server._apps_on.set(key["on"]),
         mcp_server._key.set(key),
         mcp_server._brains.set(key["active_brains"]),
+        mcp_server._from_page.set(from_page),
     )
     try:
         yield
     finally:
+        mcp_server._from_page.reset(resets[4])
         mcp_server._brains.reset(resets[3])
         mcp_server._key.reset(resets[2])
         mcp_server._apps_on.reset(resets[1])
@@ -174,7 +177,7 @@ async def call_tool(name: str, request: Request):
     if name not in mcp_server._TOOL_APPS:
         raise Refused(404, f"There is no tool called {name}. GET /api/v1 lists them.")
     args = await _arguments(request)
-    with _as(key):
+    with _as(key, "origin" in request.headers):
         if why := mcp_server.refusal(name):
             raise Refused(403, why)
         try:

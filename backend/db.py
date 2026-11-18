@@ -799,7 +799,10 @@ def _migrate(conn: sqlite3.Connection) -> None:
     28. Isolated Sites hosts, operator suspensions, expiry and legacy data paths.
     29. Sites file manifests and blob inventory (_SCHEMA), layout, size and client refs.
     30. Device connection codes and Sites short names with their lapse grace.
-    31. `project_links`: a new table (project_links.py); no existing project has a link.
+    31. `ai_tools` (lists.seen_ai): which AI tools have called an account's agent link and
+        when each last did. Made here, not in _SCHEMA, so the step knows the table is new
+        and fills it once from what the tools already left behind (_fill_ai_tools).
+    32. `project_links`: a new table (project_links.py); no existing project has a link.
     """
     from backend import brain, lists, sites  # here, not at the top: lists imports this module
 
@@ -981,7 +984,16 @@ def _migrate(conn: sqlite3.Connection) -> None:
                 "CREATE UNIQUE INDEX IF NOT EXISTS idx_sites_short_name "
                 "ON sites(short_name) WHERE short_name IS NOT NULL"
             )
-            # Step 31: a Todo project and the Projects GTD project made for it, each linked once.
+            # Step 31: account bookkeeping, not content (apps.content_tables leaves it out).
+            # ON DELETE CASCADE: after a rollback, a version that does not know the table
+            # can still delete a list (cleanup.py, admin.py delete).
+            if not conn.execute("SELECT 1 FROM sqlite_master WHERE name = 'ai_tools'").fetchone():
+                conn.execute(
+                    "CREATE TABLE ai_tools (list_id INTEGER NOT NULL REFERENCES lists(id) ON DELETE CASCADE, "
+                    "name TEXT NOT NULL, first_seen_at TEXT NOT NULL, last_seen_at TEXT, PRIMARY KEY (list_id, name))"
+                )
+                _fill_ai_tools(conn)
+            # Step 32: a Todo project and the Projects GTD project made for it, each linked once.
             # ON DELETE CASCADE: after a rollback, a version that does not know the table can
             # still delete a list's projects and boards (admin.py delete, restore_list.py).
             conn.execute(
@@ -1001,6 +1013,43 @@ def _migrate(conn: sqlite3.Connection) -> None:
         conn.execute("COMMIT")
     finally:
         conn.execute("PRAGMA foreign_keys=ON")
+
+
+def _fill_ai_tools(conn: sqlite3.Connection) -> None:
+    """Step 31's one fill: every AI tool that had already left its name on an account, from
+    each app's own trace of it, merged by cleaned name ('' for a tool that gave none). When
+    it last called is not known, so last_seen_at stays NULL until it next does. Card Table
+    automation writes as an AI tool too, but it is the app's own, never one the person connected.
+    An account's earliest lists.MAX_AI_TOOLS names are kept, the cap seen_ai holds it to."""
+    from backend import automation, brain, common, lists, people
+
+    traces = " UNION ALL ".join(
+        (
+            *(
+                f"SELECT list_id, source_client AS name, created_at AS at FROM {table} WHERE source = 'agent'"
+                for table in ("todos", "notes", "sites", "cards", "recordings")
+            ),
+            # An AI that only edited a note the person made.
+            "SELECT list_id, edited_by, updated_at FROM notes WHERE edited_by != ''",
+            "SELECT list_id, name, created_at FROM people WHERE kind = 'ai'",
+            "SELECT list_id, name, first_seen_at FROM brain_ais",
+        )
+    )
+    first: dict[tuple[int, str], str] = {}
+    held: dict[int, int] = {}
+    for row in conn.execute(traces + " ORDER BY at").fetchall():
+        name = common.clean_source_client(row["name"]) or ""
+        if name == automation.ACTOR:
+            continue
+        # What Projects GTD and Common Brain call a tool that gave no name.
+        key = (row["list_id"], "" if name in (people.AI_DEFAULT, brain.UNKNOWN_AI) else name)
+        if key not in first and held.get(row["list_id"], 0) < lists.MAX_AI_TOOLS:
+            first[key] = row["at"]
+            held[row["list_id"]] = held.get(row["list_id"], 0) + 1
+    conn.executemany(
+        "INSERT INTO ai_tools (list_id, name, first_seen_at) VALUES (?, ?, ?)",
+        [(list_id, name, at) for (list_id, name), at in first.items()],
+    )
 
 
 def _fts(table: str, cols: tuple[str, ...]) -> list[str]:

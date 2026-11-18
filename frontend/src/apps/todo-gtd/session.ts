@@ -13,10 +13,10 @@ import { BASE } from '../../core/app';
 // (KeepBanner).
 //
 // # simplification: no cross-tab broadcast — a stale tab finds out on its next request
-import { useSyncExternalStore } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 import { ApiError } from '../../core/api/client';
 import { initializeBrains } from './brainSelection';
-import { getSession } from './api';
+import { getAiTools, getSession } from './api';
 import type { Session } from './types';
 
 export type SessionKind = 'loading' | 'ok' | 'signedOut' | 'putAway' | 'listChanged' | 'error';
@@ -77,6 +77,26 @@ export function bootstrap(): Promise<void> {
 /** Fold a change this tab made (the email) into the pinned session. */
 export function updateSession(patch: Partial<Session>) {
   if (current.session) set({ ...current, session: { ...current.session, ...patch } });
+}
+
+/** Ask again which AI tools have called, so the pinned card and Your AI follow a first
+ *  call without a reload. A failed ask changes nothing: the next one will do. */
+export function refreshAiTools(): Promise<void> {
+  return getAiTools().then(
+    (ai_tools) => updateSession({ ai_tools }),
+    () => {},
+  );
+}
+
+/** While `on`, ask again each time the window comes back into focus: the person has
+ *  been away in their AI tool, adding the link. */
+export function useAiToolsOnFocus(on = true) {
+  useEffect(() => {
+    if (!on) return;
+    const refresh = () => void refreshAiTools();
+    window.addEventListener('focus', refresh);
+    return () => window.removeEventListener('focus', refresh);
+  }, [on]);
 }
 
 /** The cookie names no live session: go home. replace(), so Back does not return

@@ -74,7 +74,7 @@ _LIST_ROW = f"""
 """
 # Delete children first (todos point at projects and areas, projects at areas);
 # all of these before the list's own row.
-_LIST_TABLES = (*apps.content_tables(), "sessions", "signin_tokens", "api_keys", "brains")
+_LIST_TABLES = (*apps.content_tables(), "sessions", "signin_tokens", "api_keys", "brains", "ai_tools")
 
 
 # ── Output ────────────────────────────────────────────────────────────────────
