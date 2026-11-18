@@ -179,6 +179,7 @@ async def test_a_named_command_records_and_the_bare_guide_does_not(http, made):
     list_id = made["list_id"]
     assert (await http.get(link(made))).status_code == 200  # a browser opening the link
     assert (await http.get(link(made), headers={"Accept": "text/html"})).status_code == 200
+    assert (await http.get(link(made) + "?cmd=")).status_code == 200  # no command named: the same guide
     assert seen(list_id) == []
     assert (await http.get(f"{link(made)}?cmd=HELP")).status_code == 200
     assert names(list_id) == [""]  # an HTTP library's User-Agent names no tool
