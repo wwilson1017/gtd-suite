@@ -85,6 +85,8 @@ class FakeStore:
         if method == "HEAD":
             if key not in self.objects:
                 return httpx.Response(404, request=req)
+            if headers.get("accept-encoding") != "identity":  # as R2 does: gzipped, so no length
+                return httpx.Response(200, headers={"content-encoding": "gzip"}, request=req)
             return httpx.Response(200, headers={"content-length": str(len(self.objects[key]))}, request=req)
         if method == "PUT":
             source = self._key(unquote(headers["x-amz-copy-source"]))

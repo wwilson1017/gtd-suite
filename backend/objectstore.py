@@ -210,7 +210,8 @@ def _refused(res: httpx.Response, what: str) -> StoreError:
 
 def head(key: str) -> int | None:
     """The object's size, or None when there is none."""
-    res = _call("HEAD", key)
+    # R2 gzips a compressible object's HEAD for a client that accepts it, and then sends no length.
+    res = _call("HEAD", key, {"accept-encoding": "identity"})
     if res.status_code == 404:
         return None
     if res.status_code != 200:
