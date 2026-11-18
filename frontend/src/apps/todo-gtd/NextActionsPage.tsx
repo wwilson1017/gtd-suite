@@ -4,6 +4,7 @@ import { listTodos } from './api';
 import { TodoEditSheet } from './components/TodoEditSheet';
 import { TodoRow } from './components/TodoRow';
 import { contextGroup, matchesContexts, matchesPeople, peopleGroup } from './contextFacet';
+import { FromProjects } from './FromProjects';
 import { useRowActions, useTodos } from './hooks';
 import { EmptyState, LoadFailed, LoadingRows, TodoShell } from './TodoShell';
 import type { Todo } from './types';
@@ -17,7 +18,8 @@ const NO_CONTEXT = 'No context';
  *
  * The context grouping IS the page's purpose — flattening the groups into a sort order would
  * quietly remove the batching this page exists for. Filtering is the shared
- * `SearchFilterBar`, page-owns-state. */
+ * `SearchFilterBar`, page-owns-state. Under the groups, the Projects GTD work assigned
+ * to the person (`FromProjects`), which is never one of Todo's own to-dos. */
 export function NextActionsPage() {
   const { todos, failed, reload } = useTodos(() => listTodos({ status: 'next_action', limit: 500 }));
   const { toggleDone, toggleStar, after } = useRowActions(reload);
@@ -111,6 +113,7 @@ export function NextActionsPage() {
             {rows(items)}
           </section>
         ))}
+        <FromProjects search={search} facets={contexts.length + people.length > 0} />
       </div>
       {(editTodo || adding) && (
         <TodoEditSheet

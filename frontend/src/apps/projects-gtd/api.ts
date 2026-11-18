@@ -106,6 +106,13 @@ export const createLabel = (boardId: number, name: string, color = '') =>
 export const updateLabel = (id: number, fields: { name?: string; color?: string; status?: 'active' | 'archived' }) =>
   send<Label>('PUT', `/labels/${id}`, fields);
 
+/** What a card's 409 says, wherever a card is written from; the writer then shows the latest. */
+export const CARD_CHANGED =
+  'This card changed somewhere else (your AI, or another device). Showing the latest; make your change again.';
+/** The same, where the latest could not then be read: what is on screen is still the old card. */
+export const CARD_CHANGED_UNREAD =
+  'This card changed somewhere else (your AI, or another device). Reload the page to see the latest.';
+
 /** With `version`, the server refuses (409) when the card changed since it was read. */
 export function updateCard(id: number, fields: CardFields & { version?: number }): Promise<Card> {
   return send('PUT', `/cards/${id}`, fields);
@@ -113,11 +120,19 @@ export function updateCard(id: number, fields: CardFields & { version?: number }
 
 export const getCard = (id: number) => todoFetch<Card>(`/cards/${id}`);
 
-export function moveCard(id: number, columnId: number, position?: Position, onHold?: boolean): Promise<Card> {
+/** With `version`, the server refuses (409) when the card changed since it was read, and nothing moves. */
+export function moveCard(
+  id: number,
+  columnId: number,
+  position?: Position,
+  onHold?: boolean,
+  version?: number,
+): Promise<Card> {
   return send('POST', `/cards/${id}/move`, {
     column_id: columnId,
     position,
     ...(onHold !== undefined ? { on_hold: onHold } : {}),
+    ...(version !== undefined ? { version } : {}),
   });
 }
 /** To another project: to its Triage. */

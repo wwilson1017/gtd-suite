@@ -27,7 +27,7 @@ backend/
                  fixed Triage / Not now / Done columns (`kind`) around ordered work columns (colour,
                  On Hold, soft card limit), cards with Trello's fields (assignees, labels, start/due,
                  cover; in Done = complete), labels; integer positions renumbered per move; a card
-                 version refuses stale edits
+                 version refuses stale edits, and a move that names one (Todo's Undo of a card)
   board_routes.py  the board API under /api/app (same owner, X-List and no-store rules)
   recordings.py  Projects GTD as Basecamp: everything in a project but its card table is a recording
                  (message, to-do list, group, to-do, subtask, comment, folder, document, link, event,

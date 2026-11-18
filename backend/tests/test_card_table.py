@@ -7,7 +7,7 @@ import sqlite3
 import pytest
 
 from backend import boards, db, people, recordings
-from backend.common import NotFoundError, ValidationError
+from backend.common import ConflictError, NotFoundError, ValidationError
 
 
 @pytest.fixture()
@@ -300,3 +300,81 @@ def test_a_restored_done_card_keeps_when_it_was_finished(L, B):
     boards.update_card(L, card["id"], {"status": "archived"})
     back = boards.update_card(L, card["id"], {"status": "active"})
     assert back["completed_at"] == card["completed_at"]
+
+
+# ── A move that names the card's version ──────────────────────────────────────
+
+
+def _table(L, B) -> list:
+    """Everything a move could change: each column's cards in order, with their
+    place, On Hold and version."""
+    return [
+        (c["name"], [(k["id"], k["position"], k["on_hold"], k["completed"], k["version"]) for k in c["cards"]])
+        for c in boards.get_board(L, B)["columns"]
+    ]
+
+
+def test_a_move_from_an_older_version_is_refused_and_changes_nothing(L, B):
+    boards.update_column(L, col(L, B, "In progress")["id"], {"has_on_hold": True})
+    first, held, last = (boards.create_card(L, B, t, column="In progress") for t in ("first", "held", "last"))
+    held = boards.update_card(L, held["id"], {"on_hold": True})
+    boards.append_note(L, held["id"], "agent was here", by="Claude")  # it changed after it was read
+    table, trail = _table(L, B), [e["id"] for e in recordings.activity(L)["events"]]
+    for column, position, on_hold in (("triage", "top", False), ("In progress", 0, False), ("done", None, None)):
+        with pytest.raises(ConflictError, match="changed since it was opened"):
+            boards.move_card(L, held["id"], column, position, on_hold=on_hold, version=held["version"])
+    assert _table(L, B) == table  # column, On Hold, places and version, of every card
+    assert [e["id"] for e in recordings.activity(L)["events"]] == trail
+    assert boards.get_card(L, held["id"])["notes"].endswith("· Claude: agent was here")
+    # The same refusal as an edit's, word for word.
+    with pytest.raises(ConflictError) as edit:
+        boards.update_card(L, held["id"], {"title": "x"}, version=held["version"])
+    with pytest.raises(ConflictError) as move:
+        boards.move_card(L, held["id"], "triage", version=held["version"])
+    assert str(move.value) == str(edit.value)
+    # With the version it has now, the same move goes through.
+    fresh = boards.get_card(L, held["id"])
+    moved = boards.move_card(L, held["id"], "triage", "top", version=fresh["version"])
+    assert (moved["column_kind"], moved["on_hold"], moved["version"]) == ("triage", False, fresh["version"] + 1)
+    assert [k["id"] for k in col(L, B, "In progress")["cards"]] == [first["id"], last["id"]]
+
+
+def test_a_move_without_a_version_works_as_before(L, B):
+    card = boards.create_card(L, B, "Paint")
+    boards.append_note(L, card["id"], "agent was here", by="Claude")
+    moved = boards.move_card(L, card["id"], "In progress")  # never asked what it read
+    assert moved["column_name"] == "In progress"
+    assert recordings.activity(L)["events"][0]["action"] == "moved"
+
+
+def test_a_completed_card_goes_back_where_it_was_in_one_move(new_list):
+    """What Todo's "From Projects GTD" group sends: complete with the version read,
+    then one move back to the column and On Hold it remembered, with the version the
+    completion answered."""
+    made = new_list()
+    c, api = made["client"], made["api"]
+    board = c.post(f"{api}/boards", json={"name": "Shop", "columns": ["To do", "Doing", "Done"]}).json()
+    doing = next(x["id"] for x in board["columns"] if x["name"] == "Doing")
+    c.put(f"{api}/columns/{doing}", json={"has_on_hold": True})
+    card = c.post(
+        f"{api}/boards/{board['id']}/cards", json={"title": "Sign", "column_id": doing, "assignee_ids": ["me"]}
+    ).json()
+    card = c.put(f"{api}/cards/{card['id']}", json={"on_hold": True}).json()
+    assert [x["id"] for x in c.get(f"{api}/assignments").json()["cards"]] == [card["id"]]
+
+    done = c.put(f"{api}/cards/{card['id']}", json={"completed": True, "version": card["version"]}).json()
+    assert (done["column_kind"], done["on_hold"], done["completed"]) == ("done", False, True)
+    assert c.get(f"{api}/assignments").json()["cards"] == []
+    undo = {"column_id": card["column_id"], "on_hold": card["on_hold"]}
+    back = c.post(f"{api}/cards/{card['id']}/move", json={**undo, "version": done["version"]})
+    assert back.status_code == 200
+    assert (back.json()["column_id"], back.json()["on_hold"], back.json()["completed"]) == (doing, True, False)
+
+    # Completed again, then changed somewhere else before the Undo: nothing is overwritten.
+    done = c.put(f"{api}/cards/{card['id']}", json={"completed": True, "version": back.json()["version"]}).json()
+    c.put(f"{api}/cards/{card['id']}", json={"title": "Sign, both sides"})
+    stale = c.post(f"{api}/cards/{card['id']}/move", json={**undo, "version": done["version"]})
+    assert stale.status_code == 409 and stale.headers["cache-control"] == "no-store"
+    assert "changed since it was opened" in stale.json()["detail"]
+    now = c.get(f"{api}/cards/{card['id']}").json()
+    assert (now["column_kind"], now["title"], now["version"]) == ("done", "Sign, both sides", done["version"] + 1)

@@ -934,6 +934,13 @@ def _check_range(starts, due) -> None:
         raise ValidationError("starts_on must not be after due_date")
 
 
+def _check_version(card, version: int | None) -> None:
+    """With `version` (the card's, as the writer last read it), refuse a write to a
+    card that has changed since."""
+    if version is not None and version != card["version"]:
+        raise ConflictError("This card changed since it was opened. Nothing was saved; reload it to see the change.")
+
+
 def update_card(
     list_id: int,
     card_id: int,
@@ -954,10 +961,7 @@ def update_card(
         if card is None:
             raise NotFoundError(f"Card not found: {card_id}")
         card = dict(card)
-        if version is not None and version != card["version"]:
-            raise ConflictError(
-                "This card changed since it was opened. Nothing was saved; reload it to see the change."
-            )
+        _check_version(card, version)
         board_id = card["board_id"]
         sets = _card_fields(conn, list_id, board_id, fields)
         _check_range(sets.get("starts_on", card["starts_on"]), sets.get("due_date", card["due_date"]))
@@ -1062,6 +1066,7 @@ def move_card(
     board=None,
     *,
     on_hold: bool | None = None,
+    version: int | None = None,
     source: str = "ui",
     client: str | None = None,
 ) -> dict:
@@ -1069,10 +1074,12 @@ def move_card(
     at `position` ('top', 'bottom' or a 0-based index; by default the bottom, or the
     top of Done), on or off hold there. A column name is looked up on the card's
     own board, or on `board` to move it to another project (its labels go with it,
-    by name). Into Done completes the card; out of Done re-opens it."""
+    by name). Into Done completes the card; out of Done re-opens it. With `version`,
+    refused (ConflictError) when the card changed since, and nothing moves."""
     spawned = None
     with db.transaction() as conn:
         card = get_card(list_id, card_id)
+        _check_version(card, version)
         if card["status"] != "active":
             raise ValidationError("This card is archived. Restore it before moving it.")
         if board not in (None, ""):
