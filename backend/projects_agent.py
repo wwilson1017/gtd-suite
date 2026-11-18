@@ -99,7 +99,9 @@ def project_open(project: _arg(str, _PROJECT)) -> dict:
     """A project's page: its tools in order (Message Board, To-dos, Card Table)
     with a preview of each (the latest messages, the to-do lists with how many
     are done, the card table's columns), its latest activity, and everyone
-    who can be assigned. Start here."""
+    who can be assigned. A project that is the home of a Todo GTD project names
+    it in todo_project: its next actions are that project's to-dos, in Todo GTD.
+    Start here."""
     return {"project": _overview(_list_id.get(), project)}
 
 

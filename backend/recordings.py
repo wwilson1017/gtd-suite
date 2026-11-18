@@ -1512,7 +1512,7 @@ def set_dock(list_id: int, board_ref, entries: list[dict]) -> list[dict]:
 def project(list_id: int, board_ref) -> dict:
     """A project's page: the project, its dock, and a preview of each tool (the
     latest messages, the to-do lists with progress, the card table's columns)."""
-    from backend import boards
+    from backend import boards, project_links
 
     conn = db.get_db()
     board = _board(conn, list_id, board_ref)
@@ -1570,6 +1570,9 @@ def project(list_id: int, board_ref) -> dict:
         is not None
     )
     board["people"] = _project_people(conn, list_id, board["id"])
+    # The Todo project this one is the home of, when there is one (project_links.py).
+    if linked := project_links.todo_project(list_id, board["id"]):
+        board["todo_project"] = linked
     return board
 
 

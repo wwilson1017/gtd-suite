@@ -1,4 +1,5 @@
 // Projects GTD — the shapes backend/boards.py answers with.
+import type { TodoProjectStatus } from '../todo-gtd/types';
 
 export interface Label {
   id: number;
@@ -298,6 +299,8 @@ export interface Project {
   needle: Item | null;
   bookmarked: boolean;
   people: Person[];
+  /** The Todo project this one is the home of, when there is one (backend/project_links.py). */
+  todo_project?: { id: number; name: string; status: TodoProjectStatus };
 }
 
 export interface HomeProject extends BoardSummary {

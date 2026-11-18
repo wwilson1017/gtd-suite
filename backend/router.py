@@ -57,6 +57,7 @@ from backend import (
     keys,
     lifecycle,
     lists,
+    project_links,
     ratelimit,
     service,
     sessions,
@@ -86,6 +87,7 @@ from backend.models import (
     ListCreate,
     NameUpdate,
     ProjectCreate,
+    ProjectLinkCreate,
     ProjectUpdate,
     ResetRequest,
     SignInRequest,
@@ -335,6 +337,18 @@ def build_router(owner_dep, *, prefix: str = "") -> APIRouter:
         if not project:
             raise HTTPException(status_code=404, detail="Project not found", headers=_NO_STORE)
         return project
+
+    # A project's home in Projects GTD (project_links.py). Not under /projects/…: both
+    # apps have routes there.
+
+    @r.get("/project-links")
+    def list_project_links(owner: int = Depends(owner_dep)):
+        return {"links": project_links.links(owner)}
+
+    @r.post("/project-links")
+    def create_project_link(body: ProjectLinkCreate, owner: int = Depends(owner_dep)):
+        """The link, made now or already there: a repeated request makes nothing more."""
+        return _call(project_links.promote, owner, body.project_id)
 
     # ── Areas of focus ─────────────────────────────────────────────────────────
 

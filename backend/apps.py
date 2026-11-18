@@ -24,7 +24,9 @@ class App(NamedTuple):
 
 # The first entry is the anchor: a request on any other host is for it.
 APPS: dict[str, App] = {
-    "todo": App("Todo GTD", "Todos", "PUBLIC_BASE_URL", ("todos", "projects", "areas")),
+    # project_links points at a todo project and at a board, so it leads: it is deleted
+    # before both and restored after both.
+    "todo": App("Todo GTD", "Todos", "PUBLIC_BASE_URL", ("project_links", "todos", "projects", "areas")),
     "projects": App(
         "Projects GTD",
         "Projects",

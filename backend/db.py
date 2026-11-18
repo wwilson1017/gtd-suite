@@ -799,6 +799,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
     28. Isolated Sites hosts, operator suspensions, expiry and legacy data paths.
     29. Sites file manifests and blob inventory (_SCHEMA), layout, size and client refs.
     30. Device connection codes and Sites short names with their lapse grace.
+    31. `project_links`: a new table (project_links.py); no existing project has a link.
     """
     from backend import brain, lists, sites  # here, not at the top: lists imports this module
 
@@ -980,6 +981,15 @@ def _migrate(conn: sqlite3.Connection) -> None:
                 "CREATE UNIQUE INDEX IF NOT EXISTS idx_sites_short_name "
                 "ON sites(short_name) WHERE short_name IS NOT NULL"
             )
+            # Step 31: a Todo project and the Projects GTD project made for it, each linked once.
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS project_links ("
+                "list_id INTEGER NOT NULL REFERENCES lists(id), "
+                "project_id INTEGER NOT NULL UNIQUE REFERENCES projects(id), "
+                "board_id INTEGER NOT NULL UNIQUE REFERENCES boards(id), "
+                "created_at TEXT NOT NULL)"
+            )
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_project_links_list ON project_links(list_id)")
             # After the rebuild: SQLite refuses to drop a table a trigger names.
             for trigger in _rev_triggers():
                 conn.execute(trigger)

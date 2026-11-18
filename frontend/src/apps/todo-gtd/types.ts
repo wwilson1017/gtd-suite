@@ -63,6 +63,18 @@ export interface TodoProject {
   updated_at: string;
 }
 
+/** A Todo project's home in Projects GTD (backend/project_links.py), each side as it is now. */
+export interface ProjectLink {
+  project_id: number;
+  project_name: string;
+  project_status: TodoProjectStatus;
+  /** The Projects GTD project (a board there). */
+  board_id: number;
+  board_name: string;
+  board_status: 'active' | 'archived';
+  created_at: string;
+}
+
 export interface TodoFilters {
   contexts: string[];
   tags: string[];

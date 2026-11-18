@@ -6,6 +6,7 @@ import { ProjectCard } from './components/ProjectCard';
 import { PROJECT_STATUSES } from './constants';
 import { useAppHref } from './hop';
 import { updateProjectStatus } from './projectActions';
+import { linkShown, useProjectLinks } from './projectLinks';
 import { EmptyState, FilterEmptyState, LoadFailed, LoadingRows, TodoShell } from './TodoShell';
 import type { TodoProject, TodoProjectStatus } from './types';
 import { refreshMeta, useListFilters } from './useTodoMeta';
@@ -30,6 +31,9 @@ export function ProjectsPage() {
   const [formError, setFormError] = useState('');
   const [search, setSearch] = useState('');
   const projectsGtd = useAppHref('projects');
+  // The projects that have a home in Projects GTD carry a chip.
+  const { links } = useProjectLinks();
+  const withBoard = useMemo(() => new Set((links ?? []).filter(linkShown).map((l) => l.project_id)), [links]);
 
   // Only the latest load for the tab now showing may land. `shown` covers a caller
   // holding a tab the user has since left (a create or close-out that awaited its
@@ -201,6 +205,7 @@ export function ProjectsPage() {
               <ProjectCard
                 key={p.id}
                 project={p}
+                board={withBoard.has(p.id)}
                 stalled={status === 'active' && !projectsWithNext.has(p.id)}
                 onCloseOut={closeOut}
               />

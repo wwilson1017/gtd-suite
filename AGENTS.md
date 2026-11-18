@@ -21,6 +21,8 @@ backend/
                  the one clock (utcnow)
   models.py      Pydantic request models
   service.py     todo / project / area CRUD, recurrence spawn, caps (_check_cap), context rename
+  project_links.py  a Todo project's home in Projects GTD: promote (the new board and the link in
+                 one transaction, once), links; recordings.project names the Todo project
   boards.py      Projects GTD: boards (a "project" in its UI) and each one's Card Table: Basecamp's
                  fixed Triage / Not now / Done columns (`kind`) around ordered work columns (colour,
                  On Hold, soft card limit), cards with Trello's fields (assignees, labels, start/due,
@@ -321,6 +323,13 @@ the call budget charged; every other request goes to FastMCP untouched.
   belonging to one row. Never write `rev` from code, and never remember who has synced: each
   tool keeps its own number. The same triggers stamp `lists.changed_at` with the database's
   clock; `service.changes_count` (`CHANGES_COUNT`, `todo_changes_count`) reads the two.
+- **A Todo project's link to its Projects GTD project is its own table.** `project_links` leads
+  Todo's `tables` in `apps.py`: a row points at a project and at a board, so it is deleted before
+  both and restored after both. `project_links.promote` checks the project, returns the link it
+  has, or makes the board (`boards.create_board_in`) and the link, all in one transaction, so a
+  repeated or simultaneous request makes one board. `db.transaction()` is not re-entrant: never
+  call `create_board` from inside one. There is no unlink and no agent tool that makes a link;
+  a page leaves out a link to an archived board or from a dropped project.
 - **Schema changes** go in `db._migrate` as idempotent steps (`CREATE TABLE IF NOT EXISTS`
   does not alter a table that exists, and the live database does).
 - **One place decides the client address:** `ratelimit.client_ip`. Do not read

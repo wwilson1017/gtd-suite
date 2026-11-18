@@ -18,6 +18,8 @@ def test_route_table_is_exactly_the_planned_surface(client):
         ("GET", f"{a}/projects"),
         ("POST", f"{a}/projects"),
         ("PUT", f"{a}/projects/{{project_id}}"),
+        ("GET", f"{a}/project-links"),
+        ("POST", f"{a}/project-links"),
         ("GET", f"{a}/areas"),
         ("POST", f"{a}/areas"),
         ("PUT", f"{a}/areas/{{area_id}}"),

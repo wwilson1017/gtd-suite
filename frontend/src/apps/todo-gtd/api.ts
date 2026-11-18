@@ -15,6 +15,7 @@ import type {
   CaptureLink,
   EmailStatus,
   NewList,
+  ProjectLink,
   Session,
   SignInLink,
   Todo,
@@ -171,6 +172,16 @@ export function createProject(body: {
 
 export function updateProject(id: number, fields: Record<string, unknown>): Promise<TodoProject> {
   return todoFetch<TodoProject>(`/projects/${id}`, { method: 'PUT', body: JSON.stringify(fields) });
+}
+
+/** Every Todo project that has a home in Projects GTD, with both sides' names and statuses. */
+export function listProjectLinks(): Promise<ProjectLink[]> {
+  return todoFetch<{ links: ProjectLink[] }>('/project-links').then((r) => r.links);
+}
+
+/** Give a Todo project a home in Projects GTD. Asked again, the answer is the link it has. */
+export function createProjectLink(projectId: number): Promise<ProjectLink> {
+  return todoFetch<ProjectLink>('/project-links', { method: 'POST', body: JSON.stringify({ project_id: projectId }) });
 }
 
 /** Every area, archived ones included (the Areas page restores from them). */
