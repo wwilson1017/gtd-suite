@@ -2,12 +2,14 @@
 import { useEffect, useState } from 'react';
 import { listProjectLinks } from './api';
 import { useSession } from './session';
-import type { ProjectLink } from './types';
+import type { ProjectLink, TodoProjectStatus } from './types';
 
-/** Whether a link shows at all: not to an archived Projects GTD project, and not
- *  from a dropped Todo project. Nothing is deleted, so the link itself stays. */
-export function linkShown(link: ProjectLink): boolean {
-  return link.board_status === 'active' && link.project_status !== 'dropped';
+/** Whether there is a link that shows: not to an archived Projects GTD project, and not
+ *  from a dropped Todo project. `status` is the Todo project's status as the page holds
+ *  it now (the link's own `project_status` is as it was when the links were read).
+ *  Nothing is deleted, so the link itself stays. */
+export function linkShown(link: ProjectLink | null | undefined, status: TodoProjectStatus): link is ProjectLink {
+  return link?.board_status === 'active' && status !== 'dropped';
 }
 
 /** The account's links, while Projects GTD is on for it. `links` is null until they
