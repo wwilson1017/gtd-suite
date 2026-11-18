@@ -65,6 +65,7 @@ async function show(shown: Project, { apps = SESSION.apps, suite = SUITE as obje
   await act(async () => {
     root.render(<TodoNextActions project={shown} />);
   });
+  return TodoNextActions;
 }
 
 const panel = () => container.querySelector('section[aria-label="Next actions, from Todo"]');
@@ -138,6 +139,24 @@ describe('Next actions, from Todo', () => {
     await show(project(LINKED), { suite: { ...SUITE, moved: `${HERE}/projects` } });
     expect(panel()!.querySelectorAll('li')).toHaveLength(2);
     expect(panel()!.querySelector('a')).toBeNull();
+  });
+
+  it("starts afresh on the next linked project, so one failed load doesn't stick", async () => {
+    api.listTodos.mockRejectedValueOnce(new Error('offline'));
+    const TodoNextActions = await show(project(LINKED));
+    expect(panel()!.textContent).toContain('Could not load them.');
+    // The overview route keeps the page mounted when it moves to another project.
+    const next = {
+      id: 32,
+      name: 'Repaint the shed',
+      todo_project: { id: 6, name: 'Repaint the shed', status: 'active' },
+    };
+    await act(async () => {
+      root.render(<TodoNextActions project={next as Project} />);
+    });
+    expect(api.listTodos).toHaveBeenLastCalledWith({ project: '6', status: 'next_action' });
+    expect(panel()!.textContent).not.toContain('Could not load them.');
+    expect(panel()!.querySelectorAll('li')).toHaveLength(2);
   });
 
   it('where Todo has its own host, links to Todo through the hop', async () => {
