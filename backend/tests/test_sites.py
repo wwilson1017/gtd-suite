@@ -3,11 +3,12 @@ pages and short links at short addresses, against the real app and a real SQLite
 
 import datetime
 import json
+from pathlib import Path
 
 import pytest
 from fastmcp.exceptions import ToolError
 
-from backend import cleanup, common, db, lists, logscrub, ratelimit, settings, sites
+from backend import apps, cleanup, common, db, lists, logscrub, ratelimit, settings, sites
 from backend.common import NotFoundError, ValidationError
 from backend.tests.conftest import confirm_list, turn_on
 from backend.tests.test_mcp import (  # noqa: F401 (fixtures)
@@ -456,7 +457,16 @@ def test_page_addresses_never_reach_a_log():
 
 # ── The agent link ────────────────────────────────────────────────────────────
 
-SITE_TOOLS = {"site_sync", "site_publish", "link_create", "site_unpublish", "site_republish", "site_list", "site_get"}
+SITE_TOOLS = {
+    "site_deck_guide",
+    "site_sync",
+    "site_publish",
+    "link_create",
+    "site_unpublish",
+    "site_republish",
+    "site_list",
+    "site_get",
+}
 
 
 @pytest.mark.anyio
@@ -467,6 +477,12 @@ async def test_the_tools_and_commands_answer_only_while_sites_is_on(connect, htt
         assert not {t.name for t in await c.list_tools()} & SITE_TOOLS
         with pytest.raises(ToolError, match="Simple Sites is off"):
             await c.call_tool("site_list", {})
+        with pytest.raises(ToolError, match="Simple Sites is off"):
+            await c.call_tool("site_deck_guide", {})
+    guide = (await http.get(f"/link/{made['agent_token']}")).json()
+    assert "DECK_GUIDE" not in guide["commands"] and "deck" not in guide["howto"]
+    res = await http.get(f"/link/{made['agent_token']}?cmd=DECK_GUIDE")
+    assert res.status_code == 400 and res.json()["error"] == apps.off_message("sites")
     res = await http.post(f"/link/{made['agent_token']}?cmd=PUBLISH", json={"content": "# x"})
     assert res.status_code == 400 and "Simple Sites is off" in res.json()["error"]
     turn_on(made["list_id"], "sites")
@@ -476,9 +492,50 @@ async def test_the_tools_and_commands_answer_only_while_sites_is_on(connect, htt
     for name in SITE_TOOLS:  # nothing an agent reaches deletes
         assert tools[name].annotations.destructive_hint is False, name
     guide = (await http.get(f"/link/{made['agent_token']}")).json()
-    assert {"SITES", "SITE", "PUBLISH", "SHORTEN", "UNPUBLISH", "REPUBLISH"} <= set(guide["commands"])
+    assert {"DECK_GUIDE", "SITES", "SITE", "PUBLISH", "SHORTEN", "UNPUBLISH", "REPUBLISH"} <= set(guide["commands"])
+    assert guide["howto"]["deck"].startswith("DECK_GUIDE:")
     assert not [n for n in guide["commands"] if "DELETE" in n]
     assert guide["limits"]["pages_per_list"] == 1 and guide["reads"]["sites"].endswith("?cmd=SITES")
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("mode", ["legacy", "auto"])
+async def test_the_deck_guide_returns_both_files_with_read_only_hints(connect, http, acct, mode):
+    directory = Path(__file__).resolve().parents[1] / "deck_guide"
+    expected = {
+        "guide": (directory / "guide.md").read_text(encoding="utf-8"),
+        "template": (directory / "deck.html").read_text(encoding="utf-8"),
+    }
+    async with connect(f"http://testserver{acct['path']}", mode=mode) as c:
+        tools = {t.name: t for t in await c.list_tools()}
+        tool = tools["site_deck_guide"]
+        assert tool.title
+        assert tool.annotations.read_only_hint is True
+        assert tool.annotations.destructive_hint is False
+        assert tool.annotations.open_world_hint is False
+        assert tool.input_schema["properties"] == {}
+        assert await call(c, "site_deck_guide") == expected
+        prompt = "Making a presentation? Call site_deck_guide first."
+        assert tools["site_publish"].description.startswith(prompt)
+        assert prompt in c.instructions
+    res = await http.get(f"{acct['path']}?cmd=DECK_GUIDE")
+    assert res.status_code == 200 and res.json() == {"ok": True, **expected}
+    assert res.headers["cache-control"] == "no-store"
+    res = await http.post(f"{acct['path']}?cmd=DECK_GUIDE", json={})
+    assert res.status_code == 405 and res.headers["allow"] == "GET, HEAD"
+    assert "send it as GET" in res.json()["error"]
+    assert sites.list_sites(acct["id"]) == []
+
+
+def test_the_deck_assets_are_small_and_neutral():
+    directory = Path(__file__).resolve().parents[1] / "deck_guide"
+    assets = [(directory / name).read_bytes() for name in ("guide.md", "deck.html")]
+    assert sum(map(len, assets)) <= 16_000
+    for content in assets:
+        text = content.decode("utf-8").lower()
+        for forbidden in ("data:", "tncheesecake", "will", "/home/", "@font-face"):
+            assert forbidden not in text
+    assert assets[1].count(b"<section") == 6
 
 
 @pytest.mark.anyio

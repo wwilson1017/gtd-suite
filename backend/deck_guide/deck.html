@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Presentation title</title>
+<style>
+  :root { --bg:#f7f7f5; --ink:#242424; --muted:#626262; --line:#c9c9c5;
+    font-family:system-ui,-apple-system,"Segoe UI",sans-serif; color:var(--ink); background:var(--bg) }
+  * { box-sizing:border-box }
+  html, body { height:100%; margin:0; overflow:hidden }
+  #stage { position:absolute; left:50%; top:50%; width:1600px; height:900px; transform:translate(-50%,-50%) scale(var(--s,1)) }
+  section { position:absolute; inset:0; padding:90px 110px; display:none; flex-direction:column; justify-content:center; overflow:hidden; background:var(--bg) }
+  section.on { display:flex }
+  h1, h2, h3, p { margin:0 }
+  h1 { font-size:100px; line-height:1.08; letter-spacing:-.03em }
+  h2 { font-size:72px; line-height:1.12; letter-spacing:-.02em }
+  h3 { font-size:48px; line-height:1.2 }
+  p, li { font-size:40px; line-height:1.35 }
+  p { margin-top:28px }
+  ul { margin:36px 0 0; padding-left:48px }
+  li + li { margin-top:24px }
+  a { color:inherit }
+  .muted { color:var(--muted) }
+  .center { align-items:center; text-align:center }
+  .split.on { display:grid; grid-template-columns:1fr 1fr; gap:64px; align-items:center }
+  .split > * { min-width:0 }
+  .split img, .split video, .split svg { width:100%; max-height:640px; object-fit:contain }
+  .columns { display:grid; grid-template-columns:1fr 1fr; gap:64px; margin-top:48px }
+  .columns > div { border-top:3px solid var(--line); padding-top:28px }
+  .step { opacity:0; transition:opacity .2s }
+  .step.shown { opacity:1 }
+  aside.notes { display:none }
+  body.blank { background:#000 }
+  body.blank #stage, body.blank nav { visibility:hidden }
+  nav { position:fixed; right:14px; bottom:12px; display:flex; gap:6px; align-items:center; color:var(--muted); font:500 13px system-ui; transition:opacity .3s }
+  nav button { font:inherit; font-size:20px; line-height:1; color:inherit; background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:4px 12px; cursor:pointer }
+  body.idle { cursor:none }
+  body.idle nav { opacity:0 }
+  nav:focus-within { opacity:1 !important }
+  body.numbered.idle nav { opacity:1 }
+  body.numbered.idle nav button { opacity:0 }
+  body.numbered #num { position:fixed; left:14px; bottom:12px; font:700 30px/1 system-ui; color:var(--bg); background:var(--ink); padding:7px 14px; border-radius:8px }
+  @media (prefers-reduced-motion:reduce) { .step, nav { transition:none } }
+</style>
+</head>
+<body class="idle">
+<main id="stage" aria-label="Presentation">
+
+  <!-- 1. Title: introduce the central idea. -->
+  <section>
+    <h1>A clearer path forward</h1>
+    <p class="muted">A proposal for the next chapter</p>
+    <aside class="notes">Introduce the purpose and the decision this presentation supports.</aside>
+  </section>
+
+  <!-- 2. Statement: one idea, large and direct. -->
+  <section class="center">
+    <h2>Make the next step simple.</h2>
+    <p class="muted">Clarity helps people act.</p>
+  </section>
+
+  <!-- 3. Bullets: short, parallel points. Add class="step" for reveals. -->
+  <section>
+    <h2>Three things to focus on</h2>
+    <ul>
+      <li>Define the outcome.</li>
+      <li>Remove one obstacle.</li>
+      <li>Choose a useful first step.</li>
+    </ul>
+  </section>
+
+  <!-- 4. Image + text: replace the SVG with a local image and useful alt text. -->
+  <section class="split">
+    <div>
+      <h2>Show the idea</h2>
+      <p>A relevant image can make the explanation easier to remember.</p>
+    </div>
+    <svg viewBox="0 0 600 450" role="img" aria-label="Neutral landscape illustration placeholder">
+      <rect width="600" height="450" rx="12" fill="#e2e2df"/>
+      <circle cx="440" cy="110" r="44" fill="#b1b1ac"/>
+      <path d="M0 380L190 150L370 370L470 250L600 400V450H0Z" fill="#92928d"/>
+    </svg>
+  </section>
+
+  <!-- 5. Two columns: compare two related ideas. -->
+  <section>
+    <h2>From intention to action</h2>
+    <div class="columns">
+      <div><h3>Today</h3><p>Describe the current situation in a few clear words.</p></div>
+      <div><h3>Next</h3><p>Describe the change and what success looks like.</p></div>
+    </div>
+  </section>
+
+  <!-- 6. Closing: leave the audience with a next step. -->
+  <section class="center">
+    <h1>Start with one step.</h1>
+    <p>What can we do next?</p>
+  </section>
+
+</main>
+<nav aria-label="Slide controls"><span id="num" aria-live="polite"></span><button id="prev" aria-label="Previous slide">&#8249;</button><button id="next" aria-label="Next slide">&#8250;</button></nav>
+<script>
+(() => {
+  const $ = id => document.getElementById(id), stage = $('stage'), slides = [...stage.querySelectorAll('section')];
+  let i = 0;
+  const fit = () => stage.style.setProperty('--s', Math.min(innerWidth / 1600, innerHeight / 900));
+
+  function show(n, revealed) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, k) => {
+      s.classList.toggle('on', k === i);
+      if (k !== i) s.querySelectorAll('video,audio').forEach(v => v.pause());
+    });
+    slides[i].querySelectorAll('.step').forEach(e => e.classList.toggle('shown', !!revealed));
+    // Location works in both the isolated host and an opaque sandbox origin.
+    location.replace('#' + (i + 1));
+    $('num').textContent = (i + 1) + ' / ' + slides.length;
+  }
+  function next() { const s = slides[i].querySelector('.step:not(.shown)'); if (s) s.classList.add('shown'); else if (i < slides.length - 1) show(i + 1); }
+  function prev() { const s = [...slides[i].querySelectorAll('.step.shown')].pop(); if (s) s.classList.remove('shown'); else if (i > 0) show(i - 1, true); }
+
+  // Clickers send PageDown/PageUp, arrows, and often period for a blank screen.
+  addEventListener('keydown', e => {
+    const k = e.key, t = e.target;
+    if (e.metaKey || e.ctrlKey || e.altKey || t.closest('input,textarea,select,[contenteditable]')) return;
+    if ((k === ' ' || k === 'Enter') && t.closest('a,button,summary')) return;
+    if (['ArrowRight', 'ArrowDown', 'PageDown', ' ', 'Enter'].includes(k)) next();
+    else if (['ArrowLeft', 'ArrowUp', 'PageUp', 'Backspace'].includes(k)) prev();
+    else if (k === 'Home') show(0);
+    else if (k === 'End') show(slides.length - 1, true);
+    else if (k === '.' || k === 'b' || k === 'B') document.body.classList.toggle('blank');
+    else if (k === 'n' || k === 'N') document.body.classList.toggle('numbered');
+    else if (k === 'f' || k === 'F') {
+      const change = document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen?.();
+      change?.catch(() => {}); // Browser fullscreen (F11) is also available.
+    } else return;
+    e.preventDefault();
+  });
+  $('next').onclick = next; $('prev').onclick = prev;
+
+  let x0;
+  addEventListener('touchstart', e => x0 = e.touches[0].clientX, { passive:true });
+  addEventListener('touchend', e => { const d = e.changedTouches[0].clientX - x0; if (Math.abs(d) > 50) d < 0 ? next() : prev(); }, { passive:true });
+
+  let idle;
+  addEventListener('mousemove', () => { document.body.classList.remove('idle'); clearTimeout(idle); idle = setTimeout(() => document.body.classList.add('idle'), 2500); });
+  window.deckCheck = () => slides.flatMap((s, k) => {
+    s.classList.add('on');
+    const overflow = s.scrollHeight > s.clientHeight + 1 || s.scrollWidth > s.clientWidth + 1;
+    s.classList.toggle('on', k === i);
+    return overflow ? [k + 1] : [];
+  });
+  const fromHash = () => (parseInt(location.hash.slice(1)) || 1) - 1;
+  addEventListener('resize', fit);
+  addEventListener('hashchange', () => { if (fromHash() !== i) show(fromHash()); });
+  fit(); show(fromHash()); document.fonts.ready.then(window.deckCheck);
+})();
+</script>
+</body>
+</html>

@@ -21,5 +21,6 @@ reports
 research_notes
 .playwright-cli
 *.md
+!backend/deck_guide/guide.md
 Dockerfile
 .dockerignore
