@@ -4,13 +4,13 @@ import { useEffect, useState } from 'react';
 
 export function ConnectAnimation() {
   const [open, setOpen] = useState(false);
+  const closeOnEscape = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') setOpen(false);
+  };
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
   }, [open]);
   const theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
 
@@ -46,6 +46,8 @@ export function ConnectAnimation() {
               src={`/connect-ai.html?theme=${theme}`}
               title="How to connect your AI"
               className="h-full w-full border-0"
+              // Same origin: once a click puts focus inside the walk-through, Escape lands there.
+              onLoad={(e) => e.currentTarget.contentWindow?.addEventListener('keydown', closeOnEscape)}
             />
           </div>
         </div>
