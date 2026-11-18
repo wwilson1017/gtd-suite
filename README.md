@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/logo.svg" alt="GTD suite: Todo, Notes, Projects, Sites and Common Brain" width="480"></p>
+
 # GTD suite
 
 Five apps in one service, with one account and one agent link that AI tools read and write
