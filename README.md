@@ -1,4 +1,4 @@
-<p align="center"><img src="docs/logo.svg" alt="GTD suite: Todo, Notes, Projects, Sites and Common Brain" width="480"></p>
+<p align="center"><img src="docs/logo.svg" alt="GTD suite: Todo, Notes, Projects, Sites and Common Brain" width="640"></p>
 
 # GTD suite
 
