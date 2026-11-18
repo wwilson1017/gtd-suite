@@ -11,10 +11,16 @@ the person can, in the browser.
 # _arg(...) in tool signatures is a call inside an annotation, which pyright cannot read.
 # pyright: reportInvalidTypeForm=false
 
+from pathlib import Path
+
 from backend.paid import plans
 from backend import agent_cmd, common, mcp_server, settings, sites
 from backend.agent_cmd import Arg, Command
 from backend.mcp_server import _arg, _client_name, _list_id, _tool
+
+_DECK_DIR = Path(__file__).with_name("deck_guide")
+_DECK_GUIDE = (_DECK_DIR / "guide.md").read_text(encoding="utf-8")
+_DECK_TEMPLATE = (_DECK_DIR / "deck.html").read_text(encoding="utf-8")
 
 _LIMITS = (
     f"A page is at most {common.SITE_MAX_BYTES // 1_000_000} MB of content "
@@ -58,6 +64,7 @@ mcp_server.INSTRUCTIONS["sites"] = (
     "report, a menu, a write-up, a prototype), publish it with site_publish as Markdown or a "
     "whole HTML page, and give them the address from the answer. To change a page, publish "
     "again with its id: the address stays, so update rather than publish a copy. "
+    "Making a presentation? Call site_deck_guide first. "
     "For a folder of files, use site_sync: it uploads only missing hashes and switches the whole manifest. "
     "Give each page a note saying who it is for (the user's own, never shown on the page) and, "
     "when the user has many, a folder; site_edit changes a title, note or folder later, and "
@@ -79,6 +86,13 @@ _ID = "The page's or link's id"
 def _publish_limits(fn):
     fn.__doc__ = (fn.__doc__ or "") + " " + _LIMITS
     return fn
+
+
+@_tool("Get the deck guide and template", read_only=True, app="sites", user_text=False)
+def site_deck_guide() -> dict:
+    """Get the presentation guide and a self-contained HTML template. Call this
+    first when making a presentation for Simple Sites. Changes nothing."""
+    return {"guide": _DECK_GUIDE, "template": _DECK_TEMPLATE}
 
 
 @_tool("Sync site files", read_only=False, app="sites")
@@ -128,7 +142,8 @@ def site_publish(
     folder: _arg(str | None, "The folder to file it in (any name, up to 60 characters)") = None,
     data: _arg(str | None, _DATA_MODE + " The page's script then saves and reads like this:\n" + _DATA_SNIPPET) = None,
 ) -> dict:
-    """Publish a page at a short address, or (with id) replace a page's content in
+    """Making a presentation? Call site_deck_guide first.
+    Publish a page at a short address, or (with id) replace a page's content in
     place. The answer carries the page's address: give it to the user. Replacing a files
     page switches it to a single body (Markdown unless a format is given)."""
     return {
@@ -363,6 +378,15 @@ def _data_add(ctx, args, body):
 
 
 COMMANDS = {
+    "DECK_GUIDE": Command(
+        "The presentation guide and a self-contained HTML template; read before making a deck.",
+        False,
+        lambda ctx, args, body: site_deck_guide(),
+        example={
+            "request": "GET LINK?cmd=DECK_GUIDE",
+            "response": {"ok": True, "guide": "Markdown instructions", "template": "HTML template"},
+        },
+    ),
     "SITE_SYNC": Command(
         "Publish site files. " + sites.SYNC_NEXT,
         True,
@@ -528,6 +552,7 @@ def _guide(ctx, row, today) -> dict:
             "request_bytes": agent_cmd.MAX_BODY_BYTES,
         },
         "howto": {
+            "deck": "DECK_GUIDE: read the presentation guide and copy its HTML template before making a deck",
             "file_sync": "SITE_SYNC: " + sites.SYNC_NEXT,
             "page_data": _DATA_GUIDE,
             "publish": "PUBLISH, then give the user the address from the answer",
