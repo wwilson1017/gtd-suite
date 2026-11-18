@@ -21,7 +21,9 @@ everything, and it is the only thing that can fetch them.
 import datetime
 import hashlib
 import json
+import logging
 import secrets
+import sqlite3
 import string
 
 from backend.paid import caps as paid_caps
@@ -33,6 +35,8 @@ _TOKEN_ALPHABET, _TOKEN_LENGTH = string.ascii_letters + string.digits, 43
 _TOUCH_INTERVAL_SECONDS = 3600
 # AI tools remembered per account (seen_ai): a name is the tool's own say-so, so it is capped.
 MAX_AI_TOOLS = 50
+
+logger = logging.getLogger(__name__)
 
 
 def mint_token() -> str:
@@ -355,26 +359,31 @@ def seen_ai(list_id: int, name: str | None) -> None:
     # simplification: hour-granular like touch, so the page says a day, never a time
     """
     name = common.clean_source_client(name) or ""
-    row = (
-        db.get_db()
-        .execute("SELECT last_seen_at FROM ai_tools WHERE list_id = ? AND name = ?", (list_id, name))
-        .fetchone()
-    )
-    now = common.utcnow()
-    stale_before = common.to_iso(now - datetime.timedelta(seconds=_TOUCH_INTERVAL_SECONDS))
-    if row and row["last_seen_at"] and row["last_seen_at"] >= stale_before:
-        return
-    at = common.to_iso(now)
-    with db.transaction() as conn:
-        known = conn.execute(
-            "UPDATE ai_tools SET last_seen_at = ? WHERE list_id = ? AND name = ?", (at, list_id, name)
-        ).rowcount
-        held = conn.execute("SELECT COUNT(*) FROM ai_tools WHERE list_id = ?", (list_id,)).fetchone()[0]
-        if not known and held < MAX_AI_TOOLS:
-            conn.execute(
-                "INSERT INTO ai_tools (list_id, name, first_seen_at, last_seen_at) VALUES (?, ?, ?, ?)",
-                (list_id, name, at, at),
-            )
+    try:
+        row = (
+            db.get_db()
+            .execute("SELECT last_seen_at FROM ai_tools WHERE list_id = ? AND name = ?", (list_id, name))
+            .fetchone()
+        )
+        now = common.utcnow()
+        stale_before = common.to_iso(now - datetime.timedelta(seconds=_TOUCH_INTERVAL_SECONDS))
+        if row and row["last_seen_at"] and row["last_seen_at"] >= stale_before:
+            return
+        at = common.to_iso(now)
+        with db.transaction() as conn:
+            known = conn.execute(
+                "UPDATE ai_tools SET last_seen_at = ? WHERE list_id = ? AND name = ?", (at, list_id, name)
+            ).rowcount
+            held = conn.execute("SELECT COUNT(*) FROM ai_tools WHERE list_id = ?", (list_id,)).fetchone()[0]
+            if not known and held < MAX_AI_TOOLS:
+                conn.execute(
+                    "INSERT INTO ai_tools (list_id, name, first_seen_at, last_seen_at) VALUES (?, ?, ?, ?)",
+                    (list_id, name, at, at),
+                )
+    except sqlite3.Error as e:
+        # The call this records has already been answered for: a stamp that fails (a busy
+        # database) must not turn that answer into an error the tool would retry.
+        logger.warning("an AI tool's call was not recorded: %s", type(e).__name__)
 
 
 def ai_tools(list_id: int) -> list[dict]:

@@ -100,7 +100,7 @@ it('offers the yearly and monthly plans, and goes to Stripe', async () => {
 
 it('holds the plans until the email is confirmed', async () => {
   await show({}, { verified: false });
-  expect(host.textContent).toContain('Confirm your email under Connect first');
+  expect(host.textContent).toContain('Confirm your email first');
   expect(button('$5 a month')!.disabled).toBe(true);
 });
 

@@ -85,7 +85,7 @@ export interface CaptureLink {
 export type AgentLink = CaptureLink;
 
 /** What creating a list answers. The browser is signed in by a cookie the page
- *  never sees; the agent link is shown again under Connect. */
+ *  never sees; the agent link is shown again on Your AI. */
 export interface NewList {
   agent_token: string;
   agent_url: string;

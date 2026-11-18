@@ -1019,7 +1019,7 @@ def _guide(ctx: _Ctx) -> dict:
     hosted, verified = settings.open_signup(), row["email_verified_at"] is not None
     if "limits" in part:  # a copy: an app's part may hand back a shared dict
         if hosted and not verified:
-            raising = "confirming an email under Connect raises the caps"
+            raising = "confirming an email in Settings raises the caps"
         elif hosted and not plans.active(row) and billing.selling():
             raising = plans.guide_upsell()
         else:

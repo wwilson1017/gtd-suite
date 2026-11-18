@@ -735,7 +735,7 @@ def approve_connect(user_code: str, body: ConnectApproval | None = None, owner: 
 @router.post("/lists")
 def create_list(request: Request, response: Response, body: ListCreate | None = None):
     """Create a list and sign this browser in to it. The answer carries the
-    agent link (the app shows it again under Connect); the session is only in
+    agent link (the app shows it again on Your AI); the session is only in
     the cookie."""
     _same_origin(request)
     if sessions.resolve(request.cookies.get(sessions.COOKIE)) is not None:
@@ -743,7 +743,7 @@ def create_list(request: Request, response: Response, body: ListCreate | None = 
         raise HTTPException(
             status_code=409,
             headers=_NO_STORE,
-            detail=("This browser is already signed in to a list. Sign out under Connect to make another."),
+            detail=("This browser is already signed in to a list. Sign out in Settings to make another."),
         )
     if not create_limiter.allow(client_ip(request)):
         raise _too_many()

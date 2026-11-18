@@ -94,7 +94,7 @@ def upsell(eligible: bool, to: int | None = None) -> str:
     account could buy it (hosted, not on Pro already)."""
     if not (eligible and selling()):
         return ""
-    return f" Pro raises it{f' to {to}' if to else ''}, for {PRICE}: Upgrade under Connect."
+    return f" Pro raises it{f' to {to}' if to else ''}, for {PRICE}: Upgrade in Settings."
 
 
 def _stripe(method: str, path: str, data: dict | None = None, key: str | None = None) -> dict:

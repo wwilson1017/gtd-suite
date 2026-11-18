@@ -60,7 +60,7 @@ def password_refusal() -> str:
 def guide_upsell() -> str:
     from backend.paid import billing
 
-    return f"Pro raises them, for {billing.PRICE}: the person upgrades under Connect" if billing.selling() else ""
+    return f"Pro raises them, for {billing.PRICE}: the person upgrades in Settings" if billing.selling() else ""
 
 
 def short_name_guide() -> list[str]:

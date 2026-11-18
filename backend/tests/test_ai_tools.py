@@ -3,6 +3,8 @@ when each last did, kept for the person's Your AI page. A call counts when it su
 starting an MCP session, running a tool or running a named command; nothing else does, and
 a request from a web page never does."""
 
+import sqlite3
+
 import pytest
 from fastmcp.exceptions import ToolError
 
@@ -73,6 +75,15 @@ def test_at_the_cap_only_the_tools_already_known_are_stamped(L, freeze, monkeypa
     lists.seen_ai(L, "Grok")
     lists.seen_ai(L, "Codex")
     assert seen(L) == [("Claude", "2026-11-02T10:00:00.000Z"), ("Codex", "2026-11-02T12:00:00.000Z")]
+
+
+def test_a_stamp_that_fails_does_not_fail_the_call_it_records(L, monkeypatch):
+    def busy():
+        raise sqlite3.OperationalError("database is locked")
+
+    monkeypatch.setattr(db, "transaction", busy)
+    lists.seen_ai(L, "Claude")  # the tool's call was already answered: nothing is raised
+    assert seen(L) == []
 
 
 def test_the_page_gets_each_tools_last_day_in_the_lists_own_zone_newest_first(L, freeze):
