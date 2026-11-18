@@ -32,7 +32,7 @@ import json
 from backend.paid import caps as paid_caps
 from backend.paid import plans
 from backend.paid import billing
-from backend import common, db, people, recordings, settings
+from backend import apps, common, db, people, recordings, settings
 from backend.common import ConflictError, NotFoundError, ValidationError
 
 # A new card table's work columns, then its Done column's name (Basecamp's defaults).
@@ -127,7 +127,7 @@ def _check_cap(conn, list_id: int, table: str, adding: int = 1) -> None:
         return
     if hosted and not verified:
         raise ValidationError(
-            f"This list holds {cap} {table} until an email is confirmed in Settings. Nothing was changed."
+            f"This list holds {cap} {table} until an email is confirmed in {apps.settings_page()}. Nothing was changed."
         )
     raise ValidationError(
         f"A list holds at most {cap} {table}.{billing.upsell(hosted and not plan)} Nothing was changed."

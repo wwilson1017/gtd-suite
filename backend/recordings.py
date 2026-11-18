@@ -24,7 +24,7 @@ from typing import NamedTuple, cast
 from backend.paid import caps as paid_caps
 from backend.paid import plans
 from backend.paid import billing
-from backend import common, db, people, settings
+from backend import apps, common, db, people, settings
 from backend.common import ConflictError, NotFoundError, ValidationError
 
 # 'drafted' is a message not yet posted: only its writer sees it, under Drafts.
@@ -190,7 +190,7 @@ def _check_cap(conn, list_id: int, adding: int = 1) -> None:
         return
     if hosted and not verified:
         raise ValidationError(
-            f"This account holds {cap} items until an email is confirmed in Settings. Nothing was changed."
+            f"This account holds {cap} items until an email is confirmed in {apps.settings_page()}. Nothing was changed."
         )
     raise ValidationError(
         f"An account holds at most {cap} items.{billing.upsell(hosted and not plan)} Nothing was changed."
