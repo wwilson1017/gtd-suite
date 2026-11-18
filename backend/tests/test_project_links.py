@@ -243,6 +243,14 @@ def test_admin_delete_removes_a_list_with_links(L, P):
     assert db.get_db().execute("PRAGMA foreign_key_check").fetchall() == []
 
 
+def test_a_version_that_does_not_know_the_table_can_still_delete_a_list(L, P, monkeypatch):
+    # After a rollback the older code deletes a list without this table in its own list of them.
+    monkeypatch.setattr(admin, "_LIST_TABLES", tuple(t for t in admin._LIST_TABLES if t != "project_links"))
+    project_links.promote(L, P)
+    assert admin.main(["delete", str(L), f"--yes-delete-list-{L}", "--no-snapshot"]) == 0
+    assert lists.get_list(L) is None and _count("project_links") == 0
+
+
 def test_restore_brings_links_back_and_a_snapshot_without_the_table_has_none(L, P):
     link = project_links.promote(L, P)
     snapshot = backup.snapshot()

@@ -329,7 +329,9 @@ the call budget charged; every other request goes to FastMCP untouched.
   has, or makes the board (`boards.create_board_in`) and the link, all in one transaction, so a
   repeated or simultaneous request makes one board. `db.transaction()` is not re-entrant: never
   call `create_board` from inside one. There is no unlink and no agent tool that makes a link;
-  a page leaves out a link to an archived board or from a dropped project.
+  a page leaves out a link to an archived board or from a dropped project. Its rows cascade
+  with the list, the project and the board, so a version that does not know the table (after
+  a rollback) can still delete them.
 - **Schema changes** go in `db._migrate` as idempotent steps (`CREATE TABLE IF NOT EXISTS`
   does not alter a table that exists, and the live database does).
 - **One place decides the client address:** `ratelimit.client_ip`. Do not read

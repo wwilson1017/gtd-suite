@@ -982,11 +982,13 @@ def _migrate(conn: sqlite3.Connection) -> None:
                 "ON sites(short_name) WHERE short_name IS NOT NULL"
             )
             # Step 31: a Todo project and the Projects GTD project made for it, each linked once.
+            # ON DELETE CASCADE: after a rollback, a version that does not know the table can
+            # still delete a list's projects and boards (admin.py delete, restore_list.py).
             conn.execute(
                 "CREATE TABLE IF NOT EXISTS project_links ("
-                "list_id INTEGER NOT NULL REFERENCES lists(id), "
-                "project_id INTEGER NOT NULL UNIQUE REFERENCES projects(id), "
-                "board_id INTEGER NOT NULL UNIQUE REFERENCES boards(id), "
+                "list_id INTEGER NOT NULL REFERENCES lists(id) ON DELETE CASCADE, "
+                "project_id INTEGER NOT NULL UNIQUE REFERENCES projects(id) ON DELETE CASCADE, "
+                "board_id INTEGER NOT NULL UNIQUE REFERENCES boards(id) ON DELETE CASCADE, "
                 "created_at TEXT NOT NULL)"
             )
             conn.execute("CREATE INDEX IF NOT EXISTS idx_project_links_list ON project_links(list_id)")
