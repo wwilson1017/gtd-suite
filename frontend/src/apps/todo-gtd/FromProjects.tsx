@@ -116,12 +116,14 @@ export function FromProjects({ search, facets }: { search: string; facets: boole
     write(
       row,
       async () => {
+        // Finishing a repeating one makes the next and moves the repeat to it, so the
+        // answer carries none: the row drops its mark, and the next shows on a reload.
         if (!row.card) {
-          await completeItem(row.id, true);
-          return { done: true };
+          const after = await completeItem(row.id, true);
+          return { done: true, repeat: !!after.repeat };
         }
         const after = await updateCard(row.id, { completed: true, version: row.version });
-        return { done: after.completed, version: after.version };
+        return { done: after.completed, version: after.version, repeat: !!after.repeat };
       },
       'Could not check it off. Try again.',
     );

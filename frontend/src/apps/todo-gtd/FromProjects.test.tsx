@@ -417,17 +417,21 @@ describe('the "From Projects GTD" group', () => {
   it('checks off a repeating to-do and card as any other; the next one waits for a reload', async () => {
     const weekly = card({ repeat: 'every_week' });
     projects.getAssignments.mockResolvedValue({ todos: [todo({ repeat: 'every_week' })], cards: [weekly] });
+    // The server moves the repeat to the next one it makes, so its answers carry none.
     projects.completeItem.mockResolvedValue(todo({ completed: true }));
-    projects.updateCard.mockResolvedValue(completed(weekly));
-    projects.moveCard.mockResolvedValue({ ...weekly, version: 6 });
+    projects.updateCard.mockResolvedValue({ ...completed(weekly), repeat: '' });
+    projects.moveCard.mockResolvedValue({ ...weekly, repeat: '', version: 6 });
     await show();
-    expect(rows().map((r) => r.querySelector('[aria-label="Repeats"]') !== null)).toEqual([true, true]);
+    const marks = () => rows().map((r) => r.querySelector('[aria-label="Repeats"]') !== null);
+    expect(marks()).toEqual([true, true]);
 
     await click(box('Book the inspection'));
     await click(box('Order the umbrellas'));
     // Projects GTD made the next ones; this page shows what it read, until it reloads.
     expect(projects.getAssignments).toHaveBeenCalledTimes(1);
     expect(rows()).toHaveLength(2);
+    // The checked ones repeat no more: the mark goes, and stays gone after Undo.
+    expect(marks()).toEqual([false, false]);
 
     // Undo re-opens the ones that were checked, by their own ids.
     await click(undo('Book the inspection')!);
@@ -436,6 +440,7 @@ describe('the "From Projects GTD" group', () => {
     expect(projects.moveCard).toHaveBeenCalledExactlyOnceWith(21, 52, undefined, false, 5);
     expect(projects.getAssignments).toHaveBeenCalledTimes(1);
     expect(rows()).toHaveLength(2);
+    expect(marks()).toEqual([false, false]);
   });
 
   it("follows the page's filter: its text on title and project, and no rows under a context", async () => {
