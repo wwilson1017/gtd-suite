@@ -1,0 +1,1694 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!-- How to connect Grok, Claude and ChatGPT, animated. Opened by ConnectAnimation on the Connect page. -->
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Connect Your AI</title>
+    <style>
+      :root {
+        --bg: #f1f1e8;
+        --card: #fffffa;
+        --ink: #292929;
+        --muted: #595959;
+        --line: #d1d5db;
+        --faint: #e5e7eb;
+        --brand: #c0272d;
+        --brand-ink: #ba002a;
+        --band: #6f1f1f;
+        --band-text: #ecd6c8;
+        --accent: #f3c27a;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme='light']) {
+          --bg: #17150f;
+          --card: #211e17;
+          --ink: #ece8de;
+          --muted: #a8a395;
+          --line: #3b372d;
+          --faint: #2c2921;
+          --brand: #e0484d;
+          --brand-ink: #ff7b7b;
+          --band: #3a1414;
+          --band-text: #ecd6c8;
+        }
+      }
+      :root[data-theme='dark'] {
+        --bg: #17150f;
+        --card: #211e17;
+        --ink: #ece8de;
+        --muted: #a8a395;
+        --line: #3b372d;
+        --faint: #2c2921;
+        --brand: #e0484d;
+        --brand-ink: #ff7b7b;
+        --band: #3a1414;
+        --band-text: #ecd6c8;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+      }
+      body {
+        background: var(--bg);
+        color: var(--ink);
+        font:
+          16px/1.5 ui-sans-serif,
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          Roboto,
+          'Helvetica Neue',
+          Arial,
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      .wrap {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 28px 16px 40px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 700;
+        font-size: 14px;
+        color: var(--brand-ink);
+        letter-spacing: 0.02em;
+      }
+      .brand i {
+        width: 18px;
+        height: 18px;
+        border-radius: 5px;
+        background: var(--brand);
+        display: inline-block;
+        position: relative;
+      }
+      .brand i::after {
+        content: '';
+        position: absolute;
+        left: 5px;
+        top: 3px;
+        width: 5px;
+        height: 9px;
+        border: solid #fff;
+        border-width: 0 2px 2px 0;
+        transform: rotate(45deg);
+      }
+      h1 {
+        font-size: clamp(28px, 4.4vw, 42px);
+        line-height: 1.1;
+        margin: 10px 0 6px;
+        letter-spacing: -0.02em;
+      }
+      .lede {
+        color: var(--muted);
+        margin: 0 0 22px;
+        max-width: 60ch;
+      }
+      .tabs {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+      .tab {
+        appearance: none;
+        border: 1px solid var(--line);
+        background: var(--card);
+        color: var(--ink);
+        border-radius: 12px;
+        padding: 10px 14px;
+        cursor: pointer;
+        text-align: left;
+        font: inherit;
+        min-width: 150px;
+        flex: 1 1 150px;
+        max-width: 240px;
+        transition:
+          border-color 0.2s,
+          box-shadow 0.2s;
+      }
+      .tab b {
+        display: block;
+        font-size: 16px;
+      }
+      .tab span {
+        display: block;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .tab[aria-selected='true'] {
+        border-color: var(--brand);
+        box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand) 25%, transparent);
+      }
+      .tab .bar {
+        display: block;
+        height: 3px;
+        border-radius: 3px;
+        background: var(--faint);
+        margin-top: 8px;
+        overflow: hidden;
+      }
+      .tab .bar::after {
+        content: '';
+        display: block;
+        height: 100%;
+        width: var(--p, 0%);
+        background: var(--brand);
+        transition: width 0.3s linear;
+      }
+      @media (max-width: 560px) {
+        .tab {
+          min-width: 0;
+          padding: 9px 10px;
+        }
+        .tab span {
+          display: none;
+        }
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr);
+        gap: 20px;
+        align-items: start;
+      }
+      @media (max-width: 820px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .viewport {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 720/450;
+        border-radius: 16px;
+        overflow: hidden;
+        background: linear-gradient(135deg, #7a2323, #4a1515);
+        box-shadow: 0 10px 30px rgb(0 0 0 / 0.18);
+      }
+      .stage {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 720px;
+        height: 450px;
+        transform-origin: 0 0;
+        transform: scale(var(--s, 1));
+        font-size: 13px;
+        color: #222;
+      }
+      .controls {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-top: 10px;
+      }
+      .btn {
+        appearance: none;
+        border: 1px solid var(--line);
+        background: var(--card);
+        color: var(--ink);
+        border-radius: 10px;
+        padding: 7px 12px;
+        font: inherit;
+        font-size: 14px;
+        cursor: pointer;
+      }
+      .btn:hover {
+        border-color: var(--muted);
+      }
+      .caption {
+        flex: 1;
+        font-size: 14px;
+        color: var(--muted);
+        min-height: 1.5em;
+      }
+      .steps {
+        background: var(--card);
+        border: 1px solid var(--faint);
+        border-radius: 16px;
+        padding: 18px;
+      }
+      .steps h2 {
+        font-size: 17px;
+        margin: 0 0 4px;
+      }
+      .steps .sub {
+        font-size: 13px;
+        color: var(--muted);
+        margin: 0 0 12px;
+      }
+      .steps ol {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        counter-reset: s;
+      }
+      .steps li {
+        counter-increment: s;
+        position: relative;
+        padding: 8px 8px 8px 40px;
+        border-radius: 10px;
+        font-size: 15px;
+        transition:
+          background 0.25s,
+          color 0.25s;
+        color: var(--muted);
+      }
+      .steps li::before {
+        content: counter(s);
+        position: absolute;
+        left: 8px;
+        top: 8px;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        border: 1.5px solid var(--line);
+        font-size: 12px;
+        font-weight: 700;
+        display: grid;
+        place-items: center;
+      }
+      .steps li.now {
+        background: color-mix(in srgb, var(--brand) 9%, transparent);
+        color: var(--ink);
+      }
+      .steps li.now::before {
+        border-color: var(--brand);
+        background: var(--brand);
+        color: #fff;
+      }
+      .steps li.past {
+        color: var(--ink);
+      }
+      .steps li.past::before {
+        content: '✓';
+        border-color: var(--brand);
+        color: var(--brand-ink);
+      }
+      .note {
+        margin-top: 12px;
+        font-size: 13px;
+        color: var(--muted);
+        border-top: 1px solid var(--faint);
+        padding-top: 10px;
+      }
+      .note:empty {
+        display: none;
+      }
+
+      /* ---------- inside the stage ---------- */
+      .win {
+        position: absolute;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 18px 40px rgb(0 0 0 / 0.35);
+        transition:
+          transform 0.7s cubic-bezier(0.6, 0, 0.2, 1),
+          opacity 0.7s;
+      }
+      .win.off-l {
+        transform: translateX(-760px);
+        opacity: 0;
+      }
+      .win.off-r {
+        transform: translateX(760px);
+        opacity: 0;
+      }
+      .chrome {
+        height: 30px;
+        background: #e9e7e1;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0 10px;
+        border-bottom: 1px solid rgb(0 0 0 / 0.08);
+      }
+      .chrome .d {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #cfcac0;
+      }
+      .addr {
+        margin-left: 10px;
+        flex: 1;
+        max-width: 360px;
+        height: 19px;
+        border-radius: 10px;
+        background: #fff;
+        color: #555;
+        font-size: 11px;
+        display: flex;
+        align-items: center;
+        padding: 0 10px;
+      }
+      .dark .chrome {
+        background: #1d1d1f;
+        border-color: #2a2a2c;
+      }
+      .dark .chrome .d {
+        background: #3a3a3c;
+      }
+      .dark .addr {
+        background: #2c2c2e;
+        color: #bbb;
+      }
+      .body {
+        position: absolute;
+        inset: 30px 0 0 0;
+      }
+      .field {
+        border: 1px solid #d6d3cc;
+        border-radius: 8px;
+        background: #fff;
+        padding: 7px 9px;
+        min-height: 31px;
+        font-size: 12.5px;
+        color: #222;
+        position: relative;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .field.focus {
+        border-color: #7a7a7a;
+        box-shadow: 0 0 0 3px rgb(0 0 0 / 0.06);
+      }
+      .field.focus::after {
+        content: '';
+        display: inline-block;
+        width: 1.5px;
+        height: 14px;
+        background: currentColor;
+        vertical-align: -2px;
+        margin-left: 1px;
+        animation: blink 1s steps(1) infinite;
+      }
+      .field .ph {
+        color: #9a968e;
+      }
+      @keyframes blink {
+        50% {
+          opacity: 0;
+        }
+      }
+      .label {
+        font-size: 11.5px;
+        font-weight: 600;
+        color: #555;
+        margin: 10px 0 4px;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 8px;
+        padding: 7px 12px;
+        font-weight: 600;
+        font-size: 12.5px;
+        border: 1px solid transparent;
+        cursor: default;
+        transition:
+          transform 0.12s,
+          background 0.2s;
+      }
+      .press {
+        transform: scale(0.94);
+      }
+      .hot {
+        box-shadow: 0 0 0 3px rgb(243 194 122 / 0.9) !important;
+      }
+      .flash {
+        animation: flash 1s;
+      }
+      @keyframes flash {
+        0% {
+          background: #fff4c7;
+        }
+        100% {
+        }
+      }
+      .fade-in {
+        animation: fin 0.35s ease-out both;
+      }
+      @keyframes fin {
+        from {
+          opacity: 0;
+          transform: translateY(6px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      .hide {
+        display: none !important;
+      }
+
+      /* GTD Suite window */
+      .suite {
+        left: 110px;
+        top: 44px;
+        width: 500px;
+        height: 362px;
+        background: #fffffa;
+      }
+      .suite .top {
+        height: 44px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 16px;
+        border-bottom: 1px solid #e5e7eb;
+        font-weight: 700;
+        color: #292929;
+      }
+      .suite .top i {
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+        background: #c0272d;
+      }
+      .suite .card {
+        margin: 16px;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 14px;
+        background: #fffffa;
+      }
+      .suite h3 {
+        margin: 0 0 2px;
+        font-size: 15px;
+      }
+      .suite p {
+        margin: 0 0 8px;
+        color: #595959;
+        font-size: 12px;
+      }
+      .suite .row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .suite .row .field {
+        flex: 1;
+        background: #f1f1e8;
+        border-color: #d1d5db;
+      }
+      .suite .copy {
+        background: #c0272d;
+        color: #fff;
+      }
+      .suite .copy.done {
+        background: #2f7d4f;
+      }
+      .suite .msg {
+        white-space: normal;
+        font-size: 11.5px;
+        line-height: 1.45;
+        height: auto;
+      }
+      .suite .or {
+        font-size: 11px;
+        color: #8a8984;
+        margin: 12px 0 6px;
+      }
+
+      /* chat bits shared */
+      .thread {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        bottom: 64px;
+        overflow: hidden;
+        padding: 18px 26px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        justify-content: flex-end;
+      }
+      .u {
+        align-self: flex-end;
+        max-width: 76%;
+        border-radius: 16px;
+        padding: 8px 12px;
+        line-height: 1.45;
+      }
+      .a {
+        align-self: flex-start;
+        max-width: 88%;
+        line-height: 1.5;
+      }
+      .a ul {
+        margin: 6px 0 4px;
+        padding: 0;
+        list-style: none;
+      }
+      .a li {
+        display: flex;
+        gap: 8px;
+        align-items: baseline;
+        padding: 2px 0;
+      }
+      .a li::before {
+        content: '';
+        flex: none;
+        width: 11px;
+        height: 11px;
+        border: 1.5px solid currentColor;
+        border-radius: 3px;
+        opacity: 0.55;
+        transform: translateY(1px);
+      }
+      .a .ctx {
+        opacity: 0.55;
+        font-size: 11.5px;
+      }
+      .tool {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+        font-size: 11.5px;
+        border-radius: 8px;
+        padding: 4px 9px;
+        margin-bottom: 6px;
+      }
+      .spin {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        border: 2px solid currentColor;
+        border-right-color: transparent;
+        animation: sp 0.8s linear infinite;
+      }
+      @keyframes sp {
+        to {
+          transform: rotate(1turn);
+        }
+      }
+      .shimmer {
+        animation: pulse 1.2s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        50% {
+          opacity: 0.4;
+        }
+      }
+      .composer {
+        position: absolute;
+        left: 26px;
+        right: 26px;
+        bottom: 14px;
+        height: 42px;
+        border-radius: 21px;
+        display: flex;
+        align-items: center;
+        padding: 0 6px 0 16px;
+        gap: 8px;
+      }
+      .composer .field {
+        flex: 1;
+        border: 0;
+        background: transparent;
+        padding: 0;
+        min-height: 0;
+        box-shadow: none !important;
+      }
+      .send {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-size: 15px;
+        font-weight: 700;
+      }
+      .done-badge {
+        position: absolute;
+        left: 50%;
+        top: 14px;
+        transform: translateX(-50%);
+        background: #2f7d4f;
+        color: #fff;
+        border-radius: 20px;
+        padding: 6px 14px;
+        font-weight: 700;
+        font-size: 12.5px;
+        box-shadow: 0 6px 18px rgb(0 0 0 / 0.25);
+      }
+
+      /* Grok-ish */
+      .grok {
+        left: 40px;
+        top: 28px;
+        width: 640px;
+        height: 394px;
+        background: #0e0e10;
+        color: #ececec;
+      }
+      .grok .hello {
+        position: absolute;
+        top: 120px;
+        left: 0;
+        right: 0;
+        text-align: center;
+        font-size: 22px;
+        font-weight: 600;
+        color: #f2f2f2;
+      }
+      .grok .u {
+        background: #26262a;
+        color: #f2f2f2;
+      }
+      .grok .composer {
+        background: #1d1d20;
+        border: 1px solid #2f2f33;
+      }
+      .grok .composer .field {
+        color: #f2f2f2;
+      }
+      .grok .composer .ph {
+        color: #77767c;
+      }
+      .grok .send {
+        background: #f2f2f2;
+        color: #111;
+      }
+      .grok .tool {
+        background: #1d1d20;
+        color: #aaa;
+      }
+
+      /* Claude-ish */
+      .claude {
+        left: 40px;
+        top: 28px;
+        width: 640px;
+        height: 394px;
+        background: #faf9f5;
+        color: #2b2a27;
+      }
+      .claude .side {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 132px;
+        background: #f0eee6;
+        border-right: 1px solid #e3e0d6;
+        padding: 12px 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .claude .nav {
+        padding: 6px 9px;
+        border-radius: 7px;
+        font-size: 12.5px;
+        color: #3d3c38;
+      }
+      .claude .nav.on {
+        background: #e3e0d6;
+        font-weight: 600;
+      }
+      .claude .main {
+        position: absolute;
+        left: 132px;
+        right: 0;
+        top: 0;
+        bottom: 0;
+      }
+      .claude .pane {
+        position: absolute;
+        inset: 0;
+        padding: 18px 22px;
+      }
+      .claude h4 {
+        margin: 0 0 10px;
+        font-size: 17px;
+        font-weight: 600;
+      }
+      .claude .seg {
+        display: flex;
+        gap: 16px;
+        border-bottom: 1px solid #e3e0d6;
+        margin-bottom: 12px;
+      }
+      .claude .seg div {
+        padding: 6px 0;
+        font-size: 12.5px;
+        color: #7b7970;
+      }
+      .claude .seg div.on {
+        color: #2b2a27;
+        border-bottom: 2px solid #2b2a27;
+        font-weight: 600;
+      }
+      .claude .conn {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border: 1px solid #e3e0d6;
+        border-radius: 10px;
+        padding: 9px 11px;
+        margin-bottom: 8px;
+        background: #fff;
+      }
+      .claude .ico {
+        width: 24px;
+        height: 24px;
+        border-radius: 6px;
+        display: grid;
+        place-items: center;
+        font-weight: 700;
+        font-size: 11px;
+        color: #fff;
+      }
+      .claude .conn small {
+        display: block;
+        color: #7b7970;
+        font-size: 11px;
+      }
+      .claude .addc {
+        background: #fff;
+        border: 1px dashed #b9b5a8;
+        color: #3d3c38;
+      }
+      .claude .primary {
+        background: #2b2a27;
+        color: #fff;
+      }
+      .claude .ghost {
+        background: #fff;
+        border-color: #d6d3cc;
+        color: #3d3c38;
+      }
+      .scrim {
+        position: absolute;
+        inset: 0;
+        background: rgb(0 0 0 / 0.28);
+        display: grid;
+        place-items: center;
+      }
+      .modal {
+        width: 330px;
+        background: #fff;
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: 0 18px 40px rgb(0 0 0 / 0.3);
+      }
+      .modal .label {
+        margin: 6px 0 3px;
+      }
+      .modal .field {
+        min-height: 26px;
+        padding: 5px 9px;
+      }
+      .modal .adv .field {
+        min-height: 22px;
+      }
+      .modal h5 {
+        margin: 0 0 2px;
+        font-size: 14px;
+      }
+      .modal .hint {
+        font-size: 11px;
+        color: #7b7970;
+      }
+      .adv {
+        margin-top: 10px;
+        font-size: 11.5px;
+        color: #555;
+      }
+      .adv .field {
+        background: #f7f6f2;
+      }
+      .claude .u {
+        background: #efece3;
+      }
+      .claude .composer {
+        background: #fff;
+        border: 1px solid #dedad0;
+        border-radius: 14px;
+        box-shadow: 0 2px 8px rgb(0 0 0 / 0.05);
+      }
+      .claude .send {
+        background: #c96442;
+        color: #fff;
+        border-radius: 8px;
+      }
+      .claude .tool {
+        background: #f0eee6;
+        color: #5a5852;
+        border: 1px solid #e3e0d6;
+      }
+      .perm {
+        border: 1px solid #e3e0d6;
+        background: #fff;
+        border-radius: 12px;
+        padding: 10px 12px;
+        width: 330px;
+      }
+      .perm p {
+        margin: 0 0 8px;
+        font-size: 12px;
+      }
+      .perm .row {
+        display: flex;
+        gap: 6px;
+      }
+
+      /* ChatGPT-ish */
+      .gpt {
+        left: 40px;
+        top: 28px;
+        width: 640px;
+        height: 394px;
+        background: #fff;
+        color: #0d0d0d;
+      }
+      .gpt .side {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 132px;
+        background: #f9f9f9;
+        border-right: 1px solid #ececec;
+        padding: 12px 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .gpt .nav {
+        padding: 6px 9px;
+        border-radius: 7px;
+        font-size: 12.5px;
+      }
+      .gpt .side .me {
+        margin-top: auto;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 6px 8px;
+        border-radius: 8px;
+        font-size: 12.5px;
+      }
+      .gpt .side .me i {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #8a6df0;
+        display: inline-block;
+      }
+      .gpt .main {
+        position: absolute;
+        left: 132px;
+        right: 0;
+        top: 0;
+        bottom: 0;
+      }
+      .gpt .pane {
+        position: absolute;
+        inset: 0;
+        padding: 18px 22px;
+      }
+      .gpt h4 {
+        margin: 0 0 12px;
+        font-size: 17px;
+        font-weight: 600;
+      }
+      .gpt .settings {
+        width: 440px;
+        height: 280px;
+        background: #fff;
+        border-radius: 14px;
+        display: flex;
+        overflow: hidden;
+        box-shadow: 0 18px 40px rgb(0 0 0 / 0.3);
+      }
+      .gpt .snav {
+        width: 140px;
+        background: #f9f9f9;
+        padding: 12px 6px;
+      }
+      .gpt .snav div {
+        padding: 6px 9px;
+        border-radius: 7px;
+        font-size: 12px;
+      }
+      .gpt .snav div.on {
+        background: #ececec;
+        font-weight: 600;
+      }
+      .gpt .sbody {
+        flex: 1;
+        padding: 14px 16px;
+      }
+      .gpt .srow {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px solid #f0f0f0;
+        font-size: 12.5px;
+      }
+      .gpt .srow small {
+        display: block;
+        color: #777;
+        font-size: 11px;
+        max-width: 200px;
+      }
+      .tog {
+        width: 34px;
+        height: 20px;
+        border-radius: 10px;
+        background: #d9d9d9;
+        position: relative;
+        transition: background 0.25s;
+        flex: none;
+      }
+      .tog::after {
+        content: '';
+        position: absolute;
+        left: 2px;
+        top: 2px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #fff;
+        transition: left 0.25s;
+        box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
+      }
+      .tog.on {
+        background: #0d0d0d;
+      }
+      .tog.on::after {
+        left: 16px;
+      }
+      .gpt .plus {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: #0d0d0d;
+        color: #fff;
+        display: grid;
+        place-items: center;
+        font-size: 18px;
+        font-weight: 600;
+      }
+      .gpt .primary {
+        background: #0d0d0d;
+        color: #fff;
+        border-radius: 18px;
+      }
+      .gpt .row2 {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .gpt .sel {
+        display: flex;
+        justify-content: space-between;
+      }
+      .gpt .menu {
+        position: absolute;
+        left: 16px;
+        right: 16px;
+        background: #fff;
+        border: 1px solid #e5e5e5;
+        border-radius: 10px;
+        box-shadow: 0 8px 20px rgb(0 0 0 / 0.12);
+        padding: 4px;
+        z-index: 2;
+      }
+      .gpt .menu div {
+        padding: 6px 9px;
+        border-radius: 6px;
+        font-size: 12px;
+      }
+      .gpt .u {
+        background: #f2f2f2;
+      }
+      .gpt .composer {
+        background: #fff;
+        border: 1px solid #e3e3e3;
+        border-radius: 22px;
+        box-shadow: 0 2px 10px rgb(0 0 0 / 0.06);
+        height: 48px;
+      }
+      .gpt .chip {
+        font-size: 11px;
+        border-radius: 12px;
+        background: #e8f0fe;
+        color: #1a57c9;
+        padding: 3px 8px;
+        white-space: nowrap;
+      }
+      .gpt .send {
+        background: #0d0d0d;
+        color: #fff;
+      }
+      .gpt .tool {
+        background: #f4f4f4;
+        color: #555;
+      }
+
+      /* cursor */
+      .cursor {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 22px;
+        height: 22px;
+        z-index: 50;
+        pointer-events: none;
+        transition: transform 0.7s cubic-bezier(0.45, 0, 0.2, 1);
+        filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.35));
+      }
+      .ripple {
+        position: absolute;
+        width: 30px;
+        height: 30px;
+        margin: -15px 0 0 -15px;
+        border-radius: 50%;
+        border: 2px solid #f3c27a;
+        z-index: 49;
+        pointer-events: none;
+        animation: rip 0.5s ease-out forwards;
+      }
+      @keyframes rip {
+        from {
+          transform: scale(0.3);
+          opacity: 1;
+        }
+        to {
+          transform: scale(1.4);
+          opacity: 0;
+        }
+      }
+      .keycap {
+        position: absolute;
+        z-index: 51;
+        background: #222;
+        color: #fff;
+        border-radius: 7px;
+        padding: 4px 8px;
+        font-size: 12px;
+        font-weight: 700;
+        box-shadow: 0 3px 0 #000;
+        pointer-events: none;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .cursor,
+        .win {
+          transition: none;
+        }
+        .ripple,
+        .shimmer,
+        .spin {
+          animation: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="brand"><i></i>GTD Suite</div>
+      <h1>Connect your AI</h1>
+      <p class="lede">
+        Copy one thing from GTD Suite and give it to your AI. With Grok, you paste a message into the chat. Claude and
+        ChatGPT each need a one-time connector, which takes about a minute.
+      </p>
+
+      <div class="tabs" role="tablist" aria-label="Pick your AI">
+        <button class="tab" role="tab" data-k="grok">
+          <b>Grok</b><span>Paste into the chat</span><i class="bar"></i>
+        </button>
+        <button class="tab" role="tab" data-k="claude">
+          <b>Claude</b><span>Add a custom connector</span><i class="bar"></i>
+        </button>
+        <button class="tab" role="tab" data-k="gpt">
+          <b>ChatGPT</b><span>Developer mode + connector</span><i class="bar"></i>
+        </button>
+      </div>
+
+      <div class="grid">
+        <div>
+          <div class="viewport" id="vp"><div class="stage" id="stage" aria-hidden="true"></div></div>
+          <div class="controls">
+            <button class="btn" id="pause">Pause</button>
+            <button class="btn" id="replay">Replay</button>
+            <div class="caption" id="caption" aria-live="polite"></div>
+          </div>
+        </div>
+        <aside class="steps">
+          <h2 id="stitle"></h2>
+          <p class="sub" id="ssub"></p>
+          <ol id="slist"></ol>
+          <div class="note" id="snote"></div>
+        </aside>
+      </div>
+    </div>
+
+    <script>
+      try {
+        const t = new URLSearchParams(location.search).get('theme');
+        if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t;
+      } catch {}
+      const LINK = 'https://todogtd.com/link/x7Qm2pR4vT';
+      const MSG = `Open ${LINK} and show me my next actions. It is my own todo list, and that page explains how to read and update it.`;
+      const ACTIONS = [
+        ['Call the dentist to book a cleaning', '@calls'],
+        ['Email Sam the Q4 numbers', '@computer'],
+        ['Buy furnace filters', '@errands'],
+      ];
+
+      const SCENES = {
+        grok: {
+          title: 'Grok: just paste',
+          sub: 'No setup. Works in any chat.',
+          steps: [
+            'In GTD Suite, copy the ready-made message.',
+            'Open a new chat in Grok and paste it.',
+            'Grok opens your link and reads your list.',
+            'Ask for anything: add, finish, move.',
+          ],
+          note: 'Starting a new chat? Paste the message again. If you pay for Grok, you can also add it once under grok.com/connectors.',
+        },
+        claude: {
+          title: 'Claude: add a connector',
+          sub: 'Once, then every chat can use it.',
+          steps: [
+            'In GTD Suite, copy your agent link.',
+            'In Claude, open Customize → Connectors.',
+            'Choose Add custom connector, name it, paste the link.',
+            'Leave the sign-in fields empty and choose Add.',
+            'Ask about your list. Choose Always allow.',
+          ],
+          note: 'Same steps on claude.ai, the desktop app and the phone app, which share your connectors.',
+        },
+        gpt: {
+          title: 'ChatGPT: add a connector',
+          sub: 'Once, on the web.',
+          steps: [
+            'In GTD Suite, copy your agent link.',
+            'Settings → Security and login: turn on Developer mode.',
+            'Go to chatgpt.com/plugins and select +.',
+            'Name it, paste the link, pick No Authentication, Create.',
+            'In a new chat, ask about your list.',
+          ],
+          note: 'Needs a paid plan, set up on the web. ChatGPT will not open a pasted link that holds a key, so the connector is the way in.',
+        },
+      };
+      const ORDER = ['grok', 'claude', 'gpt'];
+
+      const $ = (s, r = document) => r.querySelector(s);
+      const stage = $('#stage'),
+        vp = $('#vp');
+      const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      let scale = 1,
+        run = 0,
+        paused = false,
+        current = 'grok';
+
+      new ResizeObserver(() => {
+        scale = vp.clientWidth / 720;
+        stage.style.setProperty('--s', scale);
+      }).observe(vp);
+
+      /* ---- timing that can be paused and cancelled ---- */
+      class Cancel extends Error {}
+      function sleep(ms) {
+        const id = run;
+        return new Promise((res, rej) => {
+          let left = ms,
+            last = performance.now();
+          (function tick() {
+            if (id !== run) return rej(new Cancel());
+            const now = performance.now();
+            if (!paused) left -= now - last;
+            last = now;
+            if (left <= 0) return res();
+            setTimeout(tick, Math.min(40, left));
+          })();
+        });
+      }
+
+      /* ---- cursor ---- */
+      let cursor,
+        cx = 360,
+        cy = 470;
+      function placeCursor(x, y, dur) {
+        cursor.style.transitionDuration = (reduce ? 0 : dur) + 'ms';
+        cursor.style.transform = `translate(${x}px,${y}px)`;
+        cx = x;
+        cy = y;
+      }
+      function center(el) {
+        const s = stage.getBoundingClientRect(),
+          r = el.getBoundingClientRect();
+        return [(r.left - s.left + r.width / 2) / scale, (r.top - s.top + r.height / 2) / scale];
+      }
+      async function moveTo(el) {
+        const [x, y] = center(el);
+        const d = Math.min(900, 350 + Math.hypot(x - cx, y - cy) * 1.2);
+        el.classList.add('hot');
+        placeCursor(x - 4, y - 3, d);
+        await sleep(d + 120);
+      }
+      async function click(el) {
+        await moveTo(el);
+        const r = document.createElement('div');
+        r.className = 'ripple';
+        r.style.left = cx + 4 + 'px';
+        r.style.top = cy + 3 + 'px';
+        stage.appendChild(r);
+        setTimeout(() => r.remove(), 600);
+        el.classList.add('press');
+        await sleep(140);
+        el.classList.remove('press', 'hot');
+        await sleep(220);
+      }
+      function focus(field) {
+        stage.querySelectorAll('.field.focus').forEach((f) => f.classList.remove('focus'));
+        field.classList.add('focus');
+      }
+      async function type(field, text, ms = 30) {
+        focus(field);
+        field.textContent = '';
+        for (const ch of text) {
+          field.textContent += ch;
+          await sleep(ms);
+        }
+      }
+      async function paste(field, text) {
+        focus(field);
+        const k = document.createElement('div');
+        k.className = 'keycap';
+        k.textContent = 'Ctrl V';
+        k.style.left = cx + 18 + 'px';
+        k.style.top = cy + 14 + 'px';
+        stage.appendChild(k);
+        await sleep(450);
+        field.textContent = text;
+        field.classList.add('flash');
+        await sleep(500);
+        k.remove();
+        field.classList.remove('flash');
+      }
+      const el = (html) => {
+        const t = document.createElement('template');
+        t.innerHTML = html.trim();
+        return t.content.firstChild;
+      };
+
+      /* ---- step list + progress ---- */
+      function showSteps(k) {
+        const S = SCENES[k];
+        $('#stitle').textContent = S.title;
+        $('#ssub').textContent = S.sub;
+        $('#snote').textContent = S.note;
+        $('#slist').innerHTML = S.steps.map((s) => `<li>${s}</li>`).join('');
+      }
+      function step(i) {
+        const lis = [...$('#slist').children];
+        lis.forEach((li, j) => {
+          li.className = j < i ? 'past' : j === i ? 'now' : '';
+        });
+        $('#caption').textContent = lis[i] ? `${i + 1}. ${lis[i].textContent}` : '';
+        const tab = $(`.tab[data-k="${current}"] .bar`);
+        tab.style.setProperty('--p', Math.round(((i + 1) / lis.length) * 100) + '%');
+      }
+      function finishSteps() {
+        [...$('#slist').children].forEach((li) => (li.className = 'past'));
+      }
+
+      /* ---- shared pieces ---- */
+      const SUITE = `
+<div class="win suite" id="suite">
+  <div class="chrome"><span class="d"></span><span class="d"></span><span class="d"></span><span class="addr">todogtd.com</span></div>
+  <div class="body">
+    <div class="top"><i></i>GTD Suite</div>
+    <div class="card">
+      <h3>Connect your AI</h3>
+      <p>Your agent link lets an AI read and update your lists. Keep it private.</p>
+      <div class="label">Agent link</div>
+      <div class="row"><div class="field">${LINK}</div><span class="pill copy" id="copyLink">Copy</span></div>
+      <div class="or">Or paste this message into a chat</div>
+      <div class="row"><div class="field msg">${MSG}</div><span class="pill copy" id="copyMsg">Copy</span></div>
+    </div>
+  </div>
+</div>`;
+      const chrome = (url) =>
+        `<div class="chrome"><span class="d"></span><span class="d"></span><span class="d"></span><span class="addr">${url}</span></div>`;
+      const CURSOR = `<svg class="cursor" id="cur" viewBox="0 0 22 22"><path d="M3 2 L3 18 L7.5 14 L10.5 20.5 L13.2 19.3 L10.3 12.9 L16.5 12.9 Z" fill="#fff" stroke="#111" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
+
+      async function copyFrom(id) {
+        const b = $('#' + id);
+        await click(b);
+        b.textContent = 'Copied ✓';
+        b.classList.add('done');
+        await sleep(900);
+        $('#suite').classList.add('off-l');
+        $('#ai').classList.remove('off-r');
+        await sleep(850);
+      }
+      function answer(thread, intro) {
+        const a = el(`<div class="a fade-in"><div>${intro}</div><ul></ul></div>`);
+        thread.appendChild(a);
+        return a;
+      }
+      async function listActions(a) {
+        for (const [t, c] of ACTIONS) {
+          a.querySelector('ul').appendChild(el(`<li class="fade-in">${t} <span class="ctx">${c}</span></li>`));
+          await sleep(380);
+        }
+      }
+      async function badge(text) {
+        stage.appendChild(el(`<div class="done-badge fade-in">${text}</div>`));
+        await sleep(2600);
+      }
+
+      /* ---- scenes ---- */
+      async function sceneGrok() {
+        stage.innerHTML =
+          SUITE +
+          `
+  <div class="win grok dark off-r" id="ai">${chrome('grok.com')}
+    <div class="body">
+      <div class="hello" id="hello">What do you want to know?</div>
+      <div class="thread" id="th"></div>
+      <div class="composer"><div class="field" id="in"><span class="ph">Ask anything</span></div><div class="send" id="send">↑</div></div>
+    </div>
+  </div>` +
+          CURSOR;
+        init();
+        step(0);
+        await sleep(500);
+        await copyFrom('copyMsg');
+        step(1);
+        const inp = $('#in'),
+          th = $('#th');
+        await click(inp);
+        await paste(inp, MSG);
+        await sleep(500);
+        await click($('#send'));
+        $('#hello').classList.add('hide');
+        th.appendChild(el(`<div class="u fade-in" style="white-space:normal">${MSG}</div>`));
+        inp.classList.remove('focus');
+        inp.innerHTML = '<span class="ph">Ask anything</span>';
+        step(2);
+        await sleep(400);
+        const t = el(
+          `<div class="a"><span class="tool"><span class="spin"></span><span class="shimmer">Reading todogtd.com…</span></span></div>`,
+        );
+        th.appendChild(t);
+        await sleep(1700);
+        t.remove();
+        const a = answer(th, 'Here are your next actions:');
+        await sleep(300);
+        await listActions(a);
+        step(3);
+        await sleep(900);
+        await click(inp);
+        await type(inp, 'Add “renew passport” to my inbox');
+        await sleep(300);
+        await click($('#send'));
+        [...th.children].slice(0, 1).forEach((n) => n.remove());
+        th.appendChild(el(`<div class="u fade-in">Add “renew passport” to my inbox</div>`));
+        inp.classList.remove('focus');
+        inp.innerHTML = '<span class="ph">Ask anything</span>';
+        await sleep(900);
+        th.appendChild(el(`<div class="a fade-in">Done. “Renew passport” is in your inbox.</div>`));
+        finishSteps();
+        await badge('Connected, no setup');
+      }
+
+      async function sceneClaude() {
+        stage.innerHTML =
+          SUITE +
+          `
+  <div class="win claude off-r" id="ai">${chrome('claude.ai')}
+    <div class="body">
+      <div class="side">
+        <div class="nav" id="newchat">+ New chat</div><div class="nav">Chats</div><div class="nav">Projects</div><div class="nav on" id="cust">Customize</div>
+      </div>
+      <div class="main">
+        <div class="pane" id="p-home">
+          <h4>Customize</h4>
+          <div class="seg"><div class="on" id="t-skills">Skills</div><div id="t-conn">Connectors</div></div>
+          <div id="c-list" class="hide">
+            <div class="conn"><span class="ico" style="background:#4285f4">G</span><div>Google Drive<small>Connected</small></div></div>
+            <span class="pill addc" id="addc">+ Add custom connector</span>
+          </div>
+          <div id="c-skills" style="color:#7b7970;font-size:12px">Skills you have turned on show here.</div>
+        </div>
+        <div class="pane hide" id="p-chat"><div class="thread" id="th"></div>
+          <div class="composer"><div class="field" id="in"><span class="ph">How can I help you today?</span></div><div class="send" id="send">↑</div></div>
+        </div>
+      </div>
+      <div class="scrim hide" id="scrim"><div class="modal">
+        <h5>Add custom connector</h5><div class="hint">Connect Claude to a remote MCP server.</div>
+        <div class="label">Name</div><div class="field" id="f-name"></div>
+        <div class="label">Remote MCP server URL</div><div class="field" id="f-url"></div>
+        <div class="adv">▾ Advanced settings
+          <div class="label">OAuth Client ID (optional)</div><div class="field"></div>
+          <div class="label">OAuth Client Secret (optional)</div><div class="field"></div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px"><span class="pill ghost">Cancel</span><span class="pill primary" id="add">Add</span></div>
+      </div></div>
+    </div>
+  </div>` +
+          CURSOR;
+        init();
+        // the Claude window starts on its home screen; Customize is where the cursor goes first
+        $('#cust').classList.remove('on');
+        $('#p-home').classList.add('hide');
+        $('#p-chat').classList.remove('hide');
+        step(0);
+        await sleep(500);
+        await copyFrom('copyLink');
+        step(1);
+        await click($('#cust'));
+        $('#cust').classList.add('on');
+        $('#p-chat').classList.add('hide');
+        $('#p-home').classList.remove('hide');
+        await sleep(500);
+        await click($('#t-conn'));
+        $('#t-skills').classList.remove('on');
+        $('#t-conn').classList.add('on');
+        $('#c-skills').classList.add('hide');
+        $('#c-list').classList.remove('hide');
+        await sleep(500);
+        step(2);
+        await click($('#addc'));
+        $('#scrim').classList.remove('hide');
+        await sleep(500);
+        await click($('#f-name'));
+        await type($('#f-name'), 'GTD Suite');
+        await click($('#f-url'));
+        await paste($('#f-url'), LINK);
+        step(3);
+        await sleep(900);
+        await click($('#add'));
+        $('#scrim').classList.add('hide');
+        const row = el(
+          `<div class="conn fade-in flash"><span class="ico" style="background:#c0272d">✓</span><div>GTD Suite<small>Custom · Connected</small></div></div>`,
+        );
+        $('#c-list').insertBefore(row, $('#addc'));
+        await sleep(1300);
+        step(4);
+        await click($('#newchat'));
+        $('#cust').classList.remove('on');
+        $('#p-home').classList.add('hide');
+        $('#p-chat').classList.remove('hide');
+        const inp = $('#in'),
+          th = $('#th');
+        await click(inp);
+        await type(inp, 'What are my next actions?');
+        await sleep(300);
+        await click($('#send'));
+        th.appendChild(el(`<div class="u fade-in">What are my next actions?</div>`));
+        inp.classList.remove('focus');
+        inp.innerHTML = '<span class="ph">Reply to Claude…</span>';
+        await sleep(700);
+        const perm = el(
+          `<div class="a perm fade-in"><p>Claude wants to use <b>todo_list</b> from <b>GTD Suite</b>.</p><div class="row"><span class="pill primary" id="always">Always allow</span><span class="pill ghost">Allow once</span><span class="pill ghost">Deny</span></div></div>`,
+        );
+        th.appendChild(perm);
+        await sleep(700);
+        await click($('#always'));
+        perm.remove();
+        const t = el(`<div class="a"><span class="tool"><span class="spin"></span>GTD Suite · todo_list</span></div>`);
+        th.appendChild(t);
+        await sleep(1300);
+        t.querySelector('.spin').outerHTML = '✓';
+        const a = answer(th, 'You have three next actions:');
+        await sleep(300);
+        await listActions(a);
+        finishSteps();
+        await badge('Connected for every chat');
+      }
+
+      async function sceneGpt() {
+        stage.innerHTML =
+          SUITE +
+          `
+  <div class="win gpt off-r" id="ai">${chrome('<span id="url">chatgpt.com</span>')}
+    <div class="body">
+      <div class="side"><div class="nav" id="newchat">New chat</div><div class="nav">Search chats</div><div class="nav">Library</div><div class="me" id="me"><i></i>Settings</div></div>
+      <div class="main">
+        <div class="pane" id="p-chat"><div class="thread" id="th"><div class="a" id="hello" style="align-self:center;font-size:20px;font-weight:600;margin-bottom:90px">What’s on your mind today?</div></div>
+          <div class="composer"><span class="chip hide" id="chip">Developer mode · GTD Suite</span><div class="field" id="in"><span class="ph">Ask anything</span></div><div class="send" id="send">↑</div></div>
+        </div>
+        <div class="pane hide" id="p-plug">
+          <div class="row2"><h4 style="margin:0">Plugins</h4><span class="plus" id="plus">+</span></div>
+          <div id="plist" style="margin-top:14px;color:#777;font-size:12px">Apps you have connected show here.</div>
+        </div>
+      </div>
+      <div class="scrim hide" id="settings"><div class="settings">
+        <div class="snav"><div class="on" id="s-gen">General</div><div>Notifications</div><div>Personalization</div><div>Apps</div><div id="s-sec">Security and login</div></div>
+        <div class="sbody" id="sb-gen"><div class="srow">Theme<span style="color:#777">System</span></div><div class="srow">Language<span style="color:#777">Auto-detect</span></div></div>
+        <div class="sbody hide" id="sb-sec">
+          <div class="srow"><div>Multi-factor authentication<small>Extra security when you sign in.</small></div><span class="tog"></span></div>
+          <div class="srow"><div>Developer mode<small>Add your own MCP servers as connectors.</small></div><span class="tog" id="dev"></span></div>
+        </div>
+      </div></div>
+      <div class="scrim hide" id="scrim"><div class="modal" style="position:relative">
+        <h5>New plugin</h5><div class="hint">Connect a remote MCP server.</div>
+        <div class="label">Name</div><div class="field" id="f-name"></div>
+        <div class="label">MCP server URL</div><div class="field" id="f-url"></div>
+        <div class="label">Authentication</div><div class="field sel" id="f-auth"><span id="auth">OAuth</span><span>▾</span></div>
+        <div class="menu hide" id="menu" style="top:228px"><div>OAuth</div><div id="noauth">No Authentication</div></div>
+        <div style="display:flex;justify-content:flex-end;margin-top:14px"><span class="pill primary" id="create">Create</span></div>
+      </div></div>
+    </div>
+  </div>` +
+          CURSOR;
+        init();
+        step(0);
+        await sleep(500);
+        await copyFrom('copyLink');
+        step(1);
+        await click($('#me'));
+        $('#settings').classList.remove('hide');
+        await sleep(500);
+        await click($('#s-sec'));
+        $('#s-gen').classList.remove('on');
+        $('#s-sec').classList.add('on');
+        $('#sb-gen').classList.add('hide');
+        $('#sb-sec').classList.remove('hide');
+        await sleep(500);
+        await click($('#dev'));
+        $('#dev').classList.add('on');
+        await sleep(900);
+        $('#settings').classList.add('hide');
+        step(2);
+        const url = $('#url');
+        await moveTo(url.parentElement);
+        url.parentElement.classList.remove('hot');
+        await type(url, 'chatgpt.com/plugins', 45);
+        $('#p-chat').classList.add('hide');
+        $('#p-plug').classList.remove('hide');
+        await sleep(600);
+        await click($('#plus'));
+        $('#scrim').classList.remove('hide');
+        await sleep(400);
+        step(3);
+        await click($('#f-name'));
+        await type($('#f-name'), 'GTD Suite');
+        await click($('#f-url'));
+        await paste($('#f-url'), LINK);
+        await click($('#f-auth'));
+        $('#menu').classList.remove('hide');
+        await sleep(400);
+        await click($('#noauth'));
+        $('#menu').classList.add('hide');
+        $('#auth').textContent = 'No Authentication';
+        await sleep(500);
+        await click($('#create'));
+        $('#scrim').classList.add('hide');
+        $('#plist').innerHTML =
+          `<div class="fade-in flash" style="display:flex;gap:10px;align-items:center;border:1px solid #ececec;border-radius:10px;padding:10px;color:#0d0d0d"><span style="width:24px;height:24px;border-radius:6px;background:#c0272d;color:#fff;display:grid;place-items:center;font-weight:700">✓</span><div>GTD Suite<div style="font-size:11px;color:#777">Developer mode · Connected</div></div></div>`;
+        await sleep(1300);
+        step(4);
+        await click($('#newchat'));
+        url.textContent = 'chatgpt.com';
+        $('#p-plug').classList.add('hide');
+        $('#p-chat').classList.remove('hide');
+        $('#chip').classList.remove('hide');
+        const inp = $('#in'),
+          th = $('#th');
+        await click(inp);
+        await type(inp, 'What are my next actions?');
+        await sleep(300);
+        await click($('#send'));
+        $('#hello').remove();
+        th.appendChild(el(`<div class="u fade-in">What are my next actions?</div>`));
+        inp.classList.remove('focus');
+        inp.innerHTML = '<span class="ph">Ask anything</span>';
+        await sleep(500);
+        const t = el(
+          `<div class="a"><span class="tool"><span class="spin"></span>Calling GTD Suite · todo_list</span></div>`,
+        );
+        th.appendChild(t);
+        await sleep(1400);
+        t.querySelector('.tool').innerHTML = '✓ Called GTD Suite · todo_list';
+        const a = answer(th, 'Your next actions:');
+        await sleep(300);
+        await listActions(a);
+        finishSteps();
+        await badge('Connected');
+      }
+
+      function init() {
+        cursor = $('#cur');
+        cx = 360;
+        cy = 470;
+        placeCursor(cx, cy, 0);
+      }
+
+      const RUN = { grok: sceneGrok, claude: sceneClaude, gpt: sceneGpt };
+      async function play(k, auto = true) {
+        run++;
+        current = k;
+        paused = false;
+        $('#pause').textContent = 'Pause';
+        document.querySelectorAll('.tab').forEach((t) => {
+          t.setAttribute('aria-selected', t.dataset.k === k);
+          t.querySelector('.bar').style.setProperty('--p', '0%');
+        });
+        showSteps(k);
+        try {
+          await RUN[k]();
+          if (auto) {
+            await sleep(1500);
+            play(ORDER[(ORDER.indexOf(k) + 1) % ORDER.length]);
+          }
+        } catch (e) {
+          if (!(e instanceof Cancel)) throw e;
+        }
+      }
+      document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => play(t.dataset.k)));
+      $('#replay').addEventListener('click', () => play(current));
+      $('#pause').addEventListener('click', () => {
+        paused = !paused;
+        $('#pause').textContent = paused ? 'Play' : 'Pause';
+      });
+      let start = 'grok';
+      try {
+        const h = location.hash.slice(1);
+        if (RUN[h]) start = h;
+      } catch {}
+      play(start);
+    </script>
+  </body>
+</html>
