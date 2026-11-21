@@ -117,6 +117,8 @@ describe('SitesConnectFlow', () => {
   it('names a Springform connection and sends its client with the approval', async () => {
     window.history.replaceState({}, '', `/connect?code=${code}&client=springform`);
     await mount();
+    expect(button('Create account').disabled).toBe(true); // its free grant needs a confirmed email
+    await fill('input[type=email]', 'me@example.com');
     await click('Create account');
     expect(host.textContent).toContain('Connect Springform to your GTD account');
     expect(host.textContent).toContain('A Springform install wants to use your GTD account');

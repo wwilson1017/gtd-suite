@@ -1,7 +1,7 @@
 """Device-style connection: the browser approves, the device collects the agent link once.
 
 A code is for a client: "sites" (an AI tool connecting to Simple Sites) or "springform" (a
-Springform install linking the account: every app on and, on the hosted service, Max for good
+Springform install linking the account: every app on and, on the hosted service, the free grant
 for an account with a confirmed email; paid/admin.springform_comp_in)."""
 
 import re
@@ -15,7 +15,6 @@ from backend.common import NotFoundError, ValidationError
 _ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 _CODE = re.compile(r"[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}")
 SECONDS = 900
-CLIENTS = ("sites", "springform")
 
 
 def start(client: str = "sites") -> dict:
@@ -79,7 +78,7 @@ def approve(list_id: int, code: str, typed_code: str | None, client: str = "site
             hosted = settings.open_signup()
             if hosted and account["email_verified_at"] is None:
                 raise ValidationError(
-                    "Confirm your email first: open the link we mailed you, then approve this connection."
+                    "Add your email and confirm it first (open the link we mail you), then approve this connection."
                 )
             for app in apps.APPS:
                 lists.set_app_in(conn, list_id, app, True)

@@ -152,7 +152,12 @@ export function SitesConnectFlow() {
                   </label>
                 )}
                 {canCreate && (
-                  <button className={button} disabled={busy} onClick={() => void run(create)}>
+                  <button
+                    className={button}
+                    // Springform's grant needs a confirmed email (connect.approve), so ask for one up front.
+                    disabled={busy || (springform && hosted && mail && !email.trim())}
+                    onClick={() => void run(create)}
+                  >
                     Create account
                   </button>
                 )}
