@@ -22,6 +22,7 @@ export function SitesConnectFlow() {
   const [typed, setTyped] = useState('');
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
+  const [mailNote, setMailNote] = useState('');
   const [approved, setApproved] = useState(false);
   const [error, setError] = useState('');
 
@@ -65,10 +66,18 @@ export function SitesConnectFlow() {
     await bootstrap();
     if (pinnedListId() === null) throw new Error('Account created. Reload to finish connecting.');
     setCreated(true);
-    if (email.trim()) {
-      await setEmail(email.trim());
-      setSent(true);
-    }
+    if (email.trim()) await saveEmail();
+  };
+  // Saving the address mails its confirmation link unless the mail limit is spent (sent: false).
+  const saveEmail = async () => {
+    const r = await setEmail(email.trim());
+    setMailNote(
+      r.verified
+        ? 'Your email is confirmed. Approve below.'
+        : r.sent
+          ? 'Open the link we mailed you, then return here and approve.'
+          : 'Saved. Wait a few minutes, then press Send again.',
+    );
   };
   const approve = async () => {
     await todoFetch(`/connect/${encodeURIComponent(code)}`, {
@@ -137,16 +146,11 @@ export function SitesConnectFlow() {
                       type="button"
                       className={button}
                       disabled={busy || !email.trim()}
-                      onClick={() =>
-                        void run(async () => {
-                          await setEmail(email.trim());
-                          setSent(true);
-                        })
-                      }
+                      onClick={() => void run(saveEmail)}
                     >
                       Send confirmation link
                     </button>
-                    {sent && <p className="mt-3">Open the link we mailed you, then return here and approve.</p>}
+                    {mailNote && <p className="mt-3">{mailNote}</p>}
                   </div>
                 )}
                 {!created && (

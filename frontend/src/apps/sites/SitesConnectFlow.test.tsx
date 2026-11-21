@@ -45,6 +45,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   resetSession();
   api.getSession.mockResolvedValue(session);
+  api.setEmail.mockResolvedValue({ email: 'me@example.com', verified: false, sent: true });
   window.history.replaceState({}, '', `/connect?code=${code}`);
   host = document.createElement('div');
   document.body.appendChild(host);
@@ -133,6 +134,10 @@ describe('SitesConnectFlow', () => {
     window.history.replaceState({}, '', `/connect?code=${code}&client=springform`);
     await mount(true);
     await fill('input[type=email]', 'me@example.com');
+    api.setEmail.mockResolvedValueOnce({ email: 'me@example.com', verified: false, sent: false });
+    await click('Send confirmation link');
+    expect(host.textContent).toContain('Wait a few minutes, then press Send again.');
+    api.setEmail.mockResolvedValueOnce({ email: 'me@example.com', verified: false, sent: true });
     await click('Send confirmation link');
     expect(api.setEmail).toHaveBeenCalledWith('me@example.com');
     expect(host.textContent).toContain('Open the link we mailed you');
