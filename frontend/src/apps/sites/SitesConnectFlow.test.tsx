@@ -136,7 +136,7 @@ describe('SitesConnectFlow', () => {
     await fill('input[type=email]', 'me@example.com');
     api.setEmail.mockResolvedValueOnce({ email: 'me@example.com', verified: false, sent: false });
     await click('Send confirmation link');
-    expect(host.textContent).toContain('Wait a few minutes, then press Send again.');
+    expect(host.textContent).toContain('Wait a few minutes, then press Send confirmation link again.');
     api.setEmail.mockResolvedValueOnce({ email: 'me@example.com', verified: false, sent: true });
     await click('Send confirmation link');
     expect(api.setEmail).toHaveBeenCalledWith('me@example.com');
