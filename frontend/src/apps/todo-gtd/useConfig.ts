@@ -47,3 +47,7 @@ export function useConfig(): AppConfig | null {
   }, []);
   return config;
 }
+
+/** Whether this server has another app to show beside this one (Settings › Your apps). */
+export const hasOtherApps = (config: AppConfig | null) =>
+  Object.keys(config?.apps ?? {}).some((key) => key !== config?.app);

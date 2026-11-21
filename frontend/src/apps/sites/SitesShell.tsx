@@ -2,15 +2,17 @@
 // simplification: a copy of ProjectsShell with its own name and links; share one
 // shell once a third app needs the same frame.
 import { useEffect, type ReactNode } from 'react';
-import { Link, NavLink } from 'react-router-dom';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import { ThemeToggle } from '../../core/theme/ThemeToggle';
 import { AppBar } from '../todo-gtd/components/AppBar';
 import { AppName, Logo } from '../todo-gtd/components/Logo';
+import { NextStepButton, SettingsGear } from '../todo-gtd/settings/HeaderSetup';
 
 const navCls = ({ isActive }: { isActive: boolean }) =>
   `rounded-lg px-3 py-1.5 font-heading ${isActive ? 'bg-sand text-charcoal' : 'text-muted hover:text-charcoal'}`;
 
 export function SitesShell({ title, children }: { title?: string; children: ReactNode }) {
+  const settings = useLocation().pathname.startsWith('/connect');
   useEffect(() => {
     document.title = title ? `${title} · Sites` : 'Sites';
   }, [title]);
@@ -29,11 +31,10 @@ export function SitesShell({ title, children }: { title?: string; children: Reac
             <NavLink to="/" end className={navCls}>
               Sites
             </NavLink>
-            <NavLink to="/connect" className={navCls}>
-              Connect
-            </NavLink>
           </nav>
           <ThemeToggle className="hidden sm:block" />
+          <NextStepButton />
+          <SettingsGear current={settings} />
         </div>
       </header>
       <main className="px-4 pb-16 pt-4">{children}</main>

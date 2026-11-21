@@ -17,7 +17,7 @@ import { MessageBoardPage, NewMessagePage } from './MessageBoardPage';
 import { ActivityPage, BookmarksPage, BoostsPage, DraftsPage, MyTasksPage, PeoplePage } from './MyPages';
 import { ProjectPage } from './ProjectPage';
 import { PeopleProvider } from './ProjectsShell';
-import { ProjectsConnectPage, ProjectsYourAIPage } from './ProjectsConnectPage';
+import { ProjectsConnectPage } from './ProjectsConnectPage';
 import { PersonTasks, ReportPage, ReportsIndex } from './ReportsPage';
 import { TodosPage } from './TodosPage';
 
@@ -60,8 +60,9 @@ export function ProjectsApp() {
             <Route path="/my/drafts" element={<DraftsPage />} />
             <Route path="/my/boosts" element={<BoostsPage />} />
             <Route path="/people" element={<PeoplePage />} />
-            <Route path="/ai" element={<ProjectsYourAIPage />} />
             <Route path="/connect" element={<ProjectsConnectPage />} />
+            <Route path="/connect/:section" element={<ProjectsConnectPage />} />
+            <Route path="/ai" element={<Navigate to="/connect/ai" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>

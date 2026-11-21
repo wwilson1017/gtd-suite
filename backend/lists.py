@@ -351,7 +351,7 @@ def touch(list_id: int) -> None:
 def seen_ai(list_id: int, name: str | None) -> None:
     """Record that an AI tool's call on the agent link succeeded (mcp_server._AppsOn and
     agent_cmd.dispatch decide what counts): which tools have called the account and when
-    each last did, for the person's Your AI page. Not sync state: nothing but that page
+    each last did, for the person's Connect your AI page. Not sync state: nothing but that page
     reads it. `name` is the tool's own claim, untrusted: cleaned, shown as text, never
     logged; a tool that gives none is stored as ''. A new name is written at once, until
     the account holds MAX_AI_TOOLS; after that only the names it knows are stamped.

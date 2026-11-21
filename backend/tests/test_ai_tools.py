@@ -1,5 +1,5 @@
 """The record of AI tools (lists.seen_ai): which have called an account's agent link and
-when each last did, kept for the person's Your AI page. A call counts when it succeeds at
+when each last did, kept for the person's Connect your AI page. A call counts when it succeeds at
 starting an MCP session, running a tool or running a named command; nothing else does, and
 a request from a web page never does."""
 
@@ -320,18 +320,19 @@ def test_a_version_that_does_not_know_the_table_can_still_delete_a_list(todo_db,
 # ── The words that point at the new pages ─────────────────────────────────────
 
 
-async def test_the_agent_links_own_words_point_at_settings_and_your_ai(http, made):
-    # A message any account may get names the page both ways: Simple Sites and Common Brain kept Connect.
-    both = "Settings (Connect, in Simple Sites and Common Brain)"
-    assert (apps.settings_page(), apps.settings_page("notes"), apps.settings_page("sites")) == (
-        both,
-        "Settings",
-        "Connect",
-    )
+async def test_the_agent_links_own_words_point_at_settings_and_connect_your_ai(http, made):
+    # A message any account may get names the page both ways: Common Brain kept Connect.
+    both = "Settings (Connect, in Common Brain)"
+    assert (
+        apps.settings_page(),
+        apps.settings_page("notes"),
+        apps.settings_page("sites"),
+        apps.settings_page("brain"),
+    ) == (both, "Settings", "Settings", "Connect")
     assert apps.off_message("notes") == (
         f"Notes GTD is off for this account. The person can turn it on in any app on their account: under Apps, in {both}."
     )
     only(made["list_id"])  # every app off
     assert (await http.get(link(made))).json()["about"].endswith(f"can turn one on under Apps, in {both}.")
     assert mcp_server._instructions([]).endswith(f"can turn one on under Apps, in {both}.")
-    assert "under [Connect your AI](/app/ai)." in str(samples._PROJECTS)
+    assert "under [Connect your AI](/app/connect/ai)." in str(samples._PROJECTS)

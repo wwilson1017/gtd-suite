@@ -161,7 +161,7 @@ function Row({ site, onChanged, onError }: { site: Site; onChanged: () => void; 
             ? 'This site is down'
             : `Comes down in ${Math.ceil((Date.parse(site.expires_at) - now) / 86_400_000)} days`}
           :{' '}
-          <a href={BASE + '/app/connect#email'} className="underline">
+          <a href={BASE + '/app/connect/email'} className="underline">
             confirm your email
           </a>
           .
@@ -463,7 +463,7 @@ function NewLink({ cap, onMade }: { cap: number | undefined; onMade: (site: Site
         {cap === 0 && (
           <p className="mt-1 text-sm text-muted">
             {mail
-              ? 'Short links need a confirmed email. Add one under Connect.'
+              ? 'Short links need a confirmed email. Add one in Settings.'
               : 'Short links need a confirmed email, and this server sends no mail, so they are off here.'}
           </p>
         )}

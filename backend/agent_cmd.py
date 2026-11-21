@@ -1038,7 +1038,7 @@ def _guide(ctx: _Ctx) -> dict:
         _commands(ctx.on),
         app={
             "reaches": f"one person's {reaches}; they gave you this link so that you can work with them",
-            "get_only": "tell the user that Your AI in their app (Connect, in Simple Sites and Common Brain) "
+            "get_only": "tell the user that Connect your AI, in Settings in their app (Connect, in Common Brain), "
             "shows how to add this same link to their AI tool as a connector, which can then write too",
             "app": " and ".join(apps.APPS[app].title for app in ctx.on) or apps.APPS[apps.ANCHOR].title,
             "list": row["name"] or None,

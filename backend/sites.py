@@ -154,11 +154,11 @@ def _check_cap(conn, list_id: int, kind: str) -> None:
     if held < cap:
         return
     if kind == "link" and cap == 0:
-        raise ValidationError("Short links need a confirmed email. Confirm one under Connect. Nothing was changed.")
+        raise ValidationError("Short links need a confirmed email. Confirm one in Settings. Nothing was changed.")
     if hosted and not verified:
         raise ValidationError(
             f"This account holds {cap} page until an email is confirmed "
-            "under Connect. Update or delete one. Nothing was changed."
+            "in Settings. Update or delete one. Nothing was changed."
         )
     raise ValidationError(
         f"This account holds {cap} {kind}s, the limit. Update or delete one."

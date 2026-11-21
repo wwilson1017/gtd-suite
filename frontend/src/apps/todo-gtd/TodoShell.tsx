@@ -1,58 +1,20 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMediaQuery, useMenuLayout } from '../../core/theme/menuLayout';
 import { AppBar } from './components/AppBar';
 import { QuickAdd } from './components/QuickAdd';
 import { BottomBar, Sidebar, TopMenu } from './components/ShellMenu';
 import { UndoPill } from './components/UndoPill';
-import { useDismissed } from './dismissed';
 import { KeepBanner } from './KeepBanner';
 import { PHONE_QUERY, SIDEBAR_QUERY, shellMode, type ListKey } from './menu';
 import { todoPath } from './publicMode';
-import { useAiToolsOnFocus, useSession } from './session';
+import { NextStepButton, SettingsGear } from './settings/HeaderSetup';
 import { useToasts } from './toast';
 import { useTodoMeta } from './useTodoMeta';
 
-/** A page's identity for the shell: one of the menu's lists, or one of the two pages
- * reached from the header, not the menu: Your AI ('ai') and Settings ('connect', the ⚙).
- * The lists themselves are defined in ./menu. */
-export type TodoTab = ListKey | 'connect' | 'ai';
-
-/** "Connect your AI", pinned above every list until an AI tool has called the account
- * (session.ai_tools) or the person dismisses it, for this list on this device. It asks
- * again whenever the window comes back into focus, so it goes by itself, without a
- * reload, once the AI's first call has landed. */
-function ConnectCard() {
-  const session = useSession().session;
-  const [dismissed, dismiss] = useDismissed('connect-card', session?.list_id);
-  const shown = session !== null && !dismissed && !session.ai_tools?.length;
-  useAiToolsOnFocus(shown);
-  if (!shown) return null;
-  return (
-    <div className="mt-4 flex items-start gap-3 rounded-xl border border-brand/40 bg-cream px-4 py-3 text-sm text-charcoal">
-      <div className="min-w-0 flex-1">
-        <h2 className="font-heading font-bold">Connect your AI</h2>
-        <p className="mt-1 text-muted">
-          Give Claude, ChatGPT or another AI one link, and it reads, adds to and updates this list with you.
-        </p>
-        <Link
-          to={todoPath('/ai')}
-          className="mt-3 inline-block rounded-lg bg-brand-dark px-3 py-1.5 font-heading text-white hover:bg-brand-deep"
-        >
-          Connect your AI
-        </Link>
-      </div>
-      <button
-        type="button"
-        onClick={dismiss}
-        aria-label="Dismiss Connect your AI"
-        className="shrink-0 text-muted hover:text-charcoal"
-      >
-        ✕
-      </button>
-    </div>
-  );
-}
+/** A page's identity for the shell: one of the menu's lists, or Settings ('connect', the
+ * gear in the header, not in the menu). The lists themselves are defined in ./menu. */
+export type TodoTab = ListKey | 'connect';
 
 interface Props {
   active: TodoTab;
@@ -142,29 +104,12 @@ export function TodoShell({ active, hideQuickAdd, onAdded, inlineUndo, children 
                   className="h-10 w-24 sm:w-44 rounded-lg border border-line bg-cream px-3 text-base sm:text-sm text-charcoal placeholder:text-muted focus:border-brand focus:outline-none"
                 />
               </form>
-              <Link
-                to={todoPath('/ai')}
-                aria-current={active === 'ai' ? 'page' : undefined}
-                className="flex h-10 flex-none items-center whitespace-nowrap rounded-lg border border-line bg-cream px-3 font-heading text-sm text-charcoal hover:bg-sand"
-              >
-                Your AI
-              </Link>
-              <Link
-                to={todoPath('/connect')}
-                title="Settings"
-                aria-label="Settings"
-                aria-current={active === 'connect' ? 'page' : undefined}
-                className="grid h-10 w-10 flex-none place-items-center rounded-lg border border-line bg-cream text-2xl leading-none text-muted hover:text-charcoal hover:bg-sand"
-              >
-                ⚙
-              </Link>
+              <NextStepButton />
+              <SettingsGear current={active === 'connect'} />
             </div>
           </div>
 
-          {/* Not on the page it opens, nor on Settings. */}
-          {active !== 'ai' && active !== 'connect' && <ConnectCard />}
-
-          {/* Not on Settings: the email it points to is right there. */}
+          {/* The list is full: the way to raise its limits. Not on Settings, where the email is. */}
           {active !== 'connect' && <KeepBanner />}
 
           {mode === 'top' && <TopMenu {...menu} />}

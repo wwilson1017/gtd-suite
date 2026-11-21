@@ -1,6 +1,6 @@
 // "Install on your phone": how to put each app of the suite on a home screen as a
-// web app (it opens full screen, like a store app). The same card tops every app's
-// Connect page; Todo GTD's also covers Capture, which installs beside it.
+// web app (it opens full screen, like a store app). Settings › Install on your phone, in
+// every app; Todo GTD's also covers Capture, which installs beside it.
 import { BASE, APP, APP_TITLE } from '../../../core/app';
 
 type Device = 'iphone' | 'android' | 'computer';
@@ -55,8 +55,7 @@ export function InstallGuide() {
   const todo = APP === 'todo';
   return (
     <section className="rounded-xl border border-line-faint bg-cream p-4">
-      <h2 className="font-heading text-sm font-bold text-charcoal">Install on your phone</h2>
-      <p className="mt-1 text-sm text-charcoal">
+      <p className="text-sm text-charcoal">
         {todo ? (
           <>
             The best way to do GTD is with two apps on your phone&rsquo;s home screen: <strong>Todo GTD</strong> for
@@ -80,8 +79,8 @@ export function InstallGuide() {
       {device === 'computer' ? (
         <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-charcoal">
           <li>
-            Open {APP_TITLE} on your phone: under <strong>Sign in on another device</strong> below, make a code and scan
-            it with your phone&rsquo;s camera.
+            Open {APP_TITLE} on your phone: in <strong>Devices &amp; sign-in</strong>, make a code and scan it with your
+            phone&rsquo;s camera.
           </li>
           <li>On your phone, add it to your home screen:</li>
         </ol>
@@ -105,9 +104,9 @@ export function InstallGuide() {
       </p>
       {todo && (
         <p className="mt-2 text-sm text-charcoal">
-          <strong>Then do the same for Capture.</strong> Open the <strong>Capture link</strong> (on its card below: copy
-          it into your phone&rsquo;s browser, or scan its code from a computer) and add that page to your home screen
-          the same way. It installs as its own app, with a plus icon.
+          <strong>Then do the same for Capture.</strong> Open your <strong>Capture link</strong> (in Settings: copy it
+          into your phone&rsquo;s browser, or scan its code from a computer) and add that page to your home screen the
+          same way. It installs as its own app, with a plus icon.
         </p>
       )}
     </section>

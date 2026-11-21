@@ -278,7 +278,7 @@ def _client_name() -> str | None:
 
 
 async def _seen(name: str | None) -> None:
-    """Record a call that succeeded (lists.seen_ai) for the person's Your AI page, off the
+    """Record a call that succeeded (lists.seen_ai) for the person's Connect your AI page, off the
     event loop. Never a request with an Origin header: that is a web page, not an AI tool."""
     if not _from_page.get() and "origin" not in get_http_headers():
         await asyncio.to_thread(lists.seen_ai, _list_id.get(), name)

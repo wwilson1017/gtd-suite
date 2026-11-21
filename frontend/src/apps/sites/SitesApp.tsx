@@ -13,6 +13,7 @@ export function SitesApp() {
         <Routes>
           <Route path="/" element={<SitesPage />} />
           <Route path="/connect" element={<SitesConnectPage />} />
+          <Route path="/connect/:section" element={<SitesConnectPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

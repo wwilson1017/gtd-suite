@@ -53,7 +53,7 @@ function nudgeVirtualKeyboard(): void {
 
 function messageFor(status: number, body: unknown): string {
   if (status === 404)
-    return 'This capture link was not found. It may have been regenerated — open your list and copy the new one from ⚙ Connect.';
+    return 'This capture link was not found. It may have been regenerated — open your list and copy the new one from Settings › Capture link.';
   const detail = (body as { detail?: unknown } | null)?.detail;
   // The server's own words first: its 429 is a plain string with a 60s window, so the
   // "about 5 seconds" guess below would send the user straight back into the limit.

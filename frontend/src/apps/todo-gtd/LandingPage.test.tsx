@@ -138,7 +138,7 @@ describe('LandingPage', () => {
     expect(button('Start your list').disabled).toBe(false);
   });
 
-  it('creates a list with one click, the name optional, and goes straight into the app', async () => {
+  it('creates a list with one click, the name optional, and opens it on Connect your AI, once', async () => {
     api.createList.mockResolvedValue(NEW_LIST);
     await mount(OPEN);
     const name = host.querySelector<HTMLInputElement>('input:not([type])')!;
@@ -153,7 +153,7 @@ describe('LandingPage', () => {
       submit.click();
     });
     expect(api.createList).toHaveBeenCalledWith(expect.any(String), 'Home');
-    expect(nav.replace).toHaveBeenCalledWith('/app');
+    expect(nav.replace).toHaveBeenCalledWith('/app/connect/ai?welcome');
   });
 
   it('creates a nameless list, and offers no email sign-in when the server has no mail', async () => {
@@ -165,7 +165,7 @@ describe('LandingPage', () => {
       button('Start your list').click();
     });
     expect(api.createList).toHaveBeenCalledWith(expect.any(String), '');
-    expect(nav.replace).toHaveBeenCalledWith('/app');
+    expect(nav.replace).toHaveBeenCalledWith('/app/connect/ai?welcome');
   });
 
   it('shows the server’s reason when a signed-in browser tries to make another list', async () => {

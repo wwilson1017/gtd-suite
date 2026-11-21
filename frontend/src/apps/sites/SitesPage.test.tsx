@@ -113,7 +113,7 @@ describe('Sites', () => {
       expect(host.textContent).toContain('Comes down in 7 days');
       expect(
         [...host.querySelectorAll('a')].some(
-          (a) => a.getAttribute('href') === '/app/connect#email' && a.textContent === 'confirm your email',
+          (a) => a.getAttribute('href') === '/app/connect/email' && a.textContent === 'confirm your email',
         ),
       ).toBe(true);
     } finally {
@@ -425,7 +425,7 @@ describe('Sites', () => {
 
   it('holds short links back while the cap is 0 (a hosted account, email unconfirmed)', async () => {
     await show();
-    expect(host.textContent).toContain('Add one under Connect');
+    expect(host.textContent).toContain('Add one in Settings');
     expect(host.querySelector('input[type=url]')!.matches(':disabled')).toBe(true);
     await act(async () => {
       root.unmount();
@@ -434,7 +434,7 @@ describe('Sites', () => {
     // A server that sends no mail has no email form to point at.
     await show({ mail: false });
     expect(host.textContent).toContain('this server sends no mail');
-    expect(host.textContent).not.toContain('Add one under Connect');
+    expect(host.textContent).not.toContain('Add one in Settings');
     await act(async () => {
       root.unmount();
     });

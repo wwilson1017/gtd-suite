@@ -11,8 +11,6 @@ import { APP } from '../../core/app';
 import { AppOff } from './AppOff';
 import { AreasPage } from './AreasPage';
 import { PageFrame } from './components/PageFrame';
-import { YourAI } from './components/YourAI';
-import { ConnectPage } from './ConnectPage';
 import { DonePage } from './DonePage';
 import { InboxPage } from './InboxPage';
 import { NextActionsPage } from './NextActionsPage';
@@ -26,7 +24,7 @@ import { SearchPage } from './SearchPage';
 import { bootstrap, useSession } from './session';
 import { SomedayPage } from './SomedayPage';
 import { TodayPage } from './TodayPage';
-import { TodoShell } from './TodoShell';
+import { TodoSettings } from './TodoSettings';
 import { WaitingPage } from './WaitingPage';
 
 /** Nothing until the session has named the list, so no request ever goes out
@@ -107,16 +105,10 @@ export function PublicTodoApp() {
           <Route path="/done" element={<DonePage />} />
           <Route path="/review" element={<ReviewPage />} />
           <Route path="/search" element={<SearchPage />} />
-          <Route
-            path="/ai"
-            element={
-              <TodoShell active="ai" hideQuickAdd>
-                <YourAI />
-              </TodoShell>
-            }
-          />
-          {/* Settings: the address is older than the name, and "Add your email" links point at it. */}
-          <Route path="/connect" element={<ConnectPage />} />
+          {/* Settings, a section at a time: the address is older than the name. */}
+          <Route path="/connect" element={<TodoSettings />} />
+          <Route path="/connect/:section" element={<TodoSettings />} />
+          <Route path="/ai" element={<Navigate to="/connect/ai" replace />} />
           {/* Anything else stays inside the list. */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

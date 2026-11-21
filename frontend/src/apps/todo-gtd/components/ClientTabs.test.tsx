@@ -76,6 +76,17 @@ describe('the pick-your-AI tabs', () => {
     expect(listed).toContain('Cursor');
   });
 
+  it('leads Grok with the one message to paste into a chat, then its connector', async () => {
+    await pick('Grok');
+    expect(panel().textContent).toContain('Paste this message into any Grok chat. That is all.');
+    expect(panel().querySelector('pre')!.textContent).toBe(
+      `Open ${LINK} and show me my next actions. It is my own todo list, and that page explains how to read and update it.`,
+    );
+    expect(panel().querySelector('button[aria-label="Copy the message for Grok"]')).not.toBeNull();
+    expect(panel().textContent).toContain('Or add it as a connector');
+    expect(panel().querySelectorAll('ol li')).toHaveLength(3);
+  });
+
   it('has a tool behind every tab', () => {
     // A tab whose name matches nothing in CLIENTS would open an empty panel.
     for (const tab of tabs().slice(0, -1)) {

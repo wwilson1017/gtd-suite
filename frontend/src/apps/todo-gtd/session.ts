@@ -9,7 +9,7 @@ import { BASE } from '../../core/app';
 // reloads into whatever list the browser is in now, instead of writing into the
 // wrong one. A 401 means signed out (→ the home page); a 403 {state} means the
 // list is put away (→ PutAwayPage, for that state). A 400 that says the list is at
-// its anonymous cap sets `capped`, which brings back the "keep this list" banner
+// its anonymous cap sets `capped`, which shows the "this list is full" alert
 // (KeepBanner).
 //
 // # simplification: no cross-tab broadcast — a stale tab finds out on its next request
@@ -79,7 +79,7 @@ export function updateSession(patch: Partial<Session>) {
   if (current.session) set({ ...current, session: { ...current.session, ...patch } });
 }
 
-/** Ask again which AI tools have called, so the pinned card and Your AI follow a first
+/** Ask again which AI tools have called, so the setup steps and Connect your AI follow a first
  *  call without a reload. A failed ask changes nothing: the next one will do. */
 export function refreshAiTools(): Promise<void> {
   return getAiTools().then(

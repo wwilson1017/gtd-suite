@@ -21,7 +21,7 @@ const inputCls =
 const secondaryBtn =
   'shrink-0 rounded-lg border border-line bg-cream px-3 py-2 text-sm font-heading text-charcoal hover:bg-sand disabled:opacity-40';
 
-/** The browser's IANA zone — the list's "today" follows it (changeable later in Connect). */
+/** The browser's IANA zone — the list's "today" follows it (changeable later in Settings). */
 function browserTz(): string {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
@@ -30,9 +30,10 @@ function browserTz(): string {
   }
 }
 
-/** Into the app. replace(), not assign(): Back must not return to a form already used. */
-function openApp() {
-  window.location.replace(BASE + '/app');
+/** Into the app. replace(), not assign(): Back must not return to a form already used.
+ *  A brand-new account opens once on Settings › Connect your AI, which can skip ahead. */
+function openApp(welcome = false) {
+  window.location.replace(BASE + (welcome ? '/app/connect/ai?welcome' : '/app'));
 }
 
 /** `account`: call what the person has an account, not a list (Notes). */
@@ -255,7 +256,7 @@ export function LandingPage() {
     setError('');
     try {
       await createList(browserTz(), name.trim());
-      openApp();
+      openApp(true);
     } catch (e) {
       if (e instanceof ApiError && e.status === 409 && !config?.open_signup) setTaken(true);
       else setError(apiErrorMessage(e, 'Could not create a list. Try again.'));
@@ -268,8 +269,8 @@ export function LandingPage() {
       <PageFrame>
         <h1 className="font-heading text-3xl font-bold text-charcoal">This list is set up</h1>
         <p className="mt-3 text-charcoal">
-          This server holds one todo list, and it has already been created. Open it on a device that is signed in: under
-          Connect, it can make a sign-in link for this one.
+          This server holds one todo list, and it has already been created. Open it on a device that is signed in: in
+          Settings, it can make a sign-in link for this one.
           {mail && ' Or sign in with the email on the list.'}
         </p>
         {config?.signed_in && <OpenMyList />}
