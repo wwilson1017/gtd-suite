@@ -26,9 +26,8 @@ const SESSION: Session = {
 };
 const ARCHIVED = 'Your list was put away after 60 days without use. Nothing was removed.';
 const REMOVED = 'Put away for good after 180 days without use. Nothing was deleted.';
-const SENT = 'Saved. Check your inbox: if this email already has an account, the link takes you back to it.';
-const PENDING =
-  'Not confirmed yet — check your inbox. If this email already has an account, the link takes you back to it.';
+const SENT = 'Check your inbox: we sent a link to me@example.com';
+const PENDING = 'If this email already has an account, the link takes you back to it.';
 
 type Answer = { status: number; body: unknown };
 /** What each "METHOD path" answers; a function sees the request body. */

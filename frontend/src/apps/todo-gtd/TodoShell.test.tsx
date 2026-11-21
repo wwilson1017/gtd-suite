@@ -3,9 +3,8 @@
 // The shell marks the current list — once, with aria-current="page" — in each of
 // its three menus: top row, phone bottom bar, sidebar. The mode comes from two
 // media queries plus the stored layout preference, so matchMedia is stubbed. Its header
-// carries Your AI and the Settings gear, and under it sit the "Connect your AI" card
-// (until an AI tool has called, or the person dismisses it) and the "keep this list"
-// banner (on every page but Settings).
+// carries the next setup step as one button (until every step is done) and the Settings
+// gear.
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
@@ -22,6 +21,7 @@ import { saveMenuLayout } from '../../core/theme/menuLayout';
 import { getAiTools, getFilters, getSession } from './api';
 import { PHONE_QUERY, SIDEBAR_QUERY } from './menu';
 import { bootstrap, resetSession } from './session';
+import { stubNavigation } from './stubNavigation';
 import { TodoShell, type TodoTab } from './TodoShell';
 
 let container: HTMLDivElement;
@@ -189,20 +189,17 @@ describe('TodoShell menus', () => {
     expect(current()).toEqual(['Done']);
   });
 
-  it('Settings marks no list, only the gear; Your AI only its own button beside it', async () => {
+  it('Settings marks no list, only the gear', async () => {
     setScreen([]);
     await render('connect');
     expect(container.querySelectorAll('nav [aria-current="page"]')).toHaveLength(0);
-    expect(current()).toEqual(['⚙']);
     const gear = container.querySelector('[aria-current="page"]')!;
     expect(gear.getAttribute('aria-label')).toBe('Settings');
     expect(gear.getAttribute('href')).toBe('/connect'); // the address is older than the name
-    expect(gear.previousElementSibling!.textContent).toBe('Your AI');
-    expect(gear.previousElementSibling!.getAttribute('href')).toBe('/ai');
+    expect(gear.querySelector('svg')).not.toBeNull();
 
-    await render('ai');
-    expect(container.querySelectorAll('nav [aria-current="page"]')).toHaveLength(0);
-    expect(current()).toEqual(['Your AI']);
+    await render('today');
+    expect(container.querySelector('a[aria-label="Settings"]')!.hasAttribute('aria-current')).toBe(false);
   });
 });
 
@@ -235,39 +232,9 @@ describe('the list name in the shell', () => {
   });
 });
 
-describe('the keep-this-list banner in the shell', () => {
-  const KEEP = 'This list lives in this browser.';
-
-  it('sits under the header on every page but Settings, where the email field is right there', async () => {
-    vi.mocked(getSession).mockResolvedValue({
-      list_id: 7,
-      state: 'active',
-      email: null,
-      verified: false,
-      hosted: true,
-      mail: true,
-      caps: { todos: 200, projects: 20, areas: 10 },
-      apps: ['todo'],
-    });
-    resetSession();
-    await act(async () => {
-      await bootstrap();
-    });
-    setScreen([]);
-    await render('next');
-    expect(container.textContent).toContain(KEEP);
-
-    await render('connect');
-    expect(container.textContent).not.toContain(KEEP);
-
-    await render('inbox');
-    expect(container.textContent).toContain(KEEP);
-  });
-});
-
-describe('the Connect your AI card in the shell', () => {
-  const CARD = 'Give Claude, ChatGPT or another AI one link';
+describe('the next-step button in the shell', () => {
   const CLAUDE = { name: 'Claude', last_used: '2026-11-02', days_ago: 0 };
+  const step = () => container.querySelector<HTMLAnchorElement>('a[href^="/connect/"]');
 
   async function signedIn(session: object = {}) {
     vi.mocked(getSession).mockResolvedValue({
@@ -294,90 +261,87 @@ describe('the Connect your AI card in the shell', () => {
     });
 
   beforeEach(() => {
-    localStorage.clear();
     vi.mocked(getAiTools).mockReset();
+    vi.mocked(getSession).mockReset();
   });
 
-  it('is pinned above the keep banner until an AI tool has called, and opens Your AI', async () => {
-    await signedIn();
+  it.each([
+    ['no AI yet', {}, 'Connect your AI', '/connect/ai'],
+    ['an AI, no email', { ai_tools: [CLAUDE] }, 'Add your email', '/connect/email'],
+    [
+      'an email waiting for its link',
+      { ai_tools: [CLAUDE], email: 'me@example.com' },
+      'Check your inbox',
+      '/connect/email',
+    ],
+    ['no mail on the server, no AI yet', { mail: false }, 'Connect your AI', '/connect/ai'],
+  ])('names the next step: %s', async (_, session, label, href) => {
+    await signedIn(session);
     await render('today');
-    const text = container.textContent!;
-    expect(text).toContain(CARD);
-    expect(text.indexOf(CARD)).toBeLessThan(text.indexOf('This list lives in this browser.'));
-    const open = [...container.querySelectorAll('a')].filter((a) => a.textContent === 'Connect your AI');
-    expect(open.map((a) => a.getAttribute('href'))).toEqual(['/ai']);
-    // Not on the page it opens, nor on Settings.
-    await render('ai');
-    expect(container.textContent).not.toContain(CARD);
-    await render('connect');
-    expect(container.textContent).not.toContain(CARD);
-
-    // An account an AI has already called never sees it.
-    await signedIn({ ai_tools: [CLAUDE] });
-    await render('today');
-    expect(container.textContent).not.toContain(CARD);
+    expect(step()!.getAttribute('aria-label')).toBe(label);
+    expect(step()!.getAttribute('href')).toBe(href);
   });
 
-  it('goes by itself, without a reload, once an AI has made its first call', async () => {
+  it.each([
+    ['every step done', { ai_tools: [CLAUDE], email: 'me@example.com', verified: true }],
+    ['the one step done, on a server without mail', { ai_tools: [CLAUDE], mail: false }],
+  ])('is gone with %s', async (_, session) => {
+    await signedIn(session);
+    await render('today');
+    expect(step()).toBeNull();
+    expect(container.querySelector('a[aria-label="Settings"]')).not.toBeNull();
+  });
+
+  it('moves on by itself, without a reload, once an AI has made its first call', async () => {
     await signedIn();
     const loads = vi.mocked(getSession).mock.calls.length;
     await render('inbox');
-    expect(container.textContent).toContain(CARD);
+    expect(step()!.getAttribute('aria-label')).toBe('Connect your AI');
     expect(getAiTools).not.toHaveBeenCalled(); // the session answer already said: none
 
-    // The person comes back to the window before anything has called: still there.
+    // The person comes back before anything has called, then once it has.
     vi.mocked(getAiTools).mockResolvedValue([]);
     await focus();
-    expect(getAiTools).toHaveBeenCalledTimes(1);
-    expect(container.textContent).toContain(CARD);
-
-    // Their AI makes its first call, elsewhere; then the window is in focus again.
+    expect(step()!.getAttribute('aria-label')).toBe('Connect your AI');
+    vi.mocked(getAiTools).mockRejectedValueOnce(new Error('offline'));
+    await focus();
+    expect(step()!.getAttribute('aria-label')).toBe('Connect your AI');
     vi.mocked(getAiTools).mockResolvedValue([CLAUDE]);
     await focus();
-    expect(container.textContent).not.toContain(CARD);
-    expect(container.textContent).toContain('page body');
+    expect(step()!.getAttribute('aria-label')).toBe('Add your email');
     expect(getSession).toHaveBeenCalledTimes(loads); // the same page load throughout
-
-    // Gone, it stops asking.
-    await focus();
-    expect(getAiTools).toHaveBeenCalledTimes(2);
   });
 
-  it('stays through a failed ask, and asks again the next time', async () => {
-    await signedIn();
+  it('turns done when the emailed link was opened in another tab, and asks for nothing else', async () => {
+    await signedIn({ ai_tools: [CLAUDE], email: 'me@example.com' });
     await render('today');
-    vi.mocked(getAiTools).mockRejectedValueOnce(new Error('offline')).mockResolvedValue([CLAUDE]);
-    await focus();
-    expect(container.textContent).toContain(CARD);
-    await focus();
-    expect(container.textContent).not.toContain(CARD);
-  });
-
-  it('can be dismissed, for this list on this device', async () => {
-    await signedIn();
-    await render('today');
-    await act(async () => {
-      container.querySelector<HTMLButtonElement>('button[aria-label="Dismiss Connect your AI"]')!.click();
+    expect(step()!.getAttribute('aria-label')).toBe('Check your inbox');
+    vi.mocked(getSession).mockResolvedValue({
+      list_id: 7,
+      state: 'active',
+      email: 'me@example.com',
+      verified: true,
+      hosted: true,
+      mail: true,
+      caps: { todos: 5000, projects: 1000, areas: 100 },
+      apps: ['todo'],
+      ai_tools: [CLAUDE],
     });
-    expect(container.textContent).not.toContain(CARD);
-    // The keep banner has its own dismissal.
-    expect(container.textContent).toContain('This list lives in this browser.');
     await focus();
+    expect(step()).toBeNull();
     expect(getAiTools).not.toHaveBeenCalled();
+  });
 
-    // A new page of the same list: still dismissed. Another list: its own card.
-    await act(async () => {
-      root.unmount();
-    });
-    root = createRoot(container);
+  it('starts over when the link signed this browser in to another account', async () => {
+    const nav = stubNavigation();
+    await signedIn({ ai_tools: [CLAUDE], email: 'me@example.com' });
     await render('today');
-    expect(container.textContent).not.toContain(CARD);
-    await signedIn({ list_id: 8 });
-    await act(async () => {
-      root.unmount();
-    });
-    root = createRoot(container);
-    await render('today');
-    expect(container.textContent).toContain(CARD);
+    vi.mocked(getSession).mockResolvedValue({ list_id: 8, state: 'active' } as never);
+    try {
+      await focus();
+      expect(nav.reload).toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

@@ -676,7 +676,7 @@ def get_session(request: Request, response: Response):
         },
         "brains": [{k: b[k] for k in ("id", "name", "folder", "status")} for b in brain.brains(owner)],
         "apps": row["apps"],  # the apps turned on (lists.apps_on)
-        "ai_tools": lists.ai_tools(owner),  # which AI tools have called: Your AI, the pinned card
+        "ai_tools": lists.ai_tools(owner),  # which AI tools have called: Settings › Connect your AI, the setup steps
         "plan": paid_routes.session_plan(row),
     }
 
@@ -755,7 +755,7 @@ def approve_connect(user_code: str, body: ConnectApproval | None = None, owner: 
 @router.post("/lists")
 def create_list(request: Request, response: Response, body: ListCreate | None = None):
     """Create a list and sign this browser in to it. The answer carries the
-    agent link (the app shows it again on Your AI); the session is only in
+    agent link (the app shows it again in Settings › Connect your AI); the session is only in
     the cookie."""
     _same_origin(request)
     if sessions.resolve(request.cookies.get(sessions.COOKIE)) is not None:

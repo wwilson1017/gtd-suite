@@ -1,5 +1,5 @@
 // "Watch how": the animated walk-through of connecting Grok, Claude and ChatGPT
-// (public/connect-ai.html), opened in a modal from the agent link's card (Your AI).
+// (public/connect-ai.html), opened in a modal from Settings › Connect your AI.
 import { useEffect, useState } from 'react';
 
 export function ConnectAnimation() {

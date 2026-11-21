@@ -7,6 +7,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { ThemeToggle } from '../../core/theme/ThemeToggle';
 import { AppBar } from '../todo-gtd/components/AppBar';
 import { AppName, Logo } from '../todo-gtd/components/Logo';
+import { NextStepButton, SettingsGear } from '../todo-gtd/settings/HeaderSetup';
 import { inboxCount, listBoards, listPeople } from './api';
 import { NewForYou, useShhh } from './NewForYou';
 import { SampleBanner } from './SampleData';
@@ -197,7 +198,7 @@ function UniversalMenu({ onClose }: { onClose: () => void }) {
         {shown.length === 0 && <li className="px-3 py-1.5 text-sm text-bc-subtle">No project by that name.</li>}
       </ul>
       <div className="mt-3 flex items-center gap-3 border-t border-bc-line pt-3 text-sm">
-        <button type="button" className="text-bc-blue underline" onClick={() => go('/ai')}>
+        <button type="button" className="text-bc-blue underline" onClick={() => go('/connect/ai')}>
           Connect your AI
         </button>
         <button type="button" className="text-bc-blue underline" onClick={() => go('/people')}>
@@ -307,10 +308,10 @@ export function ProjectsShell({
             aria-expanded={menu}
             aria-haspopup="dialog"
             title="Jump to… (Shift+J)"
-            className="-ml-2 flex items-center gap-1.5 rounded-lg px-2 py-1.5 hover:bg-bc-wash"
+            className="-ml-2 flex min-w-0 items-center gap-1.5 rounded-lg px-2 py-1.5 hover:bg-bc-wash"
           >
-            <Logo app="projects" className="h-6 w-6" />
-            <span className="text-xl font-bold">
+            <Logo app="projects" className="h-6 w-6 flex-none" />
+            <span className="truncate text-xl font-bold">
               <AppName app="projects" />
             </span>
             <span aria-hidden className="text-bc-subtle">
@@ -354,6 +355,11 @@ export function ProjectsShell({
                 </span>
               ))}
           </button>
+          <NextStepButton />
+          {/* A phone reaches Settings through My account, beside it: the row is full. */}
+          <span className="hidden sm:contents">
+            <SettingsGear current={location.pathname.startsWith('/connect')} />
+          </span>
           <Menu
             label="My account"
             items={[
@@ -363,7 +369,7 @@ export function ProjectsShell({
               { label: 'My Bookmarks (Shift+B)', onClick: () => navigate('/my/bookmarks') },
               'sep',
               { label: 'People', onClick: () => navigate('/people') },
-              { label: 'Connect your AI', onClick: () => navigate('/ai') },
+              { label: 'Connect your AI', onClick: () => navigate('/connect/ai') },
               { label: 'Settings', onClick: () => navigate('/connect') },
             ]}
           />
@@ -398,12 +404,6 @@ export function ProjectsShell({
             </NavLink>
             <NavLink to="/people" className={sideCls}>
               People
-            </NavLink>
-            <NavLink to="/ai" className={sideCls}>
-              Your AI
-            </NavLink>
-            <NavLink to="/connect" className={sideCls}>
-              Settings
             </NavLink>
           </span>
         </nav>

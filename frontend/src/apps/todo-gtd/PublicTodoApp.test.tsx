@@ -193,6 +193,26 @@ describe('the boot path', () => {
     BOOT_TIMEOUT_MS,
   );
 
+  it.each([
+    ['/app/ai', '/app/connect/ai', 'Waiting for your AI'],
+    ['/app/connect#email', '/app/connect/email', 'Right now your account lives only in this browser.'],
+    ['/app/connect/capture', '/app/connect/capture', 'Capture link — write-only'],
+  ])(
+    'lands %s on Settings at %s',
+    async (from, to, marker) => {
+      overrides['/api/app/session'] = { status: 200, body: { ...SESSION, mail: true } };
+      visit(from);
+      await bootApp();
+      await settle(marker);
+
+      expect(window.location.pathname).toBe(to);
+      expect(host.querySelector('#settings-section')!.textContent).toBe(
+        { '/app/connect/ai': 'Connect your AI', '/app/connect/email': 'Add your email' }[to] ?? 'Capture link',
+      );
+    },
+    BOOT_TIMEOUT_MS,
+  );
+
   it(
     'sends a signed-out browser home, and asks for nothing else first',
     async () => {

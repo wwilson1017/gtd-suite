@@ -92,7 +92,7 @@ backend/
   lists.py       list rows, the account number, the agent and capture tokens, rotate, claim, reset,
                  email (+ confirmed stamp),
                  weekly-review stamp, the apps turned on (apps_on, served, set_app_in), the AI
-                 tools that have called (seen_ai, ai_tools: the Your AI page's status)
+                 tools that have called (seen_ai, ai_tools: the Connect your AI status)
   sessions.py    the session cookie: one hashed row per signed-in browser, ≤20 per list, revoke, expire
   keys.py        program keys (kind=key, cb_…, Bearer only) and staff links (kind=link, path only):
                  named, hashed, shown once, revoke; ordered brains, scope (brain | all), access
@@ -347,8 +347,8 @@ the call budget charged; every other request goes to FastMCP untouched.
   not content: in `admin._LIST_TABLES` and `cleanup.py`, out of `apps.content_tables()`, and its
   rows cascade with their list, so a version that does not know the table can still delete one.
   A REST call reaches the tools without the HTTP request: `api_v1._as` passes its `Origin` on.
-  Messages name the account page through `apps.settings_page` (Settings in Todo, Notes and
-  Projects; Connect in Simple Sites and Common Brain).
+  Messages name the account page through `apps.settings_page` (Settings in Todo, Notes,
+  Projects and Simple Sites; Connect in Common Brain).
 - **Schema changes** go in `db._migrate` as idempotent steps (`CREATE TABLE IF NOT EXISTS`
   does not alter a table that exists, and the live database does).
 - **One place decides the client address:** `ratelimit.client_ip`. Do not read

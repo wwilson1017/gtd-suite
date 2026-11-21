@@ -1,4 +1,4 @@
-// The suite's apps (backend/apps.py), for Connect: the same account, and the same
+// The suite's apps (backend/apps.py), for Settings › Your apps: the same account, and the same
 // agent link, in each. A switch turns an app on or off for the account: the agent
 // link offers only the apps that are on, and an app that is off shows AppOff on its
 // own address; nothing in it is removed. Opening another app mints a one-hour
@@ -9,9 +9,10 @@ import { apiErrorMessage } from '../../../core/api/client';
 import { APP_TITLES } from '../../../core/app';
 import { createSignInLink, setApp } from '../api';
 import { updateSession, useSession } from '../session';
-import { useConfig } from '../useConfig';
+import { hasOtherApps, useConfig } from '../useConfig';
 
-export function OtherApps() {
+/** `titled`: with its own heading (Common Brain's Connect page); Settings heads it already. */
+export function OtherApps({ titled = true }: { titled?: boolean }) {
   const config = useConfig();
   const on = useSession().session?.apps ?? [];
   const [busy, setBusy] = useState('');
@@ -23,7 +24,7 @@ export function OtherApps() {
     config && !(config.app in listed)
       ? [[config.app, { title: APP_TITLES[config.app] ?? config.app, url: '' }] as const, ...Object.entries(listed)]
       : Object.entries(listed);
-  if (!apps.some(([key]) => key !== config?.app)) return null;
+  if (!hasOtherApps(config)) return null;
 
   const toggle = async (key: string, next: boolean) => {
     setBusy(`toggle:${key}`);
@@ -49,10 +50,10 @@ export function OtherApps() {
 
   return (
     <section className="rounded-xl border border-line-faint bg-cream p-4">
-      <h2 className="font-heading text-sm font-bold text-charcoal">Your apps</h2>
-      <p className="mt-1 text-xs text-muted">
-        One account, and one agent link, for all of them. The agent link offers the apps that are on. Opening one signs
-        this browser in there and turns it on.
+      {titled && <h2 className="mb-1 font-heading text-sm font-bold text-charcoal">Your apps</h2>}
+      <p className="text-xs text-muted">
+        {titled && 'One account, and one agent link, for all of them. '}The agent link offers the apps that are on.
+        Opening one signs this browser in there and turns it on.
       </p>
       <ul className="mt-2 space-y-2">
         {apps.map(([key, app]) => (

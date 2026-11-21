@@ -97,7 +97,7 @@ export interface CaptureLink {
 export type AgentLink = CaptureLink;
 
 /** What creating a list answers. The browser is signed in by a cookie the page
- *  never sees; the agent link is shown again on Your AI. */
+ *  never sees; the agent link is shown again in Settings › Connect your AI. */
 export interface NewList {
   agent_token: string;
   agent_url: string;
@@ -136,8 +136,8 @@ export interface Session {
   /** The apps (backend/apps.py keys) turned on for the account: the agent link offers
    *  only these, and an app that is off shows AppOff on its own address. */
   apps: string[];
-  /** The AI tools that have called the agent link, the latest caller first (Your AI,
-   *  the pinned Connect card). Empty until one has. */
+  /** The AI tools that have called the agent link, the latest caller first (Settings ›
+   *  Connect your AI, and step 1 of the setup). Empty until one has. */
   ai_tools?: AiTool[];
   /** The account’s plan, as last synced from the payment service. */
   plan?: Plan;

@@ -7,8 +7,8 @@ import { useEffect, useState } from 'react';
 import { apiErrorMessage } from '../core/api/client';
 import { manageBilling, startCheckout, syncBilling } from './api';
 import { useSession } from '../apps/todo-gtd/session';
-import type { Plan } from './types';
 import { PolicyLinks } from './PolicyLinks';
+import { granted, planShown } from './features';
 import { useConfig } from '../apps/todo-gtd/useConfig';
 
 const GIVES = [
@@ -23,12 +23,6 @@ const primaryBtn =
   'rounded-lg bg-brand-dark px-4 py-2 font-heading text-sm text-white hover:bg-brand-deep disabled:opacity-40';
 const secondaryBtn =
   'rounded-lg border border-line bg-cream px-4 py-2 font-heading text-sm text-charcoal hover:bg-sand disabled:opacity-40';
-
-/** A plan from the operator's free grant (admin comp) rather than a live subscription:
- *  the server says which (plans.pro_source). */
-function granted(plan: Plan): boolean {
-  return plan.source === 'comp' && !!plan.comp_until;
-}
 
 function day(iso: string | null): string {
   return iso ? new Date(iso).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }) : '';
@@ -72,8 +66,7 @@ export function PlanCard() {
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const welcome = useWelcome(plan?.pro === true);
-  // A free grant needs no Stripe, so it shows even where sales are off.
-  if (!session || !plan || !(config?.billing || plan.manageable || granted(plan))) return null;
+  if (!session || !plan || !planShown(config, session)) return null;
 
   const go = async (what: string, ask: () => Promise<{ url: string }>) => {
     setBusy(what);

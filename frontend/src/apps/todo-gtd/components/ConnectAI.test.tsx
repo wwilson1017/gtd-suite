@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 //
-// Your AI: the status line (which AI tools have called, and the day each last did), the
-// agent link with its copy button, and the pick-your-AI tabs; nothing else. The status
-// follows a first call without a reload, when the window comes back into focus.
+// Settings › Connect your AI: the status (which AI tools have called, and the day each
+// last did, or waiting), the pick-your-AI tabs, and the agent link with its copy button;
+// nothing else. The status follows a first call without a reload, when the window comes
+// back into focus.
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -18,7 +19,7 @@ const api = vi.hoisted(() => ({
 vi.mock('../api', () => api);
 
 import { bootstrap, resetSession } from '../session';
-import { YourAI } from './YourAI';
+import { ConnectAI } from './ConnectAI';
 
 const LINK = 'https://todo.example/link/TOKEN';
 const SESSION: Session = {
@@ -38,7 +39,7 @@ const tool = (name: string, days_ago: number | null = null, last_used: string | 
   last_used: last_used ?? (days_ago === null ? null : '2026-11-02'),
 });
 
-describe('the Your AI page', () => {
+describe('Connect your AI', () => {
   let host: HTMLDivElement;
   let root: ReturnType<typeof createRoot>;
 
@@ -49,7 +50,7 @@ describe('the Your AI page', () => {
       await bootstrap();
     });
     await act(async () => {
-      root.render(<YourAI />);
+      root.render(<ConnectAI />);
     });
   }
   const status = () => host.querySelector('[role="status"]')!.textContent;
@@ -113,16 +114,17 @@ describe('the Your AI page', () => {
 
   it('holds the status, the link with its copy button and regenerate, and the steps for each AI', async () => {
     await show();
-    expect(status()).toContain('No AI connected yet');
+    expect(status()).toContain('Waiting for your AI. This turns green the first time it uses your link.');
+    expect(host.textContent).toContain('Pick your AI');
     expect(host.querySelector<HTMLInputElement>('input[readonly]')!.value).toBe(LINK);
     expect(host.querySelector('button[aria-label="Copy the agent link"]')).not.toBeNull();
-    expect([...host.querySelectorAll('button')].some((b) => b.textContent === 'Regenerate')).toBe(true);
+    expect([...host.querySelectorAll('button')].some((b) => b.textContent === 'Make a new link…')).toBe(true);
     // The walk-through travels with the link.
     expect(host.textContent).toContain('Watch how');
     const tabs = [...host.querySelectorAll('[role="tab"]')].map((t) => t.textContent);
     expect(tabs).toEqual(['ChatGPT', 'Claude', 'Grok', 'Gemini', 'Claude Code', 'Codex', 'More']);
     expect(host.querySelector('[role="tabpanel"]')!.textContent).toContain(LINK);
-    // Nothing of Settings is here.
+    // Nothing of the other sections is here.
     for (const other of ['Your email', 'Capture link', 'Sign out', 'Time zone', 'Your apps']) {
       expect(host.textContent).not.toContain(other);
     }
@@ -143,6 +145,7 @@ describe('the Your AI page', () => {
       window.dispatchEvent(new Event('focus'));
     });
     expect(status()).toBe('Claude connected · last used today');
+    expect(host.textContent).toContain('Add another AI');
     expect(api.getSession).toHaveBeenCalledTimes(1);
   });
 });

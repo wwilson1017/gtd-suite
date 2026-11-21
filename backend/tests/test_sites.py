@@ -128,7 +128,9 @@ def test_a_page_is_at_most_two_megabytes_of_utf8(acct):
 
 def test_a_short_link_needs_a_confirmed_email_and_a_real_outside_address(acct):
     lid = acct["id"]
-    with pytest.raises(ValidationError, match="need a confirmed email"):
+    with pytest.raises(
+        ValidationError, match=r"need a confirmed email\. Confirm one in Settings \(Connect, in Common Brain\)\."
+    ):
         sites.shorten(lid, "https://example.com")
     confirm_list(lid)
     link = sites.shorten(lid, "https://example.com/a?b=c", name="docs", title="Docs")
@@ -162,7 +164,9 @@ def test_a_short_link_needs_a_confirmed_email_and_a_real_outside_address(acct):
 def test_one_page_before_an_email_is_confirmed_and_five_hundred_after(acct):
     lid = acct["id"]
     made = [page(lid)]
-    with pytest.raises(ValidationError, match="holds 1 page until an email is confirmed"):
+    with pytest.raises(
+        ValidationError, match=r"holds 1 page until an email is confirmed in Settings \(Connect, in Common Brain\)\."
+    ):
         page(lid)
     # Updating and republishing are never capped; unpublished pages still count.
     sites.publish(lid, "# New", site_id=made[0]["id"])

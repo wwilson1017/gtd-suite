@@ -26,14 +26,16 @@ If the tool returns nothing, send nothing.`;
  *  fetch tool, the task gives it a reason to read the guide now, and "my own" answers
  *  the permission question. It names no protocol, and it does not say "follow the
  *  instructions on the page", which a cautious assistant reads as prompt injection.
- *  On Projects GTD the task is the boards, and on Simple Sites the pages: the same link,
+ *  On Projects GTD the task is the boards, on Notes GTD the notes and on Simple Sites the pages: the same link,
  *  read where the user is. */
 export const pastePrompt = (url: string) =>
   APP === 'projects'
     ? `Open ${url} and show me my project boards. They are my own, and that page explains how to read and update them.`
     : APP === 'sites'
       ? `Open ${url} and show me my pages and short links. They are my own, and that page explains how to publish and update them.`
-      : `Open ${url} and show me my next actions. It is my own todo list, and that page explains how to read and update it.`;
+      : APP === 'notes'
+        ? `Open ${url} and show me my notes. They are my own, and that page explains how to read and update them.`
+        : `Open ${url} and show me my next actions. It is my own todo list, and that page explains how to read and update it.`;
 
 export interface ClientSetup {
   name: string;
@@ -131,3 +133,17 @@ export const CLIENTS: ClientSetup[] = [
     note: 'Paid plans, web and desktop.',
   },
 ];
+
+/** What the agent link reaches in each app it serves (backend/apps.py keys). */
+const REACHES: Record<string, string[]> = {
+  todo: ['todos'],
+  projects: ['project boards'],
+  sites: ['pages', 'short links'],
+  notes: ['notes'],
+  brain: ['brain'],
+};
+
+/** What the agent link reaches in the apps turned on: "todos, notes, and project boards". */
+export function reachOf(apps: string[]): string {
+  return new Intl.ListFormat('en').format(apps.flatMap((key) => REACHES[key] ?? []));
+}

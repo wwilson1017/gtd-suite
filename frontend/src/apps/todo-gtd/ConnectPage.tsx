@@ -1,47 +1,44 @@
 import { BASE } from '../../core/app';
-// Todo GTD — Settings (the ⚙ in the shell, at /connect): how the app looks, the apps,
-// the capture link, the list's name, email and time zone, signing in on another device,
-// and signing this one out. Connecting an AI has its own page, Your AI
-// (components/YourAI.tsx), which shows the AgentLink card defined here.
-import { useEffect, useId, useMemo, useState } from 'react';
+// The suite's account cards, shown in Settings (settings/SettingsPage.tsx) and on Common
+// Brain's Connect page: the email, the account number, signing in on another device and
+// signing this one out, the agent link's card (Common Brain's), and Todo GTD's own (the
+// list's name and time zone, the inbox triage layout).
+import { useId, useMemo, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { useLocation } from 'react-router-dom';
 import { apiErrorMessage } from '../../core/api/client';
-import { MenuLayoutToggle } from '../../core/theme/MenuLayoutToggle';
 import { useTriageLayout, type TriageLayout } from './triageLayout';
-import { ThemeToggle } from '../../core/theme/ThemeToggle';
 import {
   createSignInLink,
   getAgentLink,
-  getCaptureLink,
   regenerateAgentLink,
-  regenerateCaptureLink,
   setEmail,
   setName,
   setTz,
   signOut,
   signOutEverywhere,
 } from './api';
-import { BRAIN_TICKLE_PROMPT, pastePrompt } from './clients';
+import { pastePrompt, reachOf } from './clients';
 import { ClientSteps } from './components/ClientSteps';
-import { ClientTabs } from './components/ClientTabs';
 import { ConnectAnimation } from './components/ConnectAnimation';
 import { CopyButton } from './components/CopyButton';
 import { LinkCard } from './components/LinkCard';
-import { OtherApps } from './components/OtherApps';
-import { PlanCard } from '../../paid/PlanCard';
 import { updateSession, useSession } from './session';
-import { InstallGuide } from './components/InstallGuide';
-import { TodoShell } from './TodoShell';
 import type { EmailStatus, SignInLink } from './types';
 import { useTodoMeta } from './useTodoMeta';
 
 const inputCls =
   'min-w-0 flex-1 rounded-lg border border-line bg-cream px-3 py-2 text-base sm:text-sm text-charcoal focus:border-brand focus:outline-none';
-const cardCls = 'rounded-xl border border-line-faint bg-cream p-4';
+const cardCls = 'rounded-xl border border-line-faint bg-cream p-4 sm:p-5';
+/** A status line: green for done, amber while waiting on the person. */
+const okCls =
+  'flex items-center gap-2.5 rounded-xl bg-green-50 px-4 py-3 font-heading text-sm font-semibold text-green-800 dark:bg-green-950/50 dark:text-green-300';
+const waitCls =
+  'flex items-center gap-2.5 rounded-xl bg-amber-50 px-4 py-3 font-heading text-sm font-semibold text-amber-800 dark:bg-amber-950/40 dark:text-amber-300';
 const h2Cls = 'font-heading text-sm font-bold text-charcoal';
 const btnCls =
   'shrink-0 rounded-lg border border-line bg-cream px-3 py-2 text-sm font-heading text-charcoal hover:bg-sand disabled:opacity-40';
+const primaryCls =
+  'shrink-0 rounded-lg bg-brand-dark px-4 py-2 text-sm font-heading font-semibold text-white hover:bg-brand-deep disabled:opacity-40';
 /** A copyable text snippet (the paste message, the brain tickle), beside its CopyButton. */
 const snippetCls =
   'min-w-0 flex-1 select-all whitespace-pre-wrap break-words rounded-lg border border-line bg-sand px-3 py-2 font-sans text-xs text-charcoal';
@@ -114,21 +111,21 @@ export function ListName() {
 
 const count = (n: number) => n.toLocaleString('en');
 
-/** What saving (or "Send again") says, from the server's answer. */
+/** What saving (or "Send again") adds to the card, from the server's answer. A first
+ *  link sent needs no word: the card itself now says to check the inbox. */
 function emailNote(r: EmailStatus, again: boolean): string {
-  if (r.sent)
-    return again
-      ? 'Sent.'
-      : 'Saved. Check your inbox: if this email already has an account, the link takes you back to it.';
+  if (r.sent) return again ? 'Sent.' : '';
   if (r.email && !r.verified) {
     return again ? 'Wait a few minutes before sending again.' : 'Saved. Wait a few minutes, then press Send again.';
   }
   return 'Saved.';
 }
 
-/** The list's email. Saving one mails it a link; opening the link confirms it,
- *  which keeps the list, lets it be signed in to from any device and, on a hosted
- *  server, raises its limits. Rendered only when the server can send mail. */
+/** The account's email, in three states: none yet (what it gives, and the field), waiting
+ *  for its link to be opened (send again, or use another), and confirmed. Saving one mails
+ *  it a link; opening the link confirms it, which keeps the account, lets it be signed in
+ *  to from any device and, on a hosted server, raises its limits. Rendered only when the
+ *  server can send mail. */
 export function EmailSection() {
   const id = useId();
   const session = useSession().session;
@@ -137,6 +134,7 @@ export function EmailSection() {
   const hosted = session?.hosted === true;
   const caps = session?.caps;
   const [email, setEmailText] = useState<string | null>(null); // null = not edited yet
+  const [changing, setChanging] = useState(false); // "Use a different email", while one waits
   const [state, setState] = useState<Saved>({ kind: 'idle' });
   const [note, setNote] = useState('');
 
@@ -148,82 +146,136 @@ export function EmailSection() {
       const result = await setEmail(value);
       updateSession({ email: result.email, verified: result.verified, caps: result.caps });
       setEmailText(null);
+      setChanging(false);
       setNote(emailNote(result, again));
       setState({ kind: 'idle' });
     } catch (e) {
       setState({ kind: 'error', text: apiErrorMessage(e, 'Could not save the email.') });
     }
   };
+  const busy = state.kind === 'saving';
 
-  return (
-    <section className={cardCls}>
-      <h2 className={h2Cls}>
-        <label htmlFor={id}>Your email</label>
-      </h2>
-      {onFile === null && (
-        <p className="mt-1 text-xs font-semibold text-charcoal">
-          Add your email to keep this list, use it on other devices
-          {hosted ? ' and raise its limits' : ''}.
+  const limits = hosted && caps && (
+    <p className="mt-3 text-xs text-muted">
+      {verified ? 'It holds' : 'Until then it holds'} up to {count(caps.todos)} todos, {count(caps.projects)} projects
+      and {count(caps.areas)} areas.
+    </p>
+  );
+  const form = (label: string, primary: boolean, shown: string) => (
+    <form
+      className="mt-3 flex flex-wrap items-center gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void save((email ?? shown).trim());
+      }}
+    >
+      <input
+        id={id}
+        type="email"
+        autoComplete="email"
+        aria-label="Your email"
+        value={email ?? shown}
+        onChange={(e) => {
+          setEmailText(e.target.value);
+          setState({ kind: 'idle' });
+          setNote('');
+        }}
+        placeholder="you@example.com"
+        className={`${inputCls} basis-56 py-2.5`}
+      />
+      <button type="submit" disabled={busy} className={primary ? primaryCls : `${btnCls} px-4`}>
+        {label}
+      </button>
+    </form>
+  );
+  const status = (
+    <p role="status" className="mt-2 text-xs text-muted empty:hidden">
+      {note}
+      {state.kind === 'error' && <span className="text-brand-ink">{state.text}</span>}
+    </p>
+  );
+
+  if (verified && !changing) {
+    return (
+      <section className={cardCls}>
+        <p className={`${okCls} break-all`}>
+          <span aria-hidden="true" className="h-2.5 w-2.5 flex-none rounded-full bg-current" />
+          {onFile} · confirmed
         </p>
-      )}
-      {onFile !== null && !verified && (
-        <div className="mt-1 flex flex-wrap items-center gap-2">
-          <p className="text-xs font-semibold text-charcoal">
-            Not confirmed yet &mdash; check your inbox. If this email already has an account, the link takes you back to
-            it.
-          </p>
-          <button
-            type="button"
-            onClick={() => void save(onFile, true)}
-            disabled={state.kind === 'saving'}
-            className={btnCls}
-          >
+        <p className="mt-3 text-sm text-muted">
+          {hosted ? 'Your account is kept for good. ' : ''}Sign in with this email from the home page on any device.
+        </p>
+        {form('Change', false, onFile ?? '')}
+        <p className="mt-1 text-xs text-muted">Save it empty to remove the email.</p>
+        {status}
+        {limits}
+      </section>
+    );
+  }
+  if (onFile !== null && !changing) {
+    return (
+      <section className={cardCls}>
+        <p className={`${waitCls} break-all`}>
+          <span aria-hidden="true" className="h-2.5 w-2.5 flex-none animate-pulse rounded-full bg-current" />
+          Check your inbox: we sent a link to {onFile}
+        </p>
+        <p className="mt-3 text-sm text-muted">
+          Open the link and this step is done. If this email already has an account, the link takes you back to it.
+          Nothing there? Look in spam, or send it again.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button type="button" onClick={() => void save(onFile, true)} disabled={busy} className={primaryCls}>
             Send again
           </button>
+          <button type="button" onClick={() => setChanging(true)} disabled={busy} className={`${btnCls} px-4`}>
+            Use a different email
+          </button>
         </div>
+        {status}
+        {limits}
+      </section>
+    );
+  }
+  return (
+    <section className={cardCls}>
+      <h3 className="font-heading text-base font-bold text-charcoal">
+        {changing ? 'Use a different email' : 'Right now your account lives only in this browser.'}
+      </h3>
+      {!changing && (
+        <>
+          <p className="mt-1 text-sm text-muted">Add your email and you get:</p>
+          <ul className="mt-3 space-y-1.5 text-sm text-charcoal">
+            {(hosted
+              ? [
+                  'Everything kept for good: lists, notes, projects, pages',
+                  'Sign in on your phone, laptop, anywhere',
+                  'Higher limits, free',
+                ]
+              : ['Sign in on your phone, laptop, anywhere', 'A way back in if this browser signs out']
+            ).map((perk) => (
+              <li key={perk} className="flex gap-2">
+                <span aria-hidden="true" className="font-extrabold text-green-700 dark:text-green-400">
+                  ✓
+                </span>
+                {perk}
+              </li>
+            ))}
+          </ul>
+        </>
       )}
-      {verified && (
-        <p className="mt-1 text-xs font-semibold text-charcoal">
-          Confirmed: this list is permanent. Sign in with it from the home page on any device.
-        </p>
-      )}
-      <p className="mt-1 text-xs text-muted">
-        {hosted && caps && (
-          <>
-            {verified ? 'It holds' : 'Until then it holds'} up to {count(caps.todos)} todos, {count(caps.projects)}{' '}
-            projects and {count(caps.areas)} areas.{' '}
-          </>
-        )}
-        Leave the field empty to remove the email.
-      </p>
-      <form
-        className="mt-2 flex items-center gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void save((email ?? onFile ?? '').trim());
-        }}
-      >
-        <input
-          id={id}
-          type="email"
-          autoComplete="email"
-          value={email ?? onFile ?? ''}
-          onChange={(e) => {
-            setEmailText(e.target.value);
-            setState({ kind: 'idle' });
-            setNote('');
-          }}
-          placeholder="you@example.com"
-          className={inputCls}
-        />
-        <button type="submit" disabled={state.kind === 'saving'} className={btnCls}>
-          Save
+      {form('Send link', true, '')}
+      <p className="mt-2 text-xs text-muted">We email one link. Open it and you&rsquo;re done. No password, ever.</p>
+      {changing && (
+        <button
+          type="button"
+          onClick={() => setChanging(false)}
+          className="mt-2 text-sm text-muted hover:text-charcoal"
+        >
+          Cancel
         </button>
-      </form>
-      <p role="status" className="mt-1 text-xs text-muted">
-        {note}
-        {state.kind === 'error' && <span className="text-brand-ink">{state.text}</span>}
-      </p>
+      )}
+      {status}
+      {limits}
     </section>
   );
 }
@@ -240,7 +292,7 @@ export function AccountNumber() {
   );
 }
 
-function TimeZone() {
+export function TimeZone() {
   const id = useId();
   const { filters, refreshMeta } = useTodoMeta();
   const [state, setState] = useState<Saved>({ kind: 'idle' });
@@ -289,23 +341,13 @@ function TimeZone() {
   );
 }
 
-/** What the agent link reaches in each app it serves (backend/apps.py keys). */
-const REACHES: Record<string, string[]> = {
-  todo: ['todos'],
-  projects: ['project boards'],
-  sites: ['pages', 'short links'],
-  notes: ['notes'],
-  brain: ['brain'],
-};
-
-/** The agent link, always on show, with the per-tool setup filled in with it.
- *  A signed-in browser can read and change everything, so showing the agent
- *  link here gives away nothing it did not already have. `tabs`: the tools as
- *  pick-your-AI tabs (Your AI) instead of one disclosure each. */
-export function AgentLink({ tabs = false }: { tabs?: boolean }) {
+/** The agent link, always on show, with the per-tool setup filled in with it (Common
+ *  Brain's Connect page; the other apps show Settings › Connect your AI). A signed-in
+ *  browser can read and change everything, so showing the agent link here gives away
+ *  nothing it did not already have. */
+export function AgentLink() {
   const [url, setUrl] = useState('');
-  const apps = useSession().session?.apps ?? [];
-  const reaches = new Intl.ListFormat('en').format(apps.flatMap((key) => REACHES[key] ?? []));
+  const reaches = reachOf(useSession().session?.apps ?? []);
   return (
     <LinkCard
       title="Connect your AI to GTD"
@@ -320,7 +362,7 @@ export function AgentLink({ tabs = false }: { tabs?: boolean }) {
       load={getAgentLink}
       regenerate={regenerateAgentLink}
       regenerateConfirm={
-        'Regenerate your agent link?\n\nThe old link stops working immediately, and every AI ' +
+        'Make a new agent link?\n\nThe old link stops working immediately, and every AI ' +
         'tool you connected with it must be re-added with the new one. Your capture link is ' +
         'not affected, and every signed-in device stays signed in.'
       }
@@ -349,7 +391,7 @@ export function AgentLink({ tabs = false }: { tabs?: boolean }) {
         add the link once in the app&rsquo;s connector settings to write too. Coding tools take it as an MCP server.
         Pick yours; your agent link is filled in.
       </p>
-      {tabs ? <ClientTabs url={url} /> : <ClientSteps url={url} />}
+      <ClientSteps url={url} />
     </LinkCard>
   );
 }
@@ -468,7 +510,7 @@ export function ThisDevice() {
 }
 
 /** Compact / Expanded, a native select like the menu layout's. */
-function TriageLayoutToggle() {
+export function TriageLayoutToggle() {
   const [layout, setLayout] = useTriageLayout();
   return (
     <select
@@ -480,100 +522,5 @@ function TriageLayoutToggle() {
       <option value="compact">Compact</option>
       <option value="expanded">Expanded</option>
     </select>
-  );
-}
-
-export function ConnectPage() {
-  const mail = useSession().session?.mail === true;
-  const { hash } = useLocation();
-
-  // "Add your email" links land on /connect#email: go straight to the field.
-  useEffect(() => {
-    if (hash !== '#email') return;
-    const input = document.querySelector<HTMLInputElement>('#email input');
-    input?.scrollIntoView({ block: 'center' });
-    input?.focus({ preventScroll: true });
-  }, [hash, mail]);
-
-  return (
-    <TodoShell active="connect" hideQuickAdd>
-      <div className="space-y-4">
-        <InstallGuide />
-        <section className={cardCls}>
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h2 className={h2Cls}>Appearance</h2>
-              <p className="mt-1 text-xs text-muted">System follows this device&rsquo;s light or dark setting.</p>
-            </div>
-            <ThemeToggle />
-          </div>
-          <div className="mt-3 flex items-center justify-between gap-3 border-t border-line-faint pt-3">
-            <div>
-              <h3 className="text-sm font-semibold text-charcoal">Menu layout</h3>
-              <p className="mt-1 text-xs text-muted">
-                Sidebar shows on wide screens; narrower ones keep the top menu. Saved on this device.
-              </p>
-            </div>
-            <MenuLayoutToggle />
-          </div>
-          <div className="mt-3 flex items-center justify-between gap-3 border-t border-line-faint pt-3">
-            <div>
-              <h3 className="text-sm font-semibold text-charcoal">Inbox triage</h3>
-              <p className="mt-1 text-xs text-muted">
-                Compact fits each item on one screen; Expanded adds notes, tags and people to the card. Saved on this
-                device.
-              </p>
-            </div>
-            <TriageLayoutToggle />
-          </div>
-        </section>
-
-        <OtherApps />
-
-        <PlanCard />
-
-        <LinkCard
-          title="Capture link — write-only"
-          accent="border-line-faint bg-cream"
-          blurb={
-            <>
-              Adds straight to your <strong>inbox</strong>. Anyone holding it can add — but <strong>never read</strong>{' '}
-              — your todos. Safe to leave on a shared home screen.
-            </>
-          }
-          load={getCaptureLink}
-          regenerate={regenerateCaptureLink}
-          regenerateConfirm={
-            'Regenerate your capture link? The old link stops working immediately — update your phone bookmark afterward.'
-          }
-          copyLabel="Copy the capture link"
-          qrHint="Scan with your phone, then add the page to your home screen."
-        />
-
-        <SignInElsewhere />
-        <ListName />
-        {mail && (
-          <div id="email">
-            <EmailSection />
-          </div>
-        )}
-        <AccountNumber />
-        <TimeZone />
-
-        <section className={cardCls}>
-          <h2 className={h2Cls}>Daily brain tickle</h2>
-          <p className="mb-2 mt-1 text-xs text-muted">
-            One well-chosen next action a day, with a line on why now. If your connected AI can run on a schedule, paste
-            this into a scheduled task or routine.
-          </p>
-          <div className="flex items-start gap-2">
-            <pre className={snippetCls}>{BRAIN_TICKLE_PROMPT}</pre>
-            <CopyButton text={() => BRAIN_TICKLE_PROMPT} label="Copy the brain tickle instruction" />
-          </div>
-        </section>
-
-        <ThisDevice />
-      </div>
-    </TodoShell>
   );
 }

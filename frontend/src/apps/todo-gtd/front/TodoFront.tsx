@@ -250,8 +250,8 @@ export function TodoFront({
             </div>
             <div className="bnotes">
               <div>
-                <b>One link</b> connects it to Claude, ChatGPT, Gemini, Grok or the tool you code with. The Connect page
-                has the steps for each, and there is no password to hand over.
+                <b>One link</b> connects it to Claude, ChatGPT, Gemini, Grok or the tool you code with. Settings has the
+                steps for each, and there is no password to hand over.
               </div>
               <div>
                 <b>It signs its work.</b> Whatever an AI adds is marked with its name. Use two AIs and both see the same
@@ -490,9 +490,7 @@ export function TodoFront({
               <div className="cmd">
                 <div className="n">02</div>
                 <h4>Connect your AI</h4>
-                <p>
-                  Copy your link from the Connect page and add it to your AI. Then tell it something you need to do.
-                </p>
+                <p>Copy your link from Settings and add it to your AI. Then tell it something you need to do.</p>
               </div>
               <div className="cmd">
                 <div className="n">03 · optional</div>
@@ -504,7 +502,7 @@ export function TodoFront({
                 ) : (
                   <>
                     <h4>Open it on your phone</h4>
-                    <p>The Connect page makes a sign-in link for each of your other devices.</p>
+                    <p>Settings makes a sign-in link for each of your other devices.</p>
                   </>
                 )}
               </div>

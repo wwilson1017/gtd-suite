@@ -62,14 +62,39 @@ export function LinkCard({
     try {
       show(await regenerate());
     } catch {
-      setError('Regenerate failed — try again.');
+      setError('Could not make a new link. Try again.');
     } finally {
       setBusy(false);
     }
   };
 
+  const field = url && (
+    <div className="min-w-0 flex-1">
+      <div className="flex items-center gap-2">
+        <input
+          readOnly
+          value={url}
+          aria-label={title}
+          onFocus={(e) => e.currentTarget.select()}
+          onClick={(e) => e.currentTarget.select()}
+          className="min-w-0 flex-1 rounded-lg border border-line bg-sand px-3 py-2.5 text-sm text-charcoal"
+        />
+        <CopyButton text={() => url} label={copyLabel} />
+      </div>
+      {/* Quiet on purpose: a new link breaks every place the old one was pasted. */}
+      <button
+        type="button"
+        onClick={() => void doRegenerate()}
+        disabled={busy}
+        className="mt-2 font-heading text-sm font-semibold text-muted hover:text-charcoal disabled:opacity-40"
+      >
+        {busy ? 'Working…' : 'Make a new link…'}
+      </button>
+    </div>
+  );
+
   return (
-    <div className={`rounded-xl border ${accent} p-4`}>
+    <div className={`rounded-xl border ${accent} p-4 sm:p-5`}>
       <h2 className="font-heading text-sm font-bold text-charcoal">{title}</h2>
       <p className="mt-1 text-xs text-muted">{blurb}</p>
 
@@ -79,40 +104,21 @@ export function LinkCard({
         </p>
       )}
 
-      {url && (
-        <>
-          <div className="mt-3 flex items-center gap-2">
-            <input
-              readOnly
-              value={url}
-              aria-label={title}
-              onFocus={(e) => e.currentTarget.select()}
-              onClick={(e) => e.currentTarget.select()}
-              className="min-w-0 flex-1 rounded-lg border border-line bg-sand px-3 py-2 text-xs text-charcoal"
-            />
-            <CopyButton text={() => url} label={copyLabel} />
-          </div>
-          {qrHint && (
-            <>
-              <div className="mt-3 flex justify-center rounded-xl bg-white p-3">
-                <QRCodeSVG value={url} size={144} />
+      {url &&
+        (qrHint ? (
+          <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-start">
+            <figure className="flex flex-none flex-col items-center">
+              <div className="rounded-xl bg-white p-2">
+                <QRCodeSVG value={url} size={112} />
               </div>
-              <p className="mt-2 text-center text-xs text-muted">{qrHint}</p>
-            </>
-          )}
-          <div className="mt-3 flex justify-end">
-            <button
-              type="button"
-              onClick={() => void doRegenerate()}
-              disabled={busy}
-              className="rounded-lg border border-line px-3 py-1.5 text-xs font-heading text-brand-ink hover:bg-sand disabled:opacity-40"
-            >
-              {busy ? 'Working…' : 'Regenerate'}
-            </button>
+              <figcaption className="mt-1.5 max-w-40 text-center text-xs text-muted">{qrHint}</figcaption>
+            </figure>
+            {field}
           </div>
-          {children}
-        </>
-      )}
+        ) : (
+          <div className="mt-3 flex">{field}</div>
+        ))}
+      {url && children}
     </div>
   );
 }

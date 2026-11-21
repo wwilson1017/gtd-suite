@@ -1,13 +1,12 @@
 // @vitest-environment jsdom
 //
-// Settings (the ⚙, at /connect): the list's email in its three states (none, waiting
-// for confirmation, confirmed), read and written through the session store; signing in
-// on another device by QR code; signing this device out; and no web link anywhere. The
-// agent link's card is defined here too (always shown, copyable, regenerated on its
-// own, filled into every tool's setup steps), but it is on Your AI, not on this page.
+// The account cards Settings shows: the email in its three states (none, waiting for
+// confirmation, confirmed), read and written through the session store; signing in on
+// another device by QR code; signing this device out. The agent link's card (Common
+// Brain's Connect page) is here too: always shown, copyable, made new on its own, filled
+// into every tool's setup steps. The page around them is settings/SettingsPage.test.tsx.
 import { act } from 'react';
 import { createRoot } from 'react-dom/client';
-import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { stubNavigation } from './stubNavigation';
 import type { Session } from './types';
@@ -40,7 +39,7 @@ vi.mock('./useTodoMeta', async (importOriginal) => ({
   }),
 }));
 
-import { AgentLink, ConnectPage, EmailSection, ListName, SignInElsewhere, ThisDevice } from './ConnectPage';
+import { AgentLink, EmailSection, ListName, SignInElsewhere, ThisDevice } from './ConnectPage';
 import { bootstrap, resetSession } from './session';
 
 const OLD = 'https://todo.example/link/OLD';
@@ -139,7 +138,7 @@ describe('the agent link card', () => {
   it('regenerates only after a confirm that says AI tools must be re-added', async () => {
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
     await act(async () => {
-      button('Regenerate').click();
+      button('Make a new link…').click();
     });
     expect(confirm.mock.calls[0][0]).toMatch(/must be re-added/);
     expect(confirm.mock.calls[0][0]).toMatch(/capture link is not affected/);
@@ -149,7 +148,7 @@ describe('the agent link card', () => {
 
     confirm.mockReturnValue(true);
     await act(async () => {
-      button('Regenerate').click();
+      button('Make a new link…').click();
     });
     expect(api.regenerateAgentLink).toHaveBeenCalledTimes(1);
     expect(field().value).toBe(NEW);
@@ -162,11 +161,11 @@ describe('the agent link card', () => {
 // The email card has three states, and the limits it quotes come from the session.
 // (The card itself is only rendered when the server can send mail.)
 describe('the email in Settings', () => {
-  const NONE = 'Add your email to keep this list, use it on other devices and raise its limits.';
-  const PENDING =
-    'Not confirmed yet — check your inbox. If this email already has an account, the link takes you back to it.';
-  const CONFIRMED = 'Confirmed: this list is permanent.';
+  const NONE = 'Right now your account lives only in this browser.';
+  const pending = (email: string) => `Check your inbox: we sent a link to ${email}`;
+  const CONFIRMED = 'me@example.com · confirmed';
   const input = () => host.querySelector<HTMLInputElement>('input[type="email"]')!;
+  const CAPS = { todos: 200, projects: 20, areas: 10 };
 
   async function save(value: string) {
     await act(async () => {
@@ -178,48 +177,44 @@ describe('the email in Settings', () => {
     });
   }
 
-  it('asks for an email, quoting this list’s limits, and waits for the link once one is saved', async () => {
+  it('says what an email gives, quoting this list’s limits, and waits for the link once one is saved', async () => {
     api.setEmail.mockImplementation(async (email: string) => ({
       email: email || null,
       verified: false,
       sent: email !== '',
-      caps: { todos: 200, projects: 20, areas: 10 },
+      caps: CAPS,
     }));
     await render(<EmailSection />);
     expect(host.textContent).toContain(NONE);
+    expect(host.textContent).toContain('Everything kept for good');
+    expect(host.textContent).toContain('Higher limits, free');
     expect(host.textContent).toContain('Until then it holds up to 200 todos, 20 projects and 10 areas.');
-    expect(host.textContent).not.toContain(PENDING);
 
     await save('me@example.com');
     expect(api.setEmail).toHaveBeenCalledWith('me@example.com');
-    expect(host.textContent).toContain(PENDING);
-    expect(host.textContent).toContain(
-      'Saved. Check your inbox: if this email already has an account, the link takes you back to it.',
-    );
+    expect(host.textContent).toContain(pending('me@example.com'));
+    expect(host.textContent).toContain('If this email already has an account, the link takes you back to it.');
     expect(host.textContent).not.toContain(NONE);
-    expect(input().value).toBe('me@example.com');
+    expect(host.querySelector('[role="status"]')!.textContent).toBe(''); // the card already says it
+    expect(input()).toBeNull();
 
+    // Another address: the form comes back, empty; saving none removes the email.
+    await act(async () => {
+      button('Use a different email').click();
+    });
+    expect(input().value).toBe('');
     await save('');
+    expect(api.setEmail).toHaveBeenLastCalledWith('');
     expect(host.textContent).toContain(NONE);
   });
 
   it('sends the link again for the same address, or says to wait', async () => {
     await signedIn({ email: 'me@example.com' });
     api.setEmail
-      .mockResolvedValueOnce({
-        email: 'me@example.com',
-        verified: false,
-        sent: true,
-        caps: { todos: 200, projects: 20, areas: 10 },
-      })
-      .mockResolvedValueOnce({
-        email: 'me@example.com',
-        verified: false,
-        sent: false,
-        caps: { todos: 200, projects: 20, areas: 10 },
-      });
+      .mockResolvedValueOnce({ email: 'me@example.com', verified: false, sent: true, caps: CAPS })
+      .mockResolvedValueOnce({ email: 'me@example.com', verified: false, sent: false, caps: CAPS });
     await render(<EmailSection />);
-    expect(host.textContent).toContain(PENDING);
+    expect(host.textContent).toContain(pending('me@example.com'));
 
     await act(async () => {
       button('Send again').click();
@@ -231,13 +226,14 @@ describe('the email in Settings', () => {
       button('Send again').click();
     });
     expect(host.textContent).toContain('Wait a few minutes before sending again.');
-    expect(host.textContent).toContain(PENDING);
+    expect(host.textContent).toContain(pending('me@example.com'));
   });
 
-  it('says a confirmed list is permanent and quotes its larger limits', async () => {
+  it('says a confirmed list is kept and quotes its larger limits', async () => {
     await signedIn({ email: 'me@example.com', verified: true, caps: { todos: 5000, projects: 1000, areas: 100 } });
     await render(<EmailSection />);
     expect(host.textContent).toContain(CONFIRMED);
+    expect(host.textContent).toContain('Your account is kept for good.');
     expect(host.textContent).toContain('It holds up to 5,000 todos, 1,000 projects and 100 areas.');
     expect(host.textContent).not.toContain('Send again');
     expect(input().value).toBe('me@example.com');
@@ -245,16 +241,11 @@ describe('the email in Settings', () => {
 
   it('starts over when a confirmed list gets a new address', async () => {
     await signedIn({ email: 'me@example.com', verified: true, caps: { todos: 5000, projects: 1000, areas: 100 } });
-    api.setEmail.mockResolvedValue({
-      email: 'new@example.com',
-      verified: false,
-      sent: true,
-      caps: { todos: 200, projects: 20, areas: 10 },
-    });
+    api.setEmail.mockResolvedValue({ email: 'new@example.com', verified: false, sent: true, caps: CAPS });
     await render(<EmailSection />);
     expect(host.textContent).toContain('It holds up to 5,000 todos');
     await save('new@example.com');
-    expect(host.textContent).toContain(PENDING);
+    expect(host.textContent).toContain(pending('new@example.com'));
     expect(host.textContent).not.toContain(CONFIRMED);
     // The limits drop with it, as the server's answer says.
     expect(host.textContent).toContain('Until then it holds up to 200 todos, 20 projects and 10 areas.');
@@ -262,15 +253,10 @@ describe('the email in Settings', () => {
   });
 
   it('says to wait when the first save mails nothing, since the address was asked for just now', async () => {
-    api.setEmail.mockResolvedValue({
-      email: 'me@example.com',
-      verified: false,
-      sent: false,
-      caps: { todos: 200, projects: 20, areas: 10 },
-    });
+    api.setEmail.mockResolvedValue({ email: 'me@example.com', verified: false, sent: false, caps: CAPS });
     await render(<EmailSection />);
     await save('me@example.com');
-    expect(host.textContent).toContain(PENDING);
+    expect(host.textContent).toContain(pending('me@example.com'));
     expect(host.querySelector('[role="status"]')!.textContent).toBe(
       'Saved. Wait a few minutes, then press Send again.',
     );
@@ -299,13 +285,15 @@ describe('the email in Settings', () => {
     expect(host.querySelector('[role="status"]')!.textContent).toBe('Enter a valid email address');
     expect(host.textContent).not.toContain('Saved');
     expect(input().value).toBe('nope');
-    expect(host.textContent).not.toContain(PENDING);
+    expect(host.textContent).not.toContain('Check your inbox');
   });
 
-  it('quotes no limits on a one-list server, where an email does not change them', async () => {
+  it('promises no limits on a one-list server, where an email does not change them', async () => {
     await signedIn({ hosted: false, caps: { todos: 20000, projects: 1000, areas: 100 } });
     await render(<EmailSection />);
-    expect(host.textContent).toContain('Add your email to keep this list, use it on other devices.');
+    expect(host.textContent).toContain('Sign in on your phone, laptop, anywhere');
+    expect(host.textContent).toContain('A way back in if this browser signs out');
+    expect(host.textContent).not.toContain('Higher limits');
     expect(host.textContent).not.toContain('holds up to');
   });
 });
@@ -398,89 +386,5 @@ describe('signing this device out', () => {
     });
     expect(confirm.mock.calls[0][0]).toMatch(/no way back into it after signing out everywhere/);
     expect(api.signOutEverywhere).not.toHaveBeenCalled();
-  });
-});
-
-describe('the whole Settings page', () => {
-  it('goes straight to the email field when opened from an "Add your email" link', async () => {
-    api.getCaptureLink.mockResolvedValue({ url: 'https://todo.example/c/CAP', token: 'CAP' });
-    window.matchMedia = ((q: string) => ({
-      matches: false,
-      media: q,
-      addEventListener() {},
-      removeEventListener() {},
-    })) as unknown as typeof window.matchMedia;
-    const scroll = vi.fn();
-    Element.prototype.scrollIntoView = scroll;
-    await render(
-      <MemoryRouter initialEntries={['/connect#email']}>
-        <ConnectPage />
-      </MemoryRouter>,
-    );
-    const input = host.querySelector<HTMLInputElement>('input[type="email"]')!;
-    expect(document.activeElement).toBe(input);
-    expect(scroll.mock.contexts[0]).toBe(input);
-  });
-
-  it('shows the account number on a server with no mail, where the email section is gone', async () => {
-    api.getCaptureLink.mockResolvedValue({ url: 'https://todo.example/c/CAP', token: 'CAP' });
-    window.matchMedia = ((q: string) => ({
-      matches: false,
-      media: q,
-      addEventListener() {},
-      removeEventListener() {},
-    })) as unknown as typeof window.matchMedia;
-    await signedIn({ account_no: '1234-5678', mail: false });
-    await render(
-      <MemoryRouter>
-        <ConnectPage />
-      </MemoryRouter>,
-    );
-    expect(host.textContent).toContain('Account number1234-5678');
-    expect(host.textContent).not.toContain('Your email');
-  });
-
-  it('has no web link anywhere, and offers the sign-in code and sign-out', async () => {
-    api.getCaptureLink.mockResolvedValue({ url: 'https://todo.example/c/CAP', token: 'CAP' });
-    window.matchMedia = ((q: string) => ({
-      matches: false,
-      media: q,
-      addEventListener() {},
-      removeEventListener() {},
-    })) as unknown as typeof window.matchMedia;
-    await render(
-      <MemoryRouter>
-        <ConnectPage />
-      </MemoryRouter>,
-    );
-    expect(host.textContent).not.toMatch(/web link/i);
-    expect(host.textContent).toContain('Sign in on another device');
-    expect(host.textContent).toContain('Your email');
-    expect(button('Sign out everywhere')).toBeTruthy();
-  });
-
-  it('keeps everything but connecting an AI, which has its own page', async () => {
-    api.getCaptureLink.mockResolvedValue({ url: 'https://todo.example/c/CAP', token: 'CAP' });
-    window.matchMedia = ((q: string) => ({
-      matches: false,
-      media: q,
-      addEventListener() {},
-      removeEventListener() {},
-    })) as unknown as typeof window.matchMedia;
-    await render(
-      <MemoryRouter>
-        <ConnectPage />
-      </MemoryRouter>,
-    );
-    expect(api.getAgentLink).not.toHaveBeenCalled();
-    expect(host.textContent).not.toContain('Connect your AI to GTD');
-    expect(host.textContent).not.toContain(OLD);
-    expect(host.querySelector('[role="tab"]')).toBeNull();
-    for (const kept of ['Appearance', 'Capture link', 'List name', 'Time zone', 'Daily brain tickle', 'This device']) {
-      expect(host.textContent).toContain(kept);
-    }
-    // The header says so: Your AI beside the gear, which is Settings.
-    expect(host.querySelector('a[href="/ai"]')!.textContent).toBe('Your AI');
-    expect(host.querySelector('a[href="/connect"]')!.getAttribute('aria-label')).toBe('Settings');
   });
 });
