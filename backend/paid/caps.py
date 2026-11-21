@@ -16,6 +16,8 @@ COLUMNS = {
     "plan_rev": "INTEGER NOT NULL DEFAULT 0",
     "pro_comp_until": "TEXT",
     "comp_plan": "TEXT NOT NULL DEFAULT 'pro'",
+    # Who gave the grant: '' the operator (admin.comp), 'springform' a Springform connect.
+    "comp_source": "TEXT NOT NULL DEFAULT ''",
 }
 LISTS_DDL = ",\n".join(f"{name} {ddl}" for name, ddl in COLUMNS.items())
 

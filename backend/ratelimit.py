@@ -110,6 +110,7 @@ TOO_MANY_WRONG_LINKS = "Too many wrong links from this address. Wait ten minutes
 # Every try at a locked Simple Sites page's password, right or wrong, charged before any
 # hashing (pages.site_unlock), so guessing costs the guesser and never the server.
 connect_limiter = IPRateLimiter(window=3600, max_hits=10)
+springform_connect_limiter = IPRateLimiter(window=3600, max_hits=5)
 password_limiter = IPRateLimiter(window=600, max_hits=20)
 data_write_limiter = IPRateLimiter(window=60, max_hits=120)
 data_read_limiter = IPRateLimiter(window=60, max_hits=120)

@@ -101,7 +101,9 @@ backend/
                  mcp.call_tool; _authorize, the one check for its own Brain routes
   lifecycle.py   the idle lifecycle of a hosted, unconfirmed list: enabled(), state() (active / archived
                  at 60 idle days / removed at 180), derived from the last use, never stored
-  connect.py     device connection codes: hashed poll token, browser approval and one-use agent link delivery
+  connect.py     device connection codes: hashed poll token, browser approval and one-use agent link delivery;
+                 a code's client: sites, or springform (every app on; hosted, a confirmed email gets Max once,
+                 comp_source 'springform', paid/admin.springform_comp_in)
   signin.py      sign-in links: one hour, single use, hashed; mailed (httpx to Resend) to confirm an email or
                  to a confirmed one, or shown as a QR; redeem (a mailed link confirms the address)
   router.py      /api: session_owner/active_owner (cookie, X-List, same-origin; A refuses a put-away list),
@@ -237,9 +239,9 @@ the call budget charged; every other request goes to FastMCP untouched.
   which only `paid/billing.sync` writes, from Stripe's current subscriptions of the account's own
   customer. Never set Pro from a single webhook event (order and duplicates vary), never
   from metadata, and never by hand outside `scripts/admin.py billing-sync`. The one other
-  way in is the operator's free grant, `lists.pro_comp_until` + `comp_plan`, set only by
-  `paid/admin.py comp`. Max exists only as that grant (`paid/plans.of`), and
-  outranks a subscription. Every SELECT that feeds `paid/plans.of` names
+  way in is the free grant, `lists.pro_comp_until` + `comp_plan` (+ `comp_source`), set only by
+  `paid/admin.py`: the operator's `comp`, and Max for an approved Springform connect. Max
+  exists only as that grant (`paid/plans.of`), and outranks a subscription. Every SELECT that feeds `paid/plans.of` names
   `paid/caps.PLAN_COLUMNS`. Every cap function takes `plan`; a new cap check passes
   `paid/plans.of(row)` like the others.
   Stripe answers and webhook bodies carry the customer's email: never log them.

@@ -114,6 +114,19 @@ describe('SitesConnectFlow', () => {
     expect(host.querySelector('a[href="/connect?code=ABCD-2345"]')).not.toBeNull();
     expect(api.todoFetch).not.toHaveBeenCalled();
   });
+  it('names a Springform connection and sends its client with the approval', async () => {
+    window.history.replaceState({}, '', `/connect?code=${code}&client=springform`);
+    await mount();
+    await click('Create account');
+    expect(host.textContent).toContain('Connect Springform to your GTD account');
+    expect(host.textContent).toContain('A Springform install wants to use your GTD account');
+    await click('Approve');
+    expect(api.todoFetch).toHaveBeenCalledWith(`/connect/${code}`, {
+      method: 'POST',
+      body: JSON.stringify({ client: 'springform' }),
+    });
+    expect(host.textContent).toContain('Return to Springform');
+  });
   it('rejects a missing or malformed URL code without approving', async () => {
     window.history.replaceState({}, '', '/connect?code=bad');
     await mount();
