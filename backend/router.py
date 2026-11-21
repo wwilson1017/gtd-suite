@@ -79,6 +79,7 @@ from backend.models import (
     ContextRename,
     ConnectApproval,
     ConnectPoll,
+    ConnectStart,
     EmailUpdate,
     KeyCreate,
     BrainSettings,
@@ -714,16 +715,21 @@ def get_config(request: Request, response: Response):
 
 
 @router.post("/connect")
-def start_connect(request: Request, response: Response):
+def start_connect(request: Request, response: Response, body: ConnectStart | None = None):
+    """A device asks for a connection code (body ``{"client": "springform"}`` for a Springform
+    install, else Simple Sites); the person approves it at ``url``, the device polls."""
+    client = body.client if body else "sites"
     if not lists.served("sites"):
         raise HTTPException(404, "Not found", headers=_NO_STORE)
-    if not ratelimit.connect_limiter.allow(client_ip(request)):
+    limiter = ratelimit.springform_connect_limiter if client == "springform" else ratelimit.connect_limiter
+    if not limiter.allow(client_ip(request)):
         raise HTTPException(
             429, "Too many connections. Try again in an hour.", headers={**_NO_STORE, "Retry-After": "3600"}
         )
-    result = connect.start()
+    result = connect.start(client)
     response.headers.update(_NO_STORE)
-    return {**result, "url": f"{settings.app_url('sites', request)}/connect?code={result['user_code']}"}
+    url = f"{settings.app_url('sites', request)}/connect?code={result['user_code']}"
+    return {**result, "url": url + ("&client=springform" if client == "springform" else "")}
 
 
 @router.post("/connect/poll")
@@ -739,7 +745,7 @@ def poll_connect(body: ConnectPoll, request: Request, response: Response):
 
 @router.post("/app/connect/{user_code}")
 def approve_connect(user_code: str, body: ConnectApproval | None = None, owner: int = Depends(session_owner)):
-    _call(connect.approve, owner, user_code, body.typed_code if body else None)
+    _call(connect.approve, owner, user_code, body.typed_code if body else None, body.client if body else "sites")
     return {"ok": True}
 
 

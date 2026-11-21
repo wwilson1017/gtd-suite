@@ -37,4 +37,22 @@ for app in notes projects; do
 done
 check_status GET https://ss.page/ 302
 check_status POST "$base/mcp" 401
+# A Springform install's connect: start a code (one of its 5 an hour from this address), poll it once.
+started=$(curl --disable --silent --show-error --connect-timeout 10 --max-time 30 --request POST \
+  --header 'Content-Type: application/json' --data '{"client":"springform"}' "$base/api/connect" 2>/dev/null)
+device=$(printf '%s' "$started" | grep -o '"device_token":"[A-Za-z0-9]*"' | cut -d'"' -f4)
+if [[ -n "$device" && "$started" == *'&client=springform"'* ]]; then
+  printf 'PASS POST %s/api/connect (springform): a code\n' "$base"
+  polled=$(curl --disable --silent --show-error --connect-timeout 10 --max-time 30 --request POST \
+    --header 'Content-Type: application/json' --data "{\"device_token\":\"$device\"}" "$base/api/connect/poll" 2>/dev/null)
+  if [[ "$polled" == '{"status":"pending"}' ]]; then
+    printf 'PASS POST %s/api/connect/poll: pending\n' "$base"
+  else
+    printf 'FAIL POST %s/api/connect/poll: expected {"status":"pending"}\n' "$base"
+    failed=1
+  fi
+else
+  printf 'FAIL POST %s/api/connect (springform): expected a code with a Springform approve link\n' "$base"
+  failed=1
+fi
 exit "$failed"

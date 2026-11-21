@@ -803,6 +803,8 @@ def _migrate(conn: sqlite3.Connection) -> None:
         when each last did. Made here, not in _SCHEMA, so the step knows the table is new
         and fills it once from what the tools already left behind (_fill_ai_tools).
     32. `project_links`: a new table (project_links.py); no existing project has a link.
+    33. `connect_codes.client`, the grant source and the Springform stamp (in paid.caps.COLUMNS): plain added
+        columns; every existing code is a Sites code and every existing grant the operator's.
     """
     from backend import brain, lists, sites  # here, not at the top: lists imports this module
 
@@ -1004,6 +1006,9 @@ def _migrate(conn: sqlite3.Connection) -> None:
                 "created_at TEXT NOT NULL)"
             )
             conn.execute("CREATE INDEX IF NOT EXISTS idx_project_links_list ON project_links(list_id)")
+            # Step 33: which client a connection code is for (connect.py).
+            if "client" not in {r["name"] for r in conn.execute("PRAGMA table_info(connect_codes)")}:
+                conn.execute("ALTER TABLE connect_codes ADD COLUMN client TEXT NOT NULL DEFAULT 'sites'")
             # After the rebuild: SQLite refuses to drop a table a trigger names.
             for trigger in _rev_triggers():
                 conn.execute(trigger)

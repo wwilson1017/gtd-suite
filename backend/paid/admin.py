@@ -118,7 +118,10 @@ def cmd_comp(args) -> int:
     else:
         until = FOREVER
     with db.transaction() as tx:
-        tx.execute("UPDATE lists SET pro_comp_until = ?, comp_plan = ? WHERE id = ?", (until, args.plan, list_id))
+        tx.execute(
+            "UPDATE lists SET pro_comp_until = ?, comp_plan = ?, comp_source = '' WHERE id = ?",
+            (until, args.plan, list_id),
+        )
         if until is not None:  # a tier outranks "unconfirmed": a trial page no longer comes down
             tx.execute("UPDATE sites SET expires_at = NULL WHERE list_id = ?", (list_id,))
         _log(tx, "comp off" if args.off else "comp", list_id)
@@ -135,6 +138,22 @@ def cmd_comp(args) -> int:
 FOREVER = "9999-12-31T00:00:00.000Z"
 
 
+def springform_comp_in(conn, list_id: int) -> None:
+    """Max for good for an account a Springform install connected (connect.approve, hosted
+    only), inside the caller's transaction. At most once per account (springform_at, never
+    cleared, so neither a later hand grant nor comp --off makes it grantable again); a live
+    Max grant is left as is."""
+    row = conn.execute(f"SELECT {paid_caps.PLAN_COLUMNS}, springform_at FROM lists WHERE id = ?", (list_id,)).fetchone()
+    if row["springform_at"] or (plans.pro_source(row) == "comp" and row["comp_plan"] == "max"):
+        return
+    conn.execute(
+        "UPDATE lists SET pro_comp_until = ?, comp_plan = 'max', comp_source = 'springform', springform_at = ? "
+        "WHERE id = ?",
+        (FOREVER, common.now_iso(), list_id),
+    )
+    conn.execute("UPDATE sites SET expires_at = NULL WHERE list_id = ?", (list_id,))
+
+
 def register(command, day) -> None:
     command("billing-sync", cmd_billing_sync, "re-read the list's Pro subscription from Stripe")
     p = command("comp", cmd_comp, "give a list Pro or Max for free (or take it back with --off)", list_id=False)
@@ -146,7 +165,7 @@ def register(command, day) -> None:
 
 def stats(conn) -> dict:
     rows = conn.execute(
-        f"SELECT {paid_caps.PLAN_COLUMNS} FROM lists WHERE plan_status != '' OR pro_comp_until IS NOT NULL"
+        f"SELECT {paid_caps.PLAN_COLUMNS}, comp_source FROM lists WHERE plan_status != '' OR pro_comp_until IS NOT NULL"
     ).fetchall()
     return {
         # Accounts entitled to Pro or better right now (plans.active), those on Max, and
@@ -154,6 +173,8 @@ def stats(conn) -> dict:
         "pro_now": sum(plans.active(r) for r in rows),
         "pro_comp": sum(plans.pro_source(r) == "comp" for r in rows),
         "max_now": sum(plans.of(r) == "max" for r in rows),
+        # Max given by a Springform connect, live now (springform_comp_in).
+        "max_springform": sum(plans.of(r) == "max" and r["comp_source"] == "springform" for r in rows),
         "plan_statuses": dict(collections.Counter(r["plan_status"] for r in rows if r["plan_status"])),
     }
 
@@ -161,13 +182,15 @@ def stats(conn) -> dict:
 def print_stats(data) -> None:
     print(
         f"Pro now: {data['pro_now']} ({data['pro_comp']} free, {data['max_now']} on Max)"
+        f"   Max from Springform: {data['max_springform']}"
         "   Stripe statuses: " + ("  ".join(f"{s} {n}" for s, n in data["plan_statuses"].items()) or "-")
     )
 
 
 def details(conn, list_id: int) -> dict:
     plan = conn.execute(
-        f"SELECT {paid_caps.PLAN_COLUMNS}, plan_cancels, stripe_customer, stripe_subscription FROM lists WHERE id = ?",
+        f"SELECT {paid_caps.PLAN_COLUMNS}, comp_source, plan_cancels, stripe_customer, stripe_subscription "
+        "FROM lists WHERE id = ?",
         (list_id,),
     ).fetchone()
     return {
@@ -181,7 +204,8 @@ def details(conn, list_id: int) -> dict:
 def print_details(data) -> None:
     p = data["plan"]
     if p["pro_comp_until"]:
-        print(f"Free {p['comp_plan'].title()} granted until {p['pro_comp_until']} (comp)")
+        by = "Springform connect" if p["comp_source"] == "springform" else "comp"
+        print(f"Free {p['comp_plan'].title()} granted until {p['pro_comp_until']} ({by})")
     print(
         f"Plan: {data['tier'] or 'free'}  (Stripe status {p['plan_status'] or '-'}, "
         f"until {p['plan_until'] or '-'}{', cancelled' if p['plan_cancels'] else ''}; "

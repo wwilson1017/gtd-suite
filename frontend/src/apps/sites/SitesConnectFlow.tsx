@@ -1,11 +1,16 @@
 import { useEffect, useState } from 'react';
 import { apiErrorMessage } from '../../core/api/client';
+import { SPRINGFORM_EMAIL, SPRINGFORM_OFFER } from '../../paid/springform';
 import { createList, getConfig, requestSignIn, setEmail, todoFetch } from '../todo-gtd/api';
 import { PageFrame } from '../todo-gtd/components/PageFrame';
 import { bootstrap, pinnedListId, useSession } from '../todo-gtd/session';
 
 export function SitesConnectFlow() {
-  const code = new URLSearchParams(window.location.search).get('code') ?? '';
+  const query = new URLSearchParams(window.location.search);
+  const code = query.get('code') ?? '';
+  // The server refuses an approval whose client differs from the code's, so this wording is the truth.
+  const springform = query.get('client') === 'springform';
+  const where = springform ? 'Springform' : 'your terminal';
   const valid = /^[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}$/.test(code);
   const { session } = useSession();
   const [ready, setReady] = useState(false);
@@ -17,6 +22,7 @@ export function SitesConnectFlow() {
   const [typed, setTyped] = useState('');
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
+  const [mailNote, setMailNote] = useState('');
   const [approved, setApproved] = useState(false);
   const [error, setError] = useState('');
 
@@ -60,12 +66,26 @@ export function SitesConnectFlow() {
     await bootstrap();
     if (pinnedListId() === null) throw new Error('Account created. Reload to finish connecting.');
     setCreated(true);
-    if (email.trim()) await setEmail(email.trim());
+    if (email.trim()) await saveEmail();
+  };
+  // Saving the address mails its confirmation link unless the mail limit is spent (sent: false).
+  const saveEmail = async () => {
+    const r = await setEmail(email.trim());
+    setMailNote(
+      r.verified
+        ? 'Your email is confirmed. Approve below.'
+        : r.sent
+          ? 'Open the link we mailed you, then return here and approve.'
+          : 'Saved. Wait a few minutes, then press Send again.',
+    );
   };
   const approve = async () => {
     await todoFetch(`/connect/${encodeURIComponent(code)}`, {
       method: 'POST',
-      body: JSON.stringify(created ? {} : { typed_code: typed.trim() }),
+      body: JSON.stringify({
+        ...(created ? {} : { typed_code: typed.trim() }),
+        ...(springform ? { client: 'springform' } : {}),
+      }),
     });
     setApproved(true);
   };
@@ -74,9 +94,11 @@ export function SitesConnectFlow() {
 
   return (
     <PageFrame>
-      <h1 className="font-heading text-2xl font-bold text-charcoal">Connect your AI to Simple Sites</h1>
+      <h1 className="font-heading text-2xl font-bold text-charcoal">
+        {springform ? 'Connect Springform to your GTD account' : 'Connect your AI to Simple Sites'}
+      </h1>
       {!valid ? (
-        <p role="alert">This connection code is invalid. Run connect again in your terminal.</p>
+        <p role="alert">This connection code is invalid. Run connect again in {where}.</p>
       ) : (
         <>
           {/* Only the account this code just made sees it: anyone else must type it from their own terminal. */}
@@ -87,7 +109,7 @@ export function SitesConnectFlow() {
           )}
           {approved ? (
             <p className="mt-4">
-              Approved. Return to your terminal to finish connecting. If it missed the answer, run connect again.
+              Approved. Return to {where} to finish connecting. If it missed the answer, run connect again.
             </p>
           ) : ready ? (
             session ? (
@@ -97,14 +119,44 @@ export function SitesConnectFlow() {
                   void run(approve);
                 }}
               >
-                <p className="mt-3">
-                  Approving gives this AI your account’s agent link and turns Simple Sites on. It can use the apps you
-                  have enabled.
-                </p>
+                {springform ? (
+                  <p className="mt-3">
+                    {SPRINGFORM_OFFER} Approving gives it your account’s agent link and turns every app on.
+                    {hosted && ' Your email must be confirmed first.'}
+                  </p>
+                ) : (
+                  <p className="mt-3">
+                    Approving gives this AI your account’s agent link and turns Simple Sites on. It can use the apps you
+                    have enabled.
+                  </p>
+                )}
+                {springform && hosted && mail && (
+                  // Still unconfirmed (no email yet, or a mistyped one): send the confirmation from here.
+                  <div className="mt-3">
+                    <label className="block">
+                      {SPRINGFORM_EMAIL}
+                      <input
+                        className={input}
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmailInput(e.target.value)}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className={button}
+                      disabled={busy || !email.trim()}
+                      onClick={() => void run(saveEmail)}
+                    >
+                      Send confirmation link
+                    </button>
+                    {mailNote && <p className="mt-3">{mailNote}</p>}
+                  </div>
+                )}
                 {!created && (
                   <label className="mt-3 block">
-                    Type the code shown in your terminal. If you did not start this in your own terminal, do not approve
-                    it.
+                    Type the code shown in {where}. If you did not start this in your own{' '}
+                    {springform ? 'Springform' : 'terminal'}, do not approve it.
                     <input
                       className={input}
                       value={typed}
@@ -125,7 +177,7 @@ export function SitesConnectFlow() {
                 </p>
                 {mail && (
                   <label className="mt-3 block">
-                    Email (optional for a new account)
+                    {springform && hosted ? SPRINGFORM_EMAIL : 'Email (optional for a new account)'}
                     <input
                       className={input}
                       type="email"
@@ -135,7 +187,12 @@ export function SitesConnectFlow() {
                   </label>
                 )}
                 {canCreate && (
-                  <button className={button} disabled={busy} onClick={() => void run(create)}>
+                  <button
+                    className={button}
+                    // Springform's grant needs a confirmed email (connect.approve), so ask for one up front.
+                    disabled={busy || (springform && hosted && (!mail || !email.trim()))}
+                    onClick={() => void run(create)}
+                  >
                     Create account
                   </button>
                 )}

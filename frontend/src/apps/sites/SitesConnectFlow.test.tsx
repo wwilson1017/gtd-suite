@@ -45,6 +45,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   resetSession();
   api.getSession.mockResolvedValue(session);
+  api.setEmail.mockResolvedValue({ email: 'me@example.com', verified: false, sent: true });
   window.history.replaceState({}, '', `/connect?code=${code}`);
   host = document.createElement('div');
   document.body.appendChild(host);
@@ -112,6 +113,34 @@ describe('SitesConnectFlow', () => {
     await click('Sign in');
     expect(api.requestSignIn).toHaveBeenCalledWith('me@example.com');
     expect(host.querySelector('a[href="/connect?code=ABCD-2345"]')).not.toBeNull();
+    expect(api.todoFetch).not.toHaveBeenCalled();
+  });
+  it('names a Springform connection and sends its client with the approval', async () => {
+    window.history.replaceState({}, '', `/connect?code=${code}&client=springform`);
+    await mount();
+    expect(button('Create account').disabled).toBe(true); // its free grant needs a confirmed email
+    await fill('input[type=email]', 'me@example.com');
+    await click('Create account');
+    expect(host.textContent).toContain('Connect Springform to your GTD account');
+    expect(host.textContent).toContain('A Springform install wants to use your GTD account');
+    await click('Approve');
+    expect(api.todoFetch).toHaveBeenCalledWith(`/connect/${code}`, {
+      method: 'POST',
+      body: JSON.stringify({ client: 'springform' }),
+    });
+    expect(host.textContent).toContain('Return to Springform');
+  });
+  it('lets a signed-in Springform account send its email confirmation before approving', async () => {
+    window.history.replaceState({}, '', `/connect?code=${code}&client=springform`);
+    await mount(true);
+    await fill('input[type=email]', 'me@example.com');
+    api.setEmail.mockResolvedValueOnce({ email: 'me@example.com', verified: false, sent: false });
+    await click('Send confirmation link');
+    expect(host.textContent).toContain('Wait a few minutes, then press Send again.');
+    api.setEmail.mockResolvedValueOnce({ email: 'me@example.com', verified: false, sent: true });
+    await click('Send confirmation link');
+    expect(api.setEmail).toHaveBeenCalledWith('me@example.com');
+    expect(host.textContent).toContain('Open the link we mailed you');
     expect(api.todoFetch).not.toHaveBeenCalled();
   });
   it('rejects a missing or malformed URL code without approving', async () => {
