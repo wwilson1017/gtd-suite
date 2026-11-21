@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from backend import apps, db, lists
+from backend import apps, connect, db, lists
 from backend.paid import admin as paid_admin, plans
 from backend.paid import caps as paid_caps
 from backend.tests.conftest import confirm_list
@@ -84,14 +84,21 @@ def test_springform_grant_once_and_never_over_a_hand_max(client):
     assert admin.main(["comp", str(lid), "--off"]) == 0
     second = start_springform(client)
     assert approve(client, second, typed_code=second["user_code"], client="springform").status_code == 200
-    assert plans.of(plan_row(lid)) is None and plan_row(lid)["comp_source"] == "springform"
-    # A hand grant of Max keeps its label.
-    assert admin.main(["comp", str(lid), "--plan", "max", "--until", "2099-01-01"]) == 0
-    with db.transaction() as conn:
-        conn.execute("UPDATE lists SET comp_source = '' WHERE id = ?", (lid,))
+    assert plans.of(plan_row(lid)) is None
+    # Nor does a hand grant in between, which takes the label.
+    assert admin.main(["comp", str(lid), "--plan", "pro"]) == 0
+    assert plan_row(lid)["comp_source"] == ""
+    assert admin.main(["comp", str(lid), "--off"]) == 0
     third = start_springform(client)
     assert approve(client, third, typed_code=third["user_code"], client="springform").status_code == 200
-    row = plan_row(lid)
+    assert plans.of(plan_row(lid)) is None
+    # An account already holding a hand grant of Max keeps it, and its label.
+    other = lists.create_list()["list_id"]
+    confirm_list(other, "other@example.com")
+    assert admin.main(["comp", str(other), "--plan", "max", "--until", "2099-01-01"]) == 0
+    fourth = start_springform(client)
+    connect.approve(other, fourth["user_code"], fourth["user_code"], "springform")
+    row = plan_row(other)
     assert row["comp_source"] == "" and row["pro_comp_until"].startswith("2099-01-01")
 
 

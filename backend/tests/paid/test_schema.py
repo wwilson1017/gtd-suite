@@ -12,7 +12,7 @@ def test_paid_columns_migrate_with_original_types_defaults_and_names(todo_db):
         return {row["name"]: tuple(row)[1:] for row in db.get_db().execute("PRAGMA table_info(lists)")}
 
     fresh = columns()
-    assert len(caps.COLUMNS) == 10
+    assert len(caps.COLUMNS) == 11
     for name in caps.COLUMNS:
         conn.execute(f"ALTER TABLE lists DROP COLUMN {name}")
     db.init_db()
@@ -31,4 +31,5 @@ def test_paid_columns_migrate_with_original_types_defaults_and_names(todo_db):
         "pro_comp_until": None,
         "comp_plan": "pro",
         "comp_source": "",
+        "springform_at": None,
     }

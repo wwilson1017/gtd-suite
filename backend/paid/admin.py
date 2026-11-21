@@ -118,13 +118,10 @@ def cmd_comp(args) -> int:
     else:
         until = FOREVER
     with db.transaction() as tx:
-        if args.off:  # the source stays, so a revoked Springform grant is not given again (springform_comp_in)
-            tx.execute("UPDATE lists SET pro_comp_until = NULL WHERE id = ?", (list_id,))
-        else:
-            tx.execute(
-                "UPDATE lists SET pro_comp_until = ?, comp_plan = ?, comp_source = '' WHERE id = ?",
-                (until, args.plan, list_id),
-            )
+        tx.execute(
+            "UPDATE lists SET pro_comp_until = ?, comp_plan = ?, comp_source = '' WHERE id = ?",
+            (until, args.plan, list_id),
+        )
         if until is not None:  # a tier outranks "unconfirmed": a trial page no longer comes down
             tx.execute("UPDATE sites SET expires_at = NULL WHERE list_id = ?", (list_id,))
         _log(tx, "comp off" if args.off else "comp", list_id)
@@ -143,14 +140,16 @@ FOREVER = "9999-12-31T00:00:00.000Z"
 
 def springform_comp_in(conn, list_id: int) -> None:
     """Max for good for an account a Springform install connected (connect.approve, hosted
-    only), inside the caller's transaction. At most once per account: a list that has had a
-    Springform grant (even one the operator took back) or holds a live Max grant is left as is."""
-    row = conn.execute(f"SELECT {paid_caps.PLAN_COLUMNS}, comp_source FROM lists WHERE id = ?", (list_id,)).fetchone()
-    if row["comp_source"] == "springform" or (plans.pro_source(row) == "comp" and row["comp_plan"] == "max"):
+    only), inside the caller's transaction. At most once per account (springform_at, never
+    cleared, so neither a later hand grant nor comp --off makes it grantable again); a live
+    Max grant is left as is."""
+    row = conn.execute(f"SELECT {paid_caps.PLAN_COLUMNS}, springform_at FROM lists WHERE id = ?", (list_id,)).fetchone()
+    if row["springform_at"] or (plans.pro_source(row) == "comp" and row["comp_plan"] == "max"):
         return
     conn.execute(
-        "UPDATE lists SET pro_comp_until = ?, comp_plan = 'max', comp_source = 'springform' WHERE id = ?",
-        (FOREVER, list_id),
+        "UPDATE lists SET pro_comp_until = ?, comp_plan = 'max', comp_source = 'springform', springform_at = ? "
+        "WHERE id = ?",
+        (FOREVER, common.now_iso(), list_id),
     )
     conn.execute("UPDATE sites SET expires_at = NULL WHERE list_id = ?", (list_id,))
 

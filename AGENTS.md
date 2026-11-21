@@ -103,7 +103,7 @@ backend/
                  at 60 idle days / removed at 180), derived from the last use, never stored
   connect.py     device connection codes: hashed poll token, browser approval and one-use agent link delivery;
                  a code's client: sites, or springform (every app on; hosted, a confirmed email gets Max once,
-                 comp_source 'springform', paid/admin.springform_comp_in)
+                 comp_source 'springform', springform_at stamped for good; paid/admin.springform_comp_in)
   signin.py      sign-in links: one hour, single use, hashed; mailed (httpx to Resend) to confirm an email or
                  to a confirmed one, or shown as a QR; redeem (a mailed link confirms the address)
   router.py      /api: session_owner/active_owner (cookie, X-List, same-origin; A refuses a put-away list),

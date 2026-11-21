@@ -803,7 +803,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
         when each last did. Made here, not in _SCHEMA, so the step knows the table is new
         and fills it once from what the tools already left behind (_fill_ai_tools).
     32. `project_links`: a new table (project_links.py); no existing project has a link.
-    33. `connect_codes.client` and the grant source (in paid.caps.COLUMNS): plain added
+    33. `connect_codes.client`, the grant source and the Springform stamp (in paid.caps.COLUMNS): plain added
         columns; every existing code is a Sites code and every existing grant the operator's.
     """
     from backend import brain, lists, sites  # here, not at the top: lists imports this module
