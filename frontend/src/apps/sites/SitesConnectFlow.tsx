@@ -155,7 +155,7 @@ export function SitesConnectFlow() {
                   <button
                     className={button}
                     // Springform's grant needs a confirmed email (connect.approve), so ask for one up front.
-                    disabled={busy || (springform && hosted && mail && !email.trim())}
+                    disabled={busy || (springform && hosted && (!mail || !email.trim()))}
                     onClick={() => void run(create)}
                   >
                     Create account
