@@ -75,4 +75,10 @@ export interface Section {
 }
 
 export const SETTINGS = '/connect';
+
+/** Where a sign-up opens: a brand-new account lands once on Connect your AI. Common Brain
+ *  keeps its own Connect page and first-run set-up until it moves to Settings, so it opens Home. */
+export function firstPage(app: string, welcome: boolean): string {
+  return welcome && app !== 'brain' ? '/app' + SETTINGS + '/ai?welcome' : '/app';
+}
 export const LABEL: Record<StepKey, string> = { ai: 'Connect your AI', email: 'Add your email' };

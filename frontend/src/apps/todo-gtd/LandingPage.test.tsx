@@ -20,6 +20,7 @@ const api = vi.hoisted(() => ({
 vi.mock('./api', () => api);
 
 import { LandingPage } from './LandingPage';
+import { firstPage } from './settings/setup';
 
 const OPEN: AppConfig = {
   mail: false,
@@ -237,5 +238,11 @@ describe('LandingPage', () => {
       button('Start your list').click();
     });
     expect(host.textContent).toContain('This list is set up');
+  });
+
+  it('sends a new Common Brain account Home, where its own set-up runs, until Brain has Settings', () => {
+    expect(firstPage('brain', true)).toBe('/app');
+    expect(firstPage('sites', true)).toBe('/app/connect/ai?welcome');
+    expect(firstPage('todo', false)).toBe('/app');
   });
 });

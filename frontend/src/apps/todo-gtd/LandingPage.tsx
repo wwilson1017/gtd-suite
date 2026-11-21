@@ -4,6 +4,7 @@ import { offersPlans } from '../../paid/features';
 import { lazy, Suspense, useId, useState, type ReactNode } from 'react';
 import { ApiError, apiErrorMessage } from '../../core/api/client';
 import { BASE, APP } from '../../core/app';
+import { firstPage } from './settings/setup';
 import { createList, requestSignIn, resetAccess } from './api';
 import { Logo } from './components/Logo';
 import { PageFrame } from './components/PageFrame';
@@ -31,9 +32,10 @@ function browserTz(): string {
 }
 
 /** Into the app. replace(), not assign(): Back must not return to a form already used.
- *  A brand-new account opens once on Settings › Connect your AI, which can skip ahead. */
+ *  A brand-new account opens once on Settings › Connect your AI, which can skip ahead.
+ *  Common Brain opens Home (settings/setup.ts firstPage). */
 function openApp(welcome = false) {
-  window.location.replace(BASE + (welcome ? '/app/connect/ai?welcome' : '/app'));
+  window.location.replace(BASE + firstPage(APP, welcome));
 }
 
 /** `account`: call what the person has an account, not a list (Notes). */
