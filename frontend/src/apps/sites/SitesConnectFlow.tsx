@@ -65,7 +65,10 @@ export function SitesConnectFlow() {
     await bootstrap();
     if (pinnedListId() === null) throw new Error('Account created. Reload to finish connecting.');
     setCreated(true);
-    if (email.trim()) await setEmail(email.trim());
+    if (email.trim()) {
+      await setEmail(email.trim());
+      setSent(true);
+    }
   };
   const approve = async () => {
     await todoFetch(`/connect/${encodeURIComponent(code)}`, {
@@ -117,6 +120,34 @@ export function SitesConnectFlow() {
                     Approving gives this AI your account’s agent link and turns Simple Sites on. It can use the apps you
                     have enabled.
                   </p>
+                )}
+                {springform && hosted && mail && (
+                  // Still unconfirmed (no email yet, or a mistyped one): send the confirmation from here.
+                  <div className="mt-3">
+                    <label className="block">
+                      {SPRINGFORM_EMAIL}
+                      <input
+                        className={input}
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmailInput(e.target.value)}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className={button}
+                      disabled={busy || !email.trim()}
+                      onClick={() =>
+                        void run(async () => {
+                          await setEmail(email.trim());
+                          setSent(true);
+                        })
+                      }
+                    >
+                      Send confirmation link
+                    </button>
+                    {sent && <p className="mt-3">Open the link we mailed you, then return here and approve.</p>}
+                  </div>
                 )}
                 {!created && (
                   <label className="mt-3 block">

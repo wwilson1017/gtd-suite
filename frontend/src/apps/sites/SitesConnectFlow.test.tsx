@@ -129,6 +129,15 @@ describe('SitesConnectFlow', () => {
     });
     expect(host.textContent).toContain('Return to Springform');
   });
+  it('lets a signed-in Springform account send its email confirmation before approving', async () => {
+    window.history.replaceState({}, '', `/connect?code=${code}&client=springform`);
+    await mount(true);
+    await fill('input[type=email]', 'me@example.com');
+    await click('Send confirmation link');
+    expect(api.setEmail).toHaveBeenCalledWith('me@example.com');
+    expect(host.textContent).toContain('Open the link we mailed you');
+    expect(api.todoFetch).not.toHaveBeenCalled();
+  });
   it('rejects a missing or malformed URL code without approving', async () => {
     window.history.replaceState({}, '', '/connect?code=bad');
     await mount();
