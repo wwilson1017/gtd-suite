@@ -1,10 +1,15 @@
-"""Device-style Sites connection: the browser approves, the device collects once."""
+"""Device-style connection: the browser approves, the device collects the agent link once.
+
+A code is for a client: "sites" (an AI tool connecting to Simple Sites) or "springform" (a
+Springform install linking the account: every app on and, on the hosted service, the free grant
+for an account with a confirmed email; paid/admin.springform_comp_in)."""
 
 import re
 import secrets
 from datetime import timedelta
 
-from backend import common, db, lists
+from backend import apps, common, db, lists, settings
+from backend.paid import admin as paid_admin
 from backend.common import NotFoundError, ValidationError
 
 _ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
@@ -12,7 +17,7 @@ _CODE = re.compile(r"[A-HJ-NP-Z2-9]{4}-[A-HJ-NP-Z2-9]{4}")
 SECONDS = 900
 
 
-def start() -> dict:
+def start(client: str = "sites") -> dict:
     token = lists.mint_token()
     now = common.utcnow()
     with db.transaction() as conn:
@@ -22,8 +27,14 @@ def start() -> dict:
             if not conn.execute("SELECT 1 FROM connect_codes WHERE user_code = ?", (code,)).fetchone():
                 break
         conn.execute(
-            "INSERT INTO connect_codes (device_hash, user_code, created_at, expires_at) VALUES (?, ?, ?, ?)",
-            (lists.hash_token(token), code, common.to_iso(now), common.to_iso(now + timedelta(seconds=SECONDS))),
+            "INSERT INTO connect_codes (device_hash, user_code, client, created_at, expires_at) VALUES (?, ?, ?, ?, ?)",
+            (
+                lists.hash_token(token),
+                code,
+                client,
+                common.to_iso(now),
+                common.to_iso(now + timedelta(seconds=SECONDS)),
+            ),
         )
     return {"user_code": code, "device_token": token, "interval": 3, "expires_in": SECONDS}
 
@@ -47,16 +58,34 @@ def created_in(conn, code: str, list_id: int) -> None:
     conn.execute("UPDATE connect_codes SET created_list_id = ? WHERE user_code = ?", (list_id, code))
 
 
-def approve(list_id: int, code: str, typed_code: str | None) -> None:
+def approve(list_id: int, code: str, typed_code: str | None, client: str = "sites") -> None:
+    """``client`` is what the approve page told the person it was connecting; a code for
+    another client is refused, so the page's wording always matches what approval does."""
     with db.transaction() as conn:
         row = _pending_in(conn, code)
         live, params = lists.live_where()
-        if not conn.execute(f"SELECT 1 FROM lists WHERE id = ? AND {live}", (list_id, *params)).fetchone():
+        account = conn.execute(
+            f"SELECT email_verified_at FROM lists WHERE id = ? AND {live}", (list_id, *params)
+        ).fetchone()
+        if account is None:
             raise NotFoundError("Account unavailable")
+        if row["client"] != client:
+            raise ValidationError("This page is out of date for this code. Open the connect link again.")
         typed = re.sub(r"[^A-Z0-9]", "", (typed_code or "").upper())
         if row["created_list_id"] != list_id and typed[:4] + "-" + typed[4:] != code:
             raise ValidationError("Type the code shown in your terminal to approve this connection.")
-        lists.set_app_in(conn, list_id, "sites", True)
+        if client == "springform":
+            hosted = settings.open_signup()
+            if hosted and account["email_verified_at"] is None:
+                raise ValidationError(
+                    "Add your email and confirm it first (open the link we mail you), then approve this connection."
+                )
+            for app in apps.APPS:
+                lists.set_app_in(conn, list_id, app, True)
+            if hosted:
+                paid_admin.springform_comp_in(conn, list_id)
+        else:
+            lists.set_app_in(conn, list_id, "sites", True)
         conn.execute(
             "UPDATE connect_codes SET list_id = ?, approved_at = ? WHERE user_code = ?",
             (list_id, common.now_iso(), code),

@@ -104,8 +104,13 @@ class ConnectPoll(BaseModel):
         return "" if isinstance(value, str) and (not value.isascii() or len(value) > 128) else value
 
 
+class ConnectStart(BaseModel):
+    client: Literal["sites", "springform"] = "sites"
+
+
 class ConnectApproval(BaseModel):
     typed_code: str | None = Field(default=None, max_length=32)
+    client: Literal["sites", "springform"] = "sites"
 
 
 class ListCreate(BaseModel):
