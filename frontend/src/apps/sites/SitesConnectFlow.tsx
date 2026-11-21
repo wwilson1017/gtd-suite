@@ -76,7 +76,7 @@ export function SitesConnectFlow() {
         ? 'Your email is confirmed. Approve below.'
         : r.sent
           ? 'Open the link we mailed you, then return here and approve.'
-          : 'Saved. Wait a few minutes, then press Send again.',
+          : 'Saved. Wait a few minutes, then press Send confirmation link again.',
     );
   };
   const approve = async () => {
