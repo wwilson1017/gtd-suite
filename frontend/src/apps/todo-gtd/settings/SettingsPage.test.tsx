@@ -39,6 +39,7 @@ vi.mock('../useTodoMeta', async (importOriginal) => ({
 
 import { bootstrap, resetSession } from '../session';
 import { TodoSettings } from '../TodoSettings';
+import { useSetupOnFocus } from './setup';
 
 const SESSION: Session = {
   list_id: 7,
@@ -200,5 +201,31 @@ describe('Settings', () => {
 
     await open('/connect/email');
     expect(box()).not.toBeNull();
+  });
+});
+
+describe('useSetupOnFocus', () => {
+  function Watch() {
+    useSetupOnFocus();
+    return null;
+  }
+
+  it('asks for the email again on focus while the AI step is still open', async () => {
+    resetSession();
+    api.getSession.mockResolvedValue({ ...SESSION, email: 'me@example.com' });
+    api.getAiTools.mockResolvedValue([]);
+    await act(async () => {
+      await bootstrap();
+    });
+    await act(async () => {
+      root.render(<Watch />);
+    });
+    api.getSession.mockClear();
+    api.getSession.mockResolvedValue({ ...SESSION, email: 'me@example.com', verified: true });
+    await act(async () => {
+      window.dispatchEvent(new Event('focus'));
+    });
+    expect(api.getAiTools).toHaveBeenCalledTimes(1);
+    expect(api.getSession).toHaveBeenCalledTimes(1);
   });
 });

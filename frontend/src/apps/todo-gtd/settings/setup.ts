@@ -38,15 +38,19 @@ export function useSetup(): Setup {
 /** While a step is open, ask again each time the window comes back into focus: the person
  *  has been away adding the link to their AI, or opening the emailed link in another tab. */
 export function useSetupOnFocus() {
-  const { next } = useSetup();
-  const ask = next?.key ?? null;
-  const pending = next?.state === 'pending';
+  const { steps } = useSetup();
+  // Each on its own: an email can be confirmed while the AI step is still open.
+  const ai = steps.some((s) => s.key === 'ai' && s.state !== 'done');
+  const email = steps.some((s) => s.key === 'email' && s.state === 'pending');
   useEffect(() => {
-    if (!ask) return;
-    const refresh = () => void (ask === 'ai' ? refreshAiTools() : pending ? refreshEmail() : undefined);
+    if (!ai && !email) return;
+    const refresh = () => {
+      if (ai) void refreshAiTools();
+      if (email) void refreshEmail();
+    };
     window.addEventListener('focus', refresh);
     return () => window.removeEventListener('focus', refresh);
-  }, [ask, pending]);
+  }, [ai, email]);
 }
 
 /** The email's state, asked again. Opening a link mailed to an address that already had an
