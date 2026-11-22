@@ -49,8 +49,8 @@ from every grant, and an empty grant never falls back to another brain.
 **Staff links** reach Brain tools only, default to read, and label what they write with
 their name. Give staff a link carrying only the work brain.
 
-Limits: free accounts have 1 brain and 3 staff links, Pro 10 and 100, Max and self-hosted
-100 and 1,000. Keys are capped at 20 separately.
+Limits: an unconfirmed hosted account has 1 brain and 3 staff links; a confirmed or
+self-hosted one 100 and 1,000. Keys are capped at 20 separately.
 
 ## REST API
 
@@ -159,6 +159,11 @@ for the next run, and keep going while `misses_more` is true. `brain_search(prob
 logs no misses. Eval reads `- id: query => expected; expected` lines from `<folder>/golden`
 and appends the score to `<folder>/scorecard`. Write tools take `pass_label` and `reason`
 for the history.
+
+Handed a meeting transcript, the curator follows the transcript step `brain_curate` returns:
+a quote that backs an entry is added to it as a further source (speaker, timestamp, exact
+quote), a clear change updates the entry, and anything unclear becomes a question in
+`<folder>/questions`.
 
 `brain_contradiction_flag` parks two disagreeing entries for the person to answer;
 `brain_contradiction_settle` records their answer and archives the entry it replaces.

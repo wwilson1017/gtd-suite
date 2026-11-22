@@ -366,6 +366,8 @@ def test_restore_delegates_to_restore_list(made, run, monkeypatch):
     run("restore", made["id"], "--from", snapshot)
     assert calls == [[str(snapshot), "--list-id", str(made["id"])]] * 2
     assert _log() == [("restore", made["id"])] * 2
+    run("restore", made["id"], "--from", snapshot, "--identity", "key.txt")  # for an encrypted snapshot
+    assert calls[2] == [str(snapshot), "--list-id", str(made["id"]), "--identity", "key.txt"]
 
 
 def test_restore_puts_the_list_back(made, run, freeze):

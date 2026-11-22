@@ -7,7 +7,9 @@ import json
 import logging
 import os
 import re
+import shutil
 import sqlite3
+import subprocess
 import threading
 
 import pytest
@@ -47,7 +49,7 @@ def test_one_list_mode_is_the_default_and_the_first_visit_claims_it(single, new_
         "claimed": False,
         "reset": False,
         "signed_in": False,
-        "billing": False,
+        "offers": False,
         "free": False,
         "signup_closed": False,
         "app": "todo",
@@ -96,7 +98,7 @@ def test_open_signup_makes_many_lists_and_never_reports_claimed(client, create):
         "claimed": False,
         "reset": False,
         "signed_in": True,
-        "billing": False,
+        "offers": False,
         "free": False,
         "signup_closed": False,
         "app": "todo",
@@ -451,6 +453,74 @@ def test_prune_never_deletes_the_newest_snapshot_however_old(todo_db, freeze):
     assert _names() == [names[0]]
 
 
+# ── Encrypted snapshots (SNAPSHOT_AGE_RECIPIENT) ──────────────────────────────
+
+
+@pytest.fixture()
+def age_key(tmp_path_factory, monkeypatch):
+    """Snapshots encrypted to a fresh age key; the private key's file."""
+    if not (shutil.which("age") and shutil.which("age-keygen")):
+        pytest.skip("age is not installed")
+    key = tmp_path_factory.mktemp("age") / "key.txt"
+    subprocess.run(["age-keygen", "-o", str(key)], check=True, capture_output=True)
+    public = subprocess.run(["age-keygen", "-y", str(key)], check=True, capture_output=True, text=True)
+    monkeypatch.setenv("SNAPSHOT_AGE_RECIPIENT", public.stdout.strip())
+    return key
+
+
+def test_an_encrypted_snapshot_is_one_age_file_and_not_a_database(L, age_key):
+    service.create_todo(L, "in the snapshot", source="ui")
+    path = backup.snapshot()
+    assert path is not None and re.fullmatch(r"todo-\d{8}T\d{6}Z\.db\.age", path.name)
+    assert _names() == [path.name]  # no plain copy, no temp file
+    data = path.read_bytes()
+    assert data.startswith(b"age-encryption.org/v1") and b"SQLite format 3" not in data
+    assert b"in the snapshot" not in data
+
+
+def test_a_failed_age_leaves_no_file_of_either_kind(L, age_key, monkeypatch, caplog):
+    monkeypatch.setenv("SNAPSHOT_AGE_RECIPIENT", "not-a-key")
+    with caplog.at_level(logging.ERROR):
+        assert backup.snapshot() is None
+    assert "Snapshot failed" in caplog.text and _names() == []
+
+
+def test_a_missing_age_fails_the_snapshot_and_never_falls_back_to_plain(L, monkeypatch, caplog, tmp_path):
+    monkeypatch.setenv("SNAPSHOT_AGE_RECIPIENT", "age1example")
+    monkeypatch.setenv("PATH", str(tmp_path / "empty"))
+    with caplog.at_level(logging.ERROR):
+        assert backup.snapshot() is None
+    assert "Snapshot failed" in caplog.text and _names() == []
+
+
+def test_an_encrypted_snapshot_needs_room_for_both_copies(L, monkeypatch, caplog):
+    monkeypatch.setenv("SNAPSHOT_AGE_RECIPIENT", "age1example")
+    need = 2 * db.db_path().stat().st_size + backup.MIN_FREE_BYTES
+    monkeypatch.setattr(backup.shutil, "disk_usage", lambda p: type("U", (), {"free": need - 1})())
+    with caplog.at_level(logging.WARNING):
+        assert backup.snapshot() is None
+    assert "Snapshots are paused" in caplog.text and _names() == []
+
+
+def test_prune_and_the_admin_list_cover_plain_and_encrypted_snapshots_together(todo_db, freeze):
+    now = freeze("2026-10-20T12:30:00")
+    out = backup.backups_dir()
+    out.mkdir()
+
+    def stamp(**ago):
+        return (now - datetime.timedelta(**ago)).strftime(backup._NAME)
+
+    newest, recent = stamp(hours=0) + ".age", stamp(hours=5)
+    day3 = [stamp(days=3, hours=0) + ".age", stamp(days=3, hours=1), stamp(days=3, hours=2) + ".age"]
+    too_old = [stamp(days=8), stamp(days=9) + ".age"]
+    for name in [newest, recent, *day3, *too_old, "left-over.db.age.tmp"]:
+        (out / name).write_bytes(b"")
+    backup.prune(now)
+    assert _names() == sorted([newest, recent, day3[0]])
+    assert [p.name for p in backup.files()] == [day3[0], recent, newest]  # oldest first, whatever the kind
+    assert backup._taken(out / newest) == now
+
+
 # ── One-list repair ───────────────────────────────────────────────────────────
 
 
@@ -505,6 +575,49 @@ def test_restore_list_refuses_a_list_the_snapshot_does_not_have(todo_db):
     with pytest.raises(SystemExit, match="not in that snapshot"):
         restore_list.restore(snapshot, newer, db.db_path())
     assert len(service.list_todos(newer)) == 1 and old != newer
+
+
+@pytest.mark.parametrize("typed", [False, True])
+def test_restore_list_decrypts_an_encrypted_snapshot_with_the_key(new_list, age_key, freeze, monkeypatch, typed):
+    freeze("2026-10-04T12:00:00")
+    a = new_list()
+    ca, a_id = a["client"], a["list_id"]
+    ca.post("/api/app/todos", json={"title": "buy paint"})
+    snapshot = backup.snapshot()
+    assert snapshot is not None and snapshot.suffix == ".age"
+    freeze("2026-10-04T15:00:00")
+    ca.post("/api/app/todos", json={"title": "added later"})
+    data_dir = db.db_path().parent
+    before = sorted(p.name for p in data_dir.iterdir())
+
+    # Encrypted and no key: refused before anything is touched, the fresh snapshot included.
+    with pytest.raises(SystemExit, match="is encrypted: add --identity"):
+        restore_list.main([str(snapshot), "--list-id", str(a_id)])
+    wrong = age_key.with_name("wrong.txt")
+    subprocess.run(["age-keygen", "-o", str(wrong)], check=True, capture_output=True)
+    with pytest.raises(SystemExit, match="Could not decrypt"):
+        restore_list.main([str(snapshot), "--list-id", str(a_id), "--identity", str(wrong)])
+    assert sorted(p.name for p in data_dir.iterdir()) == before and _names() == [snapshot.name]
+
+    # The running app snapshots and prunes in the middle of the restore: the decrypted input survives it.
+    real, seen = restore_list.restore, []
+
+    def restore_after_a_prune(plain, *rest):
+        backup.prune(common.utcnow())
+        assert plain.is_file() and plain.parent.parent == data_dir and plain.parent.stat().st_mode & 0o777 == 0o700
+        seen.append(plain.parent)
+        return real(plain, *rest)
+
+    monkeypatch.setattr(restore_list, "restore", restore_after_a_prune)
+    secret = next(line for line in age_key.read_text().splitlines() if line.startswith("AGE-SECRET-KEY-"))
+    monkeypatch.setattr(restore_list.getpass, "getpass", lambda prompt: secret)
+    restore_list.main([str(snapshot), "--list-id", str(a_id), "--identity", "-" if typed else str(age_key)])
+
+    assert [t["title"] for t in ca.get("/api/app/todos").json()["todos"]] == ["buy paint"]
+    # The decrypted copy is gone with its folder, and the snapshot taken first is encrypted too.
+    assert seen and not seen[0].exists()
+    assert sorted(p.name for p in data_dir.iterdir()) == before
+    assert len(_names()) == 2 and all(n.endswith(".db.age") for n in _names())
 
 
 # ── Sign-in by email ──────────────────────────────────────────────────────────

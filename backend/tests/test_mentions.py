@@ -58,12 +58,12 @@ def test_an_ai_tool_hears_where_it_was_mentioned(L, B):
     claude = pid(L, "Claude")
     tl = make(L, B, "todolist", "Prep")
     todo = make(L, B, "todo", "Order tile", parent_id=tl["id"])
-    recordings.comment(L, "@Claude can you price this?", rec_id=todo["id"])
+    recordings.comment(L, "@Claude can you cost this out?", rec_id=todo["id"])
     recordings.create(L, B, "chat_line", {"body": "@Claude morning!"})
     heard = recordings.mentions_of(L, claude)
     assert [(m["type"], m["excerpt"]) for m in heard] == [
         ("chat_line", "@Claude morning!"),
-        ("comment", "@Claude can you price this?"),
+        ("comment", "@Claude can you cost this out?"),
     ]
     assert heard[1]["parent_id"] == todo["id"]
     # Only the last two weeks count, and only on what is still out.

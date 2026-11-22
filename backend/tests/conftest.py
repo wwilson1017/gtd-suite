@@ -15,7 +15,7 @@ BROWSER = {"Sec-Fetch-Site": "same-origin"}
 @pytest.fixture()
 def todo_db(tmp_path, monkeypatch):
     """Point the database at a temp directory with a live schema."""
-    from backend.tests.paid.helpers import clear_settings
+    from backend.tests.plans.helpers import clear_settings
 
     clear_settings(monkeypatch)
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
@@ -28,6 +28,7 @@ def todo_db(tmp_path, monkeypatch):
         "RESEND_API_KEY",
         "MAIL_FROM",
         "SNAPSHOT_INTERVAL_SECONDS",
+        "SNAPSHOT_AGE_RECIPIENT",
         "FILES_S3_ENDPOINT",
         "FILES_S3_BUCKET",
         "FILES_S3_KEY_ID",

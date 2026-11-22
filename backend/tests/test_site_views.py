@@ -70,7 +70,7 @@ def test_views_counted_during_a_write_are_not_lost(acct, monkeypatch):
     assert _views(shown["id"]) == 1 and sites.flush_views() == 1 and _views(shown["id"]) == 2
 
 
-def test_a_self_hosted_server_shows_views_without_pro(acct, monkeypatch):
+def test_a_self_hosted_server_shows_views_without_a_level(acct, monkeypatch):
     monkeypatch.setenv("OPEN_SIGNUP", "false")
     made = page(acct["id"])
     assert made["views"] == 0
