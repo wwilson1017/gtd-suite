@@ -230,7 +230,7 @@ export interface Brain extends BrainSettings {
 }
 export interface BrainsView {
   brains: Brain[];
-  caps: { brains: number; links: number; upsell: boolean };
+  caps: { brains: number; links: number; raisable: boolean };
   link_brains: number[];
 }
 export const getBrains = () => todoFetch<BrainsView>('/brains');

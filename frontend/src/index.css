@@ -23,7 +23,7 @@
   --border-color-brand: var(--color-brand-mark);
   --color-brand-ink: #ba002a;
   /* A front door's band (LandingPage's FrontDoor): its fill, the glow in its corner, its
-     text, its accent (eyebrow, prices, errors) and the white button's hover. */
+     text, its accent (eyebrow, highlights, errors) and the white button's hover. */
   --color-band: #6f1f1f;
   --color-band-glow: rgb(227 29 59 / 0.4);
   --color-band-text: #ecd6c8;
@@ -172,7 +172,7 @@ html[data-app='brain'] {
 body {
   font-family: var(--font-body);
   /* index.html asks for `viewport-fit=cover` so the phone bar can pad itself past the
-     home indicator; the price is that a notched phone held sideways no longer insets
+     home indicator; the cost is that a notched phone held sideways no longer insets
      the page by itself, so every page (list, capture, landing) does it here. */
   padding-inline: env(safe-area-inset-left, 0px) env(safe-area-inset-right, 0px);
 }

@@ -1,4 +1,4 @@
-"""Brain gates, account-wide limits, and upgrades/restores across the storage boundary."""
+"""Brain gates, account-wide limits, and moves/restores across the storage boundary."""
 
 import re
 import json

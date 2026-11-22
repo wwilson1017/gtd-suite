@@ -45,7 +45,7 @@ export interface Site {
 export interface SiteCaps {
   pages: number;
   links: number;
-  /** The most content one page may hold on this plan (UTF-8 bytes). */
+  /** The most content one page may hold on this account (UTF-8 bytes). */
   page_bytes?: number;
   site_bytes?: number;
   storage?: number;
