@@ -1,4 +1,4 @@
-"""Plan cases moved from test_files.py."""
+"""Level cases moved from test_files.py."""
 
 import datetime
 import pytest

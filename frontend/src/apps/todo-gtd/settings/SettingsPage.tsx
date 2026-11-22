@@ -9,7 +9,7 @@ import { Fragment } from 'react';
 import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
 import { APP } from '../../../core/app';
 import { useMediaQuery } from '../../../core/theme/menuLayout';
-import { usePlanSection } from '../../../plans/offers';
+import { useExtensionSection } from '../../../plans/offers';
 import { reachOf } from '../clients';
 import { AccountNumber, EmailSection, SignInElsewhere, ThisDevice } from '../ConnectPage';
 import { ConnectAI } from '../components/ConnectAI';
@@ -42,7 +42,7 @@ const STEP_SUB: Record<StepKey, string> = {
 function useGroups(own?: Group): Group[] {
   const session = useSession().session;
   const config = useConfig();
-  const plan = usePlanSection();
+  const plan = useExtensionSection();
   const reaches = reachOf(session?.apps ?? []) || 'apps';
   const start: Section[] = [
     {

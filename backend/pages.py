@@ -29,7 +29,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 
 from backend import apps, lists, ratelimit, sessions, settings, sites
-from backend.plans import billing
+from backend.plans import extension
 from backend.router import _same_origin
 
 PAGE_HEADERS = {
@@ -547,12 +547,12 @@ def root_file(name: str, request: Request):
             if request.method == "GET":
                 sites.count_view(short["id"])
             return RedirectResponse(short["target"], status_code=302, headers=PAGE_HEADERS)
-    if name in {"terms.html", "privacy.html", "refunds.html", "support.html", "legal.css"}:
+    page = extension.page(name) if settings.open_signup() else None  # the extension's own pages
+    if page is not None:
+        return HTMLResponse(page)
+    if name in {"terms.html", "privacy.html", "support.html", "legal.css"}:
         if not settings.open_signup():
             return _shell(request)  # they describe the hosted service
-        page = billing.policy_page(name)  # a billing package's own wording (and refunds.html)
-        if page is not None:
-            return HTMLResponse(page)
         candidate = STATIC_DIR / "policy" / name
     else:
         candidate = STATIC_DIR / name

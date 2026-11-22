@@ -1,2 +1,2 @@
-// What a server that sells plans shows; nothing here (src/plans/billing-off.tsx).
-export { BrainPlans, BrainPlansLink, PlanCard, SitesPlans, usePlanSection } from '@billing';
+// What the optional extension shows; nothing when it is not installed (src/plans/extension-off.tsx).
+export { BrainExtra, BrainExtraLink, ExtensionCard, SitesExtra, useExtensionSection } from '@extension';

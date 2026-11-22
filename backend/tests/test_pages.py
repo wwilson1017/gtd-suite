@@ -205,11 +205,6 @@ def test_policy_files_keep_public_addresses_only_on_hosted_servers(
     assert client.get(f"/policy/{name}").status_code == 404
 
 
-def test_refunds_is_the_shell_here(client, built):
-    (built / "refunds.html").write_text("old hosted policy", encoding="utf-8")
-    assert client.get("/refunds.html").text == client.get("/unknown-file.html").text
-
-
 def test_policy_links_still_use_public_addresses():
     from html.parser import HTMLParser
 

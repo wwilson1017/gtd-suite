@@ -21,9 +21,9 @@ import json
 import re
 from typing import NamedTuple, cast
 
-from backend.plans import caps as paid_caps
+from backend.plans import caps as plan_caps
 from backend.plans import plans
-from backend.plans import billing
+from backend.plans import extension
 from backend import apps, common, db, people, settings
 from backend.common import ConflictError, NotFoundError, ValidationError
 
@@ -175,7 +175,7 @@ def _status(status) -> str:
 
 
 def _check_cap(conn, list_id: int, adding: int = 1) -> None:
-    row = conn.execute(f"SELECT {paid_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (list_id,)).fetchone()
+    row = conn.execute(f"SELECT {plan_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (list_id,)).fetchone()
     verified, hosted = bool(row and row["email_verified_at"]), settings.open_signup()
     plan = plans.of(row) if row else None
     cap = common.recording_cap_for(verified, hosted, plan)
@@ -191,7 +191,7 @@ def _check_cap(conn, list_id: int, adding: int = 1) -> None:
             f"This account holds {cap} items until an email is confirmed in {apps.settings_page()}. Nothing was changed."
         )
     raise ValidationError(
-        f"An account holds at most {cap} items.{billing.upsell(hosted and not plan)} Nothing was changed."
+        f"An account holds at most {cap} items.{extension.cap_note(hosted and not plan)} Nothing was changed."
     )
 
 

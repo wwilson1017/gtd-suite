@@ -1,4 +1,4 @@
-"""Plan cases moved from test_sites_organize.py."""
+"""Level cases moved from test_sites_organize.py."""
 
 import json
 from backend.plans import plans
@@ -8,7 +8,7 @@ from backend.tests.test_admin import run as run
 from backend.tests.test_sites import acct as acct, page as page, served as served
 
 
-def test_comp_grants_pro_by_email_until_a_day_and_takes_it_back(acct, run, freeze):
+def test_comp_grants_a_level_by_email_until_a_day_and_takes_it_back(acct, run, freeze):
     lid = acct["id"]
     confirm_list(lid, "pat@example.com")
     assert not plans.active(_row(lid))
@@ -35,32 +35,33 @@ def test_comp_grants_pro_by_email_until_a_day_and_takes_it_back(acct, run, freez
     assert log == [("comp", lid), ("comp", lid), ("comp off", lid)]
 
 
-def test_a_comped_account_shows_as_free_pro_and_is_counted(acct, run, new_list):
+def test_a_granted_account_shows_as_raised_and_is_counted(acct, run, new_list):
     made = new_list()
     run("comp", made["list_id"])
-    plan = made["client"].get("/api/app/session").json()["plan"]
-    assert plan["pro"] is True and plan["comp_until"].startswith("9999")
+    level = made["client"].get("/api/app/session").json()["plan"]
+    assert level["raised"] is True and level["tier"] == "pro"
+    assert _row(made["list_id"])["pro_comp_until"].startswith("9999")
     stats = json.loads(run("stats", "--json")[1])
-    assert stats["pro_now"] == 1 and stats["pro_comp"] == 1
-    assert stats["plan_statuses"] == {}  # a grant is not a Stripe status
+    assert stats["raised_now"] == 1 and stats["granted_now"] == 1
+    assert stats["statuses"] == {}  # a grant is not a stored status
 
 
-def test_the_source_of_pro_is_the_live_one(acct, run, freeze):
+def test_the_source_of_a_level_is_the_live_one(acct, run, freeze):
     lid = acct["id"]
     freeze("2026-10-17T12:00:00")
     run("comp", lid, "--until", "2026-11-01")
-    assert plans.pro_source(_row(lid)) == "comp"
-    with db.transaction() as conn:  # a stale paid status, long past its period
+    assert plans.source(_row(lid)) == "grant"
+    with db.transaction() as conn:  # a stale stored status, long past its period
         conn.execute(
             "UPDATE lists SET plan_status = 'active', plan_until = '2026-09-01T00:00:00.000Z' WHERE id = ?", (lid,)
         )
-    assert plans.pro_source(_row(lid)) == "comp"
-    with db.transaction() as conn:  # a live subscription wins
+    assert plans.source(_row(lid)) == "grant"
+    with db.transaction() as conn:  # a live stored level wins
         conn.execute("UPDATE lists SET plan_until = '2026-12-01T00:00:00.000Z' WHERE id = ?", (lid,))
-    assert plans.pro_source(_row(lid)) == "stripe"
-    freeze("2026-11-15T00:00:00")  # the grant has run out; paid still counts, not free
+    assert plans.source(_row(lid)) == "status"
+    freeze("2026-11-15T00:00:00")  # the grant has run out; the stored level still counts
     stats = json.loads(run("stats", "--json")[1])
-    assert stats["pro_now"] == 1 and stats["pro_comp"] == 0
+    assert stats["raised_now"] == 1 and stats["granted_now"] == 0
 
 
 # ── Operator grants ─────────────────────────────────────────────────────

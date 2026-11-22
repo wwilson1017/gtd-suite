@@ -1,4 +1,4 @@
-"""Plan cases moved from test_sites.py."""
+"""Level cases moved from test_sites.py."""
 
 import json
 import pytest
@@ -34,7 +34,7 @@ async def test_max_holds_a_ten_megabyte_page_by_command_and_from_the_browser(htt
     assert res.status_code == 200 and res.json()["page"]["bytes"] > 9_800_000, res.text[:200]
     guide = (await http.get(acct["path"])).json()
     assert '"page_bytes": 10000000' in json.dumps(guide)
-    # The free plan keeps 2 MB, from the browser too.
+    # The base level keeps 2 MB, from the browser too.
     made = new_list()
     confirm_list(made["list_id"])
     res = made["client"].post("/api/app/sites", json={"content": "x" * 3_000_000})

@@ -74,7 +74,7 @@ function answer(url: string, init: RequestInit = {}) {
     });
   if (path === '/api/config') return json({ app: 'brain', apps: {} });
   if (path === '/api/app/brains')
-    return json({ brains: available, caps: { brains: cap, links: 3, upsell: cap === 1 }, link_brains: [11] });
+    return json({ brains: available, caps: { brains: cap, links: 3, raisable: cap === 1 }, link_brains: [11] });
   if (path === '/api/app/brains/11') return json({ ...brains[0], ...JSON.parse(init.body as string) });
   if (path === '/api/app/brain') return json(overview(brain));
   if (path === '/api/app/brain/pages/3') return json(page(brain));
@@ -122,12 +122,12 @@ async function click(text: string) {
   expect(el, `Missing ${text}`).toBeTruthy();
   await act(async () => el.click());
 }
-it('shows the Free upsell from New brain', async () => {
+it('says the brain limit is reached from New brain', async () => {
   cap = 1;
   available = [brains[0]];
   await mount();
   await act(async () => (host.querySelector('[aria-label="Switch brain"]') as HTMLButtonElement).click());
   await click('New brain');
-  expect(host.textContent).toContain('More than one brain is part of Pro');
+  expect(host.textContent).toContain('Your account has reached its brain limit.');
   expect(host.querySelector('input[aria-label="Brain name"]')).toBeNull();
 });

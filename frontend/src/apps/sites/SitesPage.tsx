@@ -8,7 +8,7 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { SITE_MAX_BYTES } from './types';
 import { apiErrorMessage } from '../../core/api/client';
 import { CopyButton } from '../todo-gtd/components/CopyButton';
-import { PlanCard } from '../../plans/offers';
+import { ExtensionCard } from '../../plans/offers';
 import { useSession } from '../todo-gtd/session';
 import { createLink, createPage, deleteSite, downloadZip, listSites, updateSite } from './api';
 import { SitesData } from './SitesData';
@@ -492,7 +492,7 @@ function NewLink({ cap, onMade }: { cap: number | undefined; onMade: (site: Site
           className={`${inputCls} mt-1 w-40`}
         />
         <label htmlFor={ids.short} className="mt-2 block text-sm text-charcoal">
-          {shortNameLabel(session)}
+          {shortNameLabel()}
         </label>
         <input
           id={ids.short}
@@ -605,7 +605,7 @@ export function SitesPage() {
           Ask your AI to publish a page: it gets a short address to hand you. Pages are unlisted (only people with the
           address can open them) and can be taken down any time.
         </p>
-        <PlanCard />
+        <ExtensionCard />
         {storageQuota !== undefined && (
           <div className="text-xs text-muted">
             <label htmlFor="site-storage">

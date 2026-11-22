@@ -92,7 +92,7 @@ describe('LandingPage', () => {
     expect(hrefs).toEqual(['/terms.html', '/privacy.html', '/support.html']);
   });
 
-  it('leaves the Refunds page out while the suite is free', async () => {
+  it('links only the public policy pages while the suite is free', async () => {
     await mount({ ...OPEN, free: true });
     const hrefs = [...host.querySelectorAll('nav[aria-label="Policies"] a')].map((a) => a.getAttribute('href'));
     expect(hrefs).toEqual(['/terms.html', '/privacy.html', '/support.html']);

@@ -1,7 +1,7 @@
 import { BASE } from '../core/app';
 import type { AppConfig } from '../apps/todo-gtd/api';
 import { answered, useConfig } from '../apps/todo-gtd/useConfig';
-import { SOLD_POLICIES } from '@billing';
+import { EXTRA_POLICIES } from '@extension';
 
 /** The suite's policy pages (static files in public/, served on every app's address).
  *  They describe the hosted service, so a self-hosted (one-list) server shows no links. */
@@ -18,8 +18,8 @@ export function PolicyLinks({ className = '' }: { className?: string }) {
 /** The same links for a page that already holds the server's answer, so it asks once. */
 export function PolicyNav({ config, className = '' }: { config: AppConfig | null; className?: string }) {
   if (!answered(config) || !config.open_signup) return null; // fail closed: a guess shows nothing
-  // A server that sells adds its own (a Refunds page); nothing is sold while the suite is free.
-  const links = config.free ? LINKS : [...LINKS, ...SOLD_POLICIES];
+  // An installed extension may add pages of its own while the suite is not free.
+  const links = config.free ? LINKS : [...LINKS, ...EXTRA_POLICIES];
   return (
     <nav aria-label="Policies" className={className}>
       {links.map(([href, label], i) => (

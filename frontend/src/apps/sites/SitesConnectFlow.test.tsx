@@ -147,7 +147,7 @@ describe('SitesConnectFlow', () => {
     });
     expect(host.textContent).toContain('Return to Springform');
   });
-  it('words a Springform connection for the free suite and for paid plans', async () => {
+  it('words a Springform connection for the free suite and with the level limits on', async () => {
     window.history.replaceState({}, '', `/connect?code=${code}&client=springform`);
     await mount(false, true);
     expect(host.textContent).toContain(springformEmail(true));

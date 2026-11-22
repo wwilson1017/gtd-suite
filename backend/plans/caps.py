@@ -1,11 +1,12 @@
-"""Paid limits and schema; no app imports."""
+"""Level limits and the level columns; no app imports."""
 
 PLAN_COLUMNS = "email_verified_at, plan_status, plan_until, pro_comp_until, comp_plan"
 ACCOUNT_COLUMNS = "stripe_customer, plan_cancels, " + PLAN_COLUMNS
-# Current subscriptions are synced by billing.sync; grants are written by admin.comp.
-# Customer/email fields retain billing identity and the last confirmed receipts address.
-# The period end and cancellation flag are the last subscription state; rev refuses
-# stale sync writes. Grant expiry is nullable and its kind keeps the original default.
+# Column names are the live schema and stay as they are. The stripe_* and plan_* columns
+# are written only by the extension (plans/extension.py): an outside account's ids, the
+# address it last heard, and the level it last stored (status, period end, ends-then flag;
+# rev refuses a stale write). Grants are written by admin.comp: expiry is nullable and the
+# kind ("pro" or "max", the stored tier keys) keeps the original default.
 COLUMNS = {
     "stripe_customer": "TEXT NOT NULL DEFAULT ''",
     "stripe_email": "TEXT NOT NULL DEFAULT ''",

@@ -1,4 +1,4 @@
-"""Simple Sites locked pages (Pro): a page with a password answers its form (403, never
+"""Simple Sites locked pages (a raised level): a page with a password answers its form (403, never
 its content) until the visitor sends the password, which earns a 30-day pass for that
 page only. Every try is charged before any hashing; a new password ends every pass."""
 
@@ -14,7 +14,7 @@ from backend.tests.test_sites import ON_SITES, acct, page, path_of, served  # no
 SECRET_TEXT = "the private part"
 
 
-def _pro(list_id, status="active"):
+def _raise(list_id, status="active"):
     until = common.to_iso(common.utcnow() + datetime.timedelta(days=30))
     with db.transaction() as conn:
         conn.execute("UPDATE lists SET plan_status = ?, plan_until = ? WHERE id = ?", (status, until, list_id))
@@ -22,9 +22,9 @@ def _pro(list_id, status="active"):
 
 @pytest.fixture()
 def locked(acct, client):
-    """A Pro account's locked page, and a way to open it."""
+    """A raised account's locked page, and a way to open it."""
     confirm_list(acct["id"])  # Password passes outlive the unconfirmed site trial.
-    _pro(acct["id"])
+    _raise(acct["id"])
     made = page(acct["id"], f"# Plans\n\n{SECRET_TEXT}")
     sites.update(acct["id"], made["id"], password="open sesame")
     ratelimit.clear_all()
@@ -97,19 +97,19 @@ def test_a_burst_beyond_the_hashing_slots_is_told_to_wait(locked, client, monkey
         sites._hashing.release()
 
 
-def test_locking_is_pro_only_unlocking_always_and_pages_only(acct, client):
+def test_locking_needs_a_raised_level_unlocking_always_and_pages_only(acct, client):
     lid = acct["id"]
     made = page(lid, f"# Plans\n\n{SECRET_TEXT}")
-    with pytest.raises(ValidationError, match="come with Pro"):
+    with pytest.raises(ValidationError, match="not part of this account.s limits"):
         sites.update(lid, made["id"], password="open sesame")
-    _pro(lid)
+    _raise(lid)
     sites.update(lid, made["id"], password="open sesame")  # a public page, locked now
     assert client.get(path_of(made), headers=ON_SITES).status_code == 403
-    _pro(lid, "canceled")  # Pro lapses: the lock stays, and can still be taken off
+    _raise(lid, "canceled")  # the level lapses: the lock stays, and can still be taken off
     assert client.get(path_of(made), headers=ON_SITES).status_code == 403
     sites.update(lid, made["id"], password="")
     assert client.get(path_of(made), headers=ON_SITES).status_code == 200
-    _pro(lid)
+    _raise(lid)
     with pytest.raises(ValidationError, match="4 to 200"):
         sites.update(lid, made["id"], password="abc")
 
@@ -118,13 +118,13 @@ def test_a_short_link_cannot_be_locked(acct):
     from backend.tests.conftest import confirm_list
 
     confirm_list(acct["id"])
-    _pro(acct["id"])
+    _raise(acct["id"])
     link = sites.shorten(acct["id"], "https://example.com/x")
     with pytest.raises(ValidationError, match="Only a page"):
         sites.update(acct["id"], link["id"], password="open sesame")
 
 
-def test_a_self_hosted_server_locks_without_pro(acct, monkeypatch):
+def test_a_self_hosted_server_locks_without_a_level(acct, monkeypatch):
     monkeypatch.setenv("OPEN_SIGNUP", "false")
     made = page(acct["id"])
     assert sites.update(acct["id"], made["id"], password="open sesame")["locked"] is True
@@ -148,7 +148,7 @@ def test_unlock_answers_only_on_the_sites_host_for_a_locked_page(locked, acct, c
 
 
 def test_the_longest_password_fits_through_the_form(acct, client):
-    _pro(acct["id"])
+    _raise(acct["id"])
     made = page(acct["id"], f"# Plans\n\n{SECRET_TEXT}")
     longest = "\U0001f511" * sites.PASSWORD_LIMITS[1]  # 200 four-byte characters
     sites.update(acct["id"], made["id"], password=longest)
@@ -183,7 +183,7 @@ def test_no_hashing_for_a_lock_that_would_be_refused(acct, monkeypatch):
     real = sites._pbkdf2
     monkeypatch.setattr(sites, "_pbkdf2", lambda *a: hashed.append(1) or real(*a))
     made = page(acct["id"])
-    with pytest.raises(ValidationError, match="come with Pro"):  # free
+    with pytest.raises(ValidationError, match="not part of this account.s limits"):  # free
         sites.update(acct["id"], made["id"], password="open sesame")
     with pytest.raises(sites.NotFoundError):
         sites.update(acct["id"], 99999, password="open sesame")
@@ -191,14 +191,14 @@ def test_no_hashing_for_a_lock_that_would_be_refused(acct, monkeypatch):
 
 
 def test_an_unpaired_surrogate_is_refused_not_a_crash(acct):
-    _pro(acct["id"])
+    _raise(acct["id"])
     made = page(acct["id"])
     with pytest.raises(ValidationError):
         sites.update(acct["id"], made["id"], password="\ud800abcd")
 
 
 def test_a_password_with_a_line_break_is_refused(acct):
-    _pro(acct["id"])
+    _raise(acct["id"])
     made = page(acct["id"])
     for bad in ("ab\ncd", "ab\rcd"):
         with pytest.raises(ValidationError, match="line break"):

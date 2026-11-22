@@ -1,4 +1,4 @@
-import { NO_PAID_OFFERS } from '../../plans/features';
+import { NO_OFFERS } from '../../plans/features';
 import { useEffect, useState } from 'react';
 import { getConfig, type AppConfig } from './api';
 
@@ -12,7 +12,7 @@ const UNKNOWN: AppConfig = {
   signed_in: false,
   app: 'todo',
   apps: {},
-  ...NO_PAID_OFFERS,
+  ...NO_OFFERS,
 };
 
 // Hooks mounted together (a page and its footer's policy links) share one request.

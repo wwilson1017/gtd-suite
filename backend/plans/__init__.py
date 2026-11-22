@@ -1,1 +1,1 @@
-"""Paid plans, limits and billing."""
+"""Account levels and their limits, and the optional extension."""

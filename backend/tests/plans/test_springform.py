@@ -7,8 +7,8 @@ import json
 import pytest
 
 from backend import apps, connect, db, lists
-from backend.plans import admin as paid_admin, plans
-from backend.plans import caps as paid_caps
+from backend.plans import admin as plan_admin, plans
+from backend.plans import caps as plan_caps
 from backend.tests.conftest import confirm_list
 from backend.tests.test_connect import create, poll, start
 from scripts import admin
@@ -33,7 +33,7 @@ def start_springform(client):
 
 def plan_row(lid):
     return (
-        db.get_db().execute(f"SELECT {paid_caps.PLAN_COLUMNS}, comp_source FROM lists WHERE id = ?", (lid,)).fetchone()
+        db.get_db().execute(f"SELECT {plan_caps.PLAN_COLUMNS}, comp_source FROM lists WHERE id = ?", (lid,)).fetchone()
     )
 
 
@@ -52,11 +52,11 @@ def test_springform_connect_turns_every_app_on_and_grants_max(client):
     assert lists.get_list(lid)["sites_own_host"] == 0
     assert lists.apps_on(lid) == list(apps.APPS)
     row = plan_row(lid)
-    assert plans.of(row) == "max" and row["comp_source"] == "springform" and row["pro_comp_until"] == paid_admin.FOREVER
+    assert plans.of(row) == "max" and row["comp_source"] == "springform" and row["pro_comp_until"] == plan_admin.FOREVER
     rotated = lists.get_list(lid)["agent_token"]
     assert poll(client, code).json() == {"status": "approved", "agent_url": f"http://testserver/link/{rotated}"}
     assert json.loads(admin_output(["stats", "--json"]))["max_springform"] == 1
-    assert "Max from Springform: 1" in admin_output(["stats"])
+    assert "max from Springform: 1" in admin_output(["stats"])
 
 
 def admin_output(argv):

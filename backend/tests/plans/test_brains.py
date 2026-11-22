@@ -1,4 +1,4 @@
-"""Plan cases moved from test_brains.py."""
+"""Level cases moved from test_brains.py."""
 
 import json
 import pytest

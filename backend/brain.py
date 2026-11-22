@@ -38,9 +38,9 @@ import zipfile
 from collections import Counter
 from typing import cast
 
-from backend.plans import caps as paid_caps
+from backend.plans import caps as plan_caps
 from backend.plans import plans
-from backend.plans import billing
+from backend.plans import extension
 from backend import common, db, reports, settings
 from backend.common import ConflictError, NotFoundError, ValidationError
 
@@ -305,7 +305,7 @@ def set_link_brains(list_id: int, ids) -> list[int]:
 
 def account_caps(list_id: int, conn=None) -> dict:
     conn = conn or db.get_db()
-    row = conn.execute(f"SELECT {paid_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (list_id,)).fetchone()
+    row = conn.execute(f"SELECT {plan_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (list_id,)).fetchone()
     if row is None:
         raise NotFoundError("Account not found")
     verified, hosted, tier = bool(row["email_verified_at"]), settings.open_signup(), plans.of(row)
@@ -315,7 +315,7 @@ def account_caps(list_id: int, conn=None) -> dict:
         "links": common.links_cap_for(verified, hosted, tier),
         "brains_label": "Unlimited" if unlimited else str(common.brains_cap_for(verified, hosted, tier)),
         "links_label": "Unlimited" if unlimited else str(common.links_cap_for(verified, hosted, tier)),
-        "upsell": hosted and not tier,
+        "raisable": hosted and not tier,
     }
 
 
@@ -347,7 +347,9 @@ def _brain_cap_in(conn, list_id: int) -> None:
         conn.execute("SELECT COUNT(*) FROM brains WHERE list_id = ? AND status = 'active'", (list_id,)).fetchone()[0]
         >= cap["brains"]
     ):
-        raise ValidationError(f"This account holds at most {cap['brains']} brains.{billing.upsell(cap['upsell'])}")
+        raise ValidationError(
+            f"This account holds at most {cap['brains']} brains.{extension.cap_note(cap['raisable'])}"
+        )
 
 
 def create_brain_in(
@@ -487,7 +489,7 @@ def _list_of(conn, brain_id: int) -> int:
 
 def _plan(conn, brain_id: int) -> dict:
     row = conn.execute(
-        f"SELECT {paid_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (_list_of(conn, brain_id),)
+        f"SELECT {plan_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (_list_of(conn, brain_id),)
     ).fetchone()
     verified, hosted = row["email_verified_at"] is not None, settings.open_signup()
     tier = plans.of(row)
@@ -498,7 +500,7 @@ def _plan(conn, brain_id: int) -> dict:
         "pages": pages,
         "files": common.file_quota_for(verified, hosted, tier),
         "needs_email": hosted and not verified,
-        "upsell": hosted and not tier,
+        "raisable": hosted and not tier,
     }
 
 
@@ -536,7 +538,7 @@ def _email_nudge(conn, brain_id: int, by: str) -> str:
 
 def _join_in(conn, brain_id: int, by: str, *, write: bool) -> bool:
     """Record a visit by AI `by`; whether it is (now) one of the brain's AIs. A new AI
-    past the plan's AI cap is not added: it may read, and a write is refused."""
+    past the level's AI cap is not added: it may read, and a write is refused."""
     now = common.now_iso()
     if conn.execute("SELECT 1 FROM brain_ais WHERE brain_id = ? AND name = ?", (brain_id, by)).fetchone():
         return True
@@ -572,7 +574,7 @@ def _check_room(conn, brain_id: int, kind: str, adding: int = 1, by: str = YOU) 
             f"Your brain holds {what} until you add your email in Settings. It's still free. Nothing was saved."
         )
     raise ValidationError(
-        f"The brain holds at most {what}.{billing.upsell(plan['upsell'])} "
+        f"The brain holds at most {what}.{extension.cap_note(plan['raisable'])} "
         "Archive what is no longer true to make room (brain_curate helps). "
         "Nothing was saved."
     )

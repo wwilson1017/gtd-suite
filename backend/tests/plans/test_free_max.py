@@ -8,14 +8,14 @@ from urllib.parse import urlsplit
 import pytest
 
 from backend import boards, common, db, lists, notes, recordings, service, settings
-from backend.plans import admin as paid_admin, billing, plans
+from backend.plans import admin as plan_admin, extension, plans
 from backend.tests.conftest import confirm_list
 from backend.tests.test_pages import FRONTEND_INDEX, built as built
 
 
 @pytest.fixture()
 def free(todo_db, monkeypatch):
-    monkeypatch.delenv("FREE_MAX")  # the conftest turns paid plans on; this is the default
+    monkeypatch.delenv("FREE_MAX")  # the conftest turns the level limits on; this is the default
 
 
 def _plan(list_id):
@@ -50,7 +50,7 @@ def test_confirmed_gets_max_caps_and_short_names_and_unconfirmed_keeps_the_trial
     assert session["plan"]["free"] is True and session["plan"]["tier"] is None
     refused = c.post("/api/app/sites/links", json={"url": "https://example.com", "short_name": "early"})
     assert refused.status_code == 400 and "confirmed email" in refused.json()["detail"]
-    assert "Pro" not in refused.json()["detail"]
+    assert "limits" not in refused.json()["detail"]  # it names the email, not a level
 
     confirm_list(made["list_id"])
     session = c.get("/api/app/session").json()
@@ -62,12 +62,12 @@ def test_confirmed_gets_max_caps_and_short_names_and_unconfirmed_keeps_the_trial
     assert made_link.status_code == 200, made_link.text
 
 
-def test_the_operators_stats_count_free_max_and_not_when_paid(free, L, monkeypatch):
+def test_the_operators_stats_count_free_max_and_not_when_switched_off(free, L, monkeypatch):
     confirm_list(L)
     conn = db.get_db()
-    assert paid_admin.stats(conn)["max_now"] == 1
+    assert plan_admin.stats(conn)["max_now"] == 1
     monkeypatch.setenv("FREE_MAX", "false")
-    assert paid_admin.stats(conn)["max_now"] == 0
+    assert plan_admin.stats(conn)["max_now"] == 0
 
 
 def test_self_host_is_unchanged(free, L, monkeypatch):
@@ -85,14 +85,11 @@ def test_switched_off_the_old_plan_logic_returns(todo_db, L):
     assert _plan(L) == "pro"
 
 
-def test_nothing_is_sold_without_the_billing_package(client, new_list):
-    # The paid-plan tests (FREE_MAX=false, payment keys set) live with the billing package.
-    assert not billing.syncing() and not billing.selling() and billing.upsell(True) == ""
+def test_nothing_extra_without_the_extension(client):
+    # The tests with the extension installed live with it; the route tables prove no extra route.
+    assert not extension.offers() and extension.cap_note(True) == "" and extension.guide_lines() == []
     config = client.get("/api/config").json()
-    assert config["billing"] is False and config["free"] is False
-    made = new_list()
-    assert made["client"].post("/api/app/billing/checkout", json={"interval": "year"}).status_code == 404
-    assert client.post("/api/stripe/webhook", content=b"{}").status_code == 404
+    assert config["offers"] is False and config["free"] is False
 
 
 def test_the_policy_pages_read_free(free, client, built):
@@ -102,8 +99,8 @@ def test_the_policy_pages_read_free(free, client, built):
     assert "the apps are free" in client.get("/terms.html").text
     for name in ("terms.html", "privacy.html", "support.html"):
         text = client.get(f"/{name}").text
-        assert re.findall(r"\bPro\b|Stripe|refunds\.html|\$5\b|<!-- paid", text) == [], name
-    assert "Refunds ·" not in client.get("/refunds.html").text  # the landing shell, not the policy
+        # No sales wording: the words a page that sold something would need.
+        assert re.findall(r"(?i)\bpro\b|stripe|refund|subscri|\$5\b|<!--", text) == [], name
 
 
 # ── SIGNUP_CLOSED ─────────────────────────────────────────────────────────────

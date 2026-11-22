@@ -9,7 +9,7 @@ import secrets
 from datetime import timedelta
 
 from backend import apps, common, db, lists, settings
-from backend.plans import admin as paid_admin
+from backend.plans import admin as plan_admin
 from backend.common import NotFoundError, ValidationError
 
 _ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
@@ -85,7 +85,7 @@ def approve(
             for app in apps.APPS:
                 lists.set_app_in(conn, list_id, app, True)
             if hosted:
-                paid_admin.springform_comp_in(conn, list_id)
+                plan_admin.springform_comp_in(conn, list_id)
         else:
             lists.set_app_in(conn, list_id, "sites", True)
             if own_host is True:

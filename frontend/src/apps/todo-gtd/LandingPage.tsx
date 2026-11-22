@@ -1,4 +1,4 @@
-import { offersPlans } from '../../plans/features';
+import { offers } from '../../plans/features';
 // The landing page (/): make a list, or sign in to one you have. Todo GTD's own is
 // front/TodoFront; the other apps share FrontDoor below.
 import { lazy, Suspense, useId, useState, type ReactNode } from 'react';
@@ -12,7 +12,7 @@ import { useConfig } from './useConfig';
 
 const ProjectsDemo = lazy(() => import('../projects-gtd/ProjectsDemo').then((m) => ({ default: m.ProjectsDemo })));
 const NotesDemo = lazy(() => import('../notes-gtd/NotesDemo').then((m) => ({ default: m.NotesDemo })));
-const SitesPlans = lazy(() => import('../../plans/offers').then((m) => ({ default: m.SitesPlans })));
+const SitesExtra = lazy(() => import('../../plans/offers').then((m) => ({ default: m.SitesExtra })));
 const BrainLanding = lazy(() => import('../brain/BrainLanding').then((m) => ({ default: m.BrainLanding })));
 const SitesDemo = lazy(() => import('../sites/SitesDemo').then((m) => ({ default: m.SitesDemo })));
 const TodoFront = lazy(() => import('./front/TodoFront').then((m) => ({ default: m.TodoFront })));
@@ -415,12 +415,12 @@ export function LandingPage() {
           </>
         }
         points={SITE_POINTS}
-        eyebrow={offersPlans(config) ? 'Free to start \u00b7 one click \u00b7 nothing to install' : undefined}
+        eyebrow={offers(config) ? 'Free to start \u00b7 one click \u00b7 nothing to install' : undefined}
         footnote={
           <>
             {config?.free
               ? 'Free: one site to try for 7 days, then everything unlocked once you confirm an email. '
-              : !offersPlans(config) &&
+              : !offers(config) &&
                 'Free to start: one site to try for 7 days, then 500 pages and 500 short links once you confirm an email. '}
             Already use Todo GTD, Notes GTD or Projects GTD? It is the same account and the same agent link: open Sites
             from there.
@@ -433,9 +433,9 @@ export function LandingPage() {
         }
         signIn={
           <>
-            {offersPlans(config) && (
+            {offers(config) && (
               <Suspense fallback={null}>
-                <SitesPlans />
+                <SitesExtra />
               </Suspense>
             )}
             {mail && <SignIn account />}

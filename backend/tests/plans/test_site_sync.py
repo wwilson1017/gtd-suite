@@ -1,4 +1,4 @@
-"""Plan cases moved from test_site_sync.py."""
+"""Level cases moved from test_site_sync.py."""
 
 import pytest
 from backend import common, db, sites

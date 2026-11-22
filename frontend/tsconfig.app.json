@@ -24,8 +24,8 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
 
-    /* The selling UI: a billing package copied into src/plans/billing/, else the off stub (vite.config.ts) */
-    "paths": { "@billing": ["./src/plans/billing/index.ts", "./src/plans/billing-off.tsx"] }
+    /* The optional extension's screens, copied into src/plans/extension/, else the off stub (vite.config.ts) */
+    "paths": { "@extension": ["./src/plans/extension/index.ts", "./src/plans/extension-off.tsx"] }
   },
   "include": ["src"]
 }

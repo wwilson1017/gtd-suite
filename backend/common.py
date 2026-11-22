@@ -1,6 +1,6 @@
 """todo-gtd — leaf module: constants, errors, validation, recurrence math.
 
-Imports only paid limit data from this app (no cycles) and never imports FastAPI — the
+Imports only level limit data from this app (no cycles) and never imports FastAPI — the
 service layer raises the typed errors here and the router maps them to HTTP.
 """
 
@@ -54,7 +54,7 @@ BOARD_VERIFIED_CAPS = (100, 5_000)
 BOARD_SELF_HOST_CAPS = (1_000, 20_000)
 MAX_COLUMNS = 12
 # Simple Sites' (pages, short links): one page before an email is confirmed and no
-# links (an anonymous redirector is what spam looks for); the free tier after that.
+# links (an anonymous redirector is what spam looks for); the confirmed limits after that.
 SITE_ANON_CAPS = (1, 0)
 SITE_VERIFIED_CAPS = (500, 500)
 SITE_SELF_HOST_CAPS = (10_000, 10_000)
@@ -389,7 +389,7 @@ def brain_caps_for(verified: bool, hosted: bool, plan: str | None = None) -> tup
 
 
 def brains_cap_for(verified: bool, hosted: bool, plan: str | None = None) -> int:
-    """Active brains per account; the highest plan and self-host are displayed as Unlimited."""
+    """Active brains per account; the highest level and self-host are displayed as Unlimited."""
     return 100 if not hosted else caps.BRAINS.get(plan or "", 1)
 
 

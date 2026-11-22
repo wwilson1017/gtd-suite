@@ -1,44 +1,44 @@
-"""Plan derivation and feature gates."""
+"""Account levels: derivation, feature gates and their wording."""
 
 import datetime
 from backend import common, settings
-from backend.plans import settings as paid_settings
+from backend.plans import settings as plan_settings
 
-# Pro (billing.py) is derived from the subscription's Stripe status as last synced,
-# and lapses this long after the period it last heard about, so a missed renewal
-# event can never leave an account on Pro for good (billing.catch_up re-syncs first).
-PRO_STATUSES = ("active", "trialing", "past_due")
-PRO_GRACE = datetime.timedelta(days=3)
+# plan_status and plan_until are a level the extension (extension.py) last stored: live
+# in one of these states until three days after plan_until, so a missed update can never
+# leave an account raised for good. Without the extension they never change.
+LIVE_STATUSES = ("active", "trialing", "past_due")
+GRACE = datetime.timedelta(days=3)
 
 
-def pro_source(row) -> str | None:
-    """Where the list's plan comes from now (a row with PLAN_COLUMNS), the highest that
-    applies: "comp" for the operator's grant of Max (admin.py comp), which outranks the
-    Pro that Stripe sells; "stripe" for a live subscription within its period and grace;
-    "comp" for a grant of Pro; else None."""
+def source(row) -> str | None:
+    """Where the list's level comes from now (a row with PLAN_COLUMNS), the highest that
+    applies: "grant" for the operator's grant of max (admin.py comp), which outranks a
+    stored level; "status" for a live stored level within its period and grace; "grant"
+    for a grant of pro; else None."""
     now = common.utcnow()
     comp = bool(row["pro_comp_until"]) and now < datetime.datetime.fromisoformat(row["pro_comp_until"])
     if comp and row["comp_plan"] == "max":
-        return "comp"
+        return "grant"
     if (
-        row["plan_status"] in PRO_STATUSES
+        row["plan_status"] in LIVE_STATUSES
         and row["plan_until"]
-        and now <= datetime.datetime.fromisoformat(row["plan_until"]) + PRO_GRACE
+        and now <= datetime.datetime.fromisoformat(row["plan_until"]) + GRACE
     ):
-        return "stripe"
-    return "comp" if comp else None
+        return "status"
+    return "grant" if comp else None
 
 
 def of(row) -> str | None:
-    """The list's plan now (a row with PLAN_COLUMNS): "max", "pro" or None. While the suite
-    is free (paid_settings.free_max), a hosted account with a confirmed email is on Max,
-    derived here like every plan and never stored."""
-    if paid_settings.free_max() and settings.open_signup() and row["email_verified_at"]:
+    """The list's level now (a row with PLAN_COLUMNS): "max", "pro" (the stored tier keys)
+    or None. While the suite is free (settings.free_max), a hosted account with a confirmed
+    email is on max, derived here like every level and never stored."""
+    if plan_settings.free_max() and settings.open_signup() and row["email_verified_at"]:
         return "max"
-    source = pro_source(row)
-    if source is None:
+    found = source(row)
+    if found is None:
         return None
-    return "max" if source == "comp" and row["comp_plan"] == "max" else "pro"
+    return "max" if found == "grant" and row["comp_plan"] == "max" else "pro"
 
 
 def active(row) -> bool:
@@ -53,7 +53,7 @@ def unlimited(hosted: bool, plan: str | None) -> bool:
     return not hosted or plan == "max"
 
 
-SHORT_NAME_REFUSAL = "Short names need Pro or Max"
+NOT_INCLUDED = "{} are not part of this account's limits."
 
 
 def _needs_email(what: str) -> str:
@@ -63,28 +63,18 @@ def _needs_email(what: str) -> str:
 
 
 def short_name_refusal() -> str:
-    return _needs_email("Short names") if paid_settings.free_max() else SHORT_NAME_REFUSAL
+    return _needs_email("Short names") if plan_settings.free_max() else NOT_INCLUDED.format("Short names")
 
 
 def password_refusal() -> str:
-    from backend.plans import billing
+    from backend.plans import extension
 
-    if paid_settings.free_max():
+    if plan_settings.free_max():
         return _needs_email("Password-protected pages")
-    return f"Password-protected pages come with Pro.{billing.upsell(True)} Nothing was changed."
+    return f"{NOT_INCLUDED.format('Password-protected pages')}{extension.cap_note(True)} Nothing was changed."
 
 
-def short_name_guide() -> list[str]:
-    from backend.plans import billing
+def site_note(eligible: bool, kind: str) -> str:
+    from backend.plans import caps, extension
 
-    return (
-        ["Short names: Pro 10, Max 100; a lapsed plan has 30 days of grace before names are freed."]
-        if billing.selling()
-        else []
-    )
-
-
-def site_upsell(eligible: bool, kind: str) -> str:
-    from backend.plans import billing, caps
-
-    return billing.upsell(eligible, caps.SITE_PRO_CAPS[0 if kind == "page" else 1])
+    return extension.cap_note(eligible, caps.SITE_PRO_CAPS[0 if kind == "page" else 1])

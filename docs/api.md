@@ -49,8 +49,8 @@ from every grant, and an empty grant never falls back to another brain.
 **Staff links** reach Brain tools only, default to read, and label what they write with
 their name. Give staff a link carrying only the work brain.
 
-Limits: free accounts have 1 brain and 3 staff links, Pro 10 and 100, Max and self-hosted
-100 and 1,000. Keys are capped at 20 separately.
+Limits: an unconfirmed hosted account has 1 brain and 3 staff links; a confirmed or
+self-hosted one 100 and 1,000. Keys are capped at 20 separately.
 
 ## REST API
 

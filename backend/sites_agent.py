@@ -13,7 +13,7 @@ the person can, in the browser.
 
 from pathlib import Path
 
-from backend.plans import plans
+from backend.plans import extension, plans
 from backend import agent_cmd, apps, common, db, mcp_server, settings, sites
 from backend.agent_cmd import Arg, Command
 from backend.mcp_server import _arg, _client_name, _list_id, _tool
@@ -41,7 +41,7 @@ _DATA_GUIDE = (
     "Pages can save JSON objects to the absolute data_url returned by site_publish/site_get; "
     "use this instead of a PHP collector. Substitute that URL into the script below. "
     "Set data on site_publish/site_edit (PUBLISH/EDIT_SITE): " + _DATA_MODE + " "
-    "Data needs a confirmed email or paid tier on a hosted account, and an unlocked page. "
+    "Data needs a confirmed email on a hosted account, and an unlocked page. "
     "Each record is at most 300,000 UTF-8 bytes. GET takes last (1–20, default 1), by "
     "(visitor or owner), and up to 5 exact top-level scalar field filters. Keys use "
     "[A-Za-z_][A-Za-z0-9_]{0,39}; values have at most 200 characters; booleans, null and "
@@ -597,7 +597,7 @@ def _guide(ctx, row, today) -> dict:
         "rules": [
             "On hosted accounts, a new unconfirmed page comes down after 7 days. Confirm an email to keep it. "
             "After another 30 days it is deleted. Existing pages are grandfathered.",
-            *plans.short_name_guide(),
+            *extension.guide_lines(),
             "Pages are unlisted, not secret: never put passwords or keys in one.",
             "A signed file URL already handed out can keep working for at most 12 hours after a takedown, "
             "unpublish or password change.",

@@ -4,12 +4,14 @@ import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
-// @billing is the selling UI: src/plans/billing-off.tsx (nothing is sold), or a separate
-// billing package copied into src/plans/billing/ (git ignores it). tsconfig.app.json's
-// paths say the same; vitest.config.ts takes it from here.
-const sold = fileURLToPath(new URL('./src/plans/billing/index.ts', import.meta.url));
-export const billingAlias = {
-  '@billing': existsSync(sold) ? sold : fileURLToPath(new URL('./src/plans/billing-off.tsx', import.meta.url)),
+// @extension is the optional extension's screens: src/plans/extension-off.tsx (nothing), or
+// an installed extension's, copied into src/plans/extension/ (git ignores it).
+// tsconfig.app.json's paths say the same; vitest.config.ts takes it from here.
+const installed = fileURLToPath(new URL('./src/plans/extension/index.ts', import.meta.url));
+export const extensionAlias = {
+  '@extension': existsSync(installed)
+    ? installed
+    : fileURLToPath(new URL('./src/plans/extension-off.tsx', import.meta.url)),
 };
 
 // The policy pages live in public/policy but keep their root addresses (backend/pages.py
@@ -28,7 +30,7 @@ const policyPages: Plugin = {
 
 export default defineConfig({
   plugins: [react(), tailwindcss(), policyPages],
-  resolve: { alias: billingAlias },
+  resolve: { alias: extensionAlias },
   build: {
     target: ['es2022', 'safari16'],
     // The backend serves the build (backend/pages.py reads static/index.html).

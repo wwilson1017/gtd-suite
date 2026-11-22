@@ -406,7 +406,7 @@ export function TodoFront({
             </p>
             <div className="bento">
               <div className="box s2">
-                <div className="big">$0</div>
+                <div className="big">Free</div>
                 {hosted ? (
                   <>
                     <h4>Free to start</h4>

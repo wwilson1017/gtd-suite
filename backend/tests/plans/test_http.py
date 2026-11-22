@@ -1,4 +1,4 @@
-"""Plan cases moved from test_http.py."""
+"""Level cases moved from test_http.py."""
 
 import re
 from backend import brain, lists
@@ -225,23 +225,13 @@ def test_the_session_names_the_list_and_needs_no_x_list(new_list):
             "links": 3,
             "brains_label": "1",
             "links_label": "3",
-            "upsell": True,
+            "raisable": True,
             "storage": 25_000_000,
             "storage_used": 0,
         },
         "brains": [{"id": brain.first_brain(made["list_id"]), "name": "", "folder": "brain", "status": "active"}],
         "apps": ["todo", "projects", "notes"],  # a hosted account made in Todo starts with the family
         "ai_tools": [],  # no AI tool has called yet
-        "plan": {
-            "pro": False,
-            "tier": None,
-            "status": "",
-            "until": None,
-            "cancels": False,
-            "manageable": False,
-            "free": False,
-            "comp_until": None,
-            "source": None,
-        },
+        "plan": {"raised": False, "tier": None, "free": False},
     }
     assert re.fullmatch(r"[1-9]\d{3}-\d{4}", res.json()["account_no"])

@@ -85,9 +85,9 @@ on the volume. Uploads go straight from the browser or program to the store.
 4. From a checkout with the same variables, run `uv run pytest -m objectstore`. Leave Files
    off if it fails: the quota depends on the store refusing a wrong length or checksum.
 
-Limits: 100 GB self-hosted. Hosted Brain files need a confirmed email, then 500 MB free,
-10 GB Pro, 100 GB Max. A file is at most 5 GB (500 MB from the browser). File sites: 25 MB
-unconfirmed, 250 MB Pro, 1 GB Max or self-hosted, 1,000 files. Every version counts.
+Limits: 100 GB self-hosted. Hosted Brain files need a confirmed email, then 100 GB. A file
+is at most 5 GB (500 MB from the browser). File sites: 25 MB unconfirmed, 1 GB confirmed or
+self-hosted, 1,000 files. Every version counts.
 Snapshots don't include file bytes.
 
 Unreferenced Sites files are kept 30 days, then deleted. Signed file links already handed

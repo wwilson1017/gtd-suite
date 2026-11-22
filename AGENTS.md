@@ -61,17 +61,20 @@ backend/
                  todo_complete, comment_add, activity_list; PROJECT … PEOPLE commands, its guide part
   sites.py       Simple Sites: pages (HTML/Markdown) and short links at <SITES_BASE_URL>/<name->code;
                  caps (site_caps_for), one update path, lookup and render for pages.py, view
-                 counts (count_view in memory, flush_views each minute; shown with Pro only); page data
+                 counts (count_view in memory, flush_views each minute; shown on a raised level); page data
                  (visitor/owner records, indexed fields, quota counters, read cursors and browser Clear)
   sites_agent.py Simple Sites on the agent link: site_*/link_create tools, SITES … REPUBLISH and SITE_SYNC commands
-  plans/billing.py the billing seam: off (no sales, no billing routes, no-ops) unless a separate
-                 package, gtd_billing, imports; then every name hands over to it. Nothing else
-                 checks for the package
-  plans/caps.py  plan limits and plan column names/DDL; no app imports
-  plans/plans.py plan derivation, feature gates and plan wording
-  plans/routes.py the session plan block and the email guard
+  plans/         account levels: a hosted account's limits come from its level ("pro" and
+                 "max" are the stored tier keys), which only FREE_MAX, operator grants and the
+                 optional extension set
+  plans/extension.py the optional extension: off when not installed (no extra routes, notes,
+                 pages, commands; each name answers "nothing"); when the package gtd_extension
+                 imports, every name hands over to it. Nothing else checks for it
+  plans/caps.py  level limits and the level column names/DDL; no app imports
+  plans/plans.py level derivation, feature gates and their wording
+  plans/routes.py the session's level block and the email guard
   plans/settings.py FREE_MAX (free_max: the suite is free)
-  plans/admin.py comp, the disable/delete billing check's undo, and admin plan reports
+  plans/admin.py comp (grants), the disable/delete check's undo, and admin level reports
   plans/smoke.sh checks the hosted service's addresses after a deploy, without credentials
   site_host.py   isolated content hosts: body pages, file manifests, text cache, password passes and takedowns
   site_routes.py the Sites API under /api/app, with the own-address setting and browser-only deletion of pages and their records
@@ -134,12 +137,13 @@ frontend/        Vite + React 19 + Tailwind 4; builds into backend/static. One b
                  gtd-app meta (core/app.ts) makes /app the todo app, apps/projects-gtd or
                  apps/notes-gtd. Each app's colours: pages._shell stamps <html data-app>, and
                  index.css sets that app's brand-* and band-* tokens under [data-app="…"]
-                 src/plans/ holds everything about plans (limit wording, policy links); nothing
-                 outside it names a plan (plansBoundary.test.ts). What sells comes through the
-                 @billing alias: src/plans/billing-off.tsx (nothing), or a billing package's UI
-                 copied into src/plans/billing/ (git-ignored)
+                 src/plans/ holds everything about levels (limit wording, policy links); nothing
+                 outside it names a level (plansBoundary.test.ts). The optional extension's
+                 screens come through the @extension alias: src/plans/extension-off.tsx
+                 (nothing), or an installed extension's, copied into src/plans/extension/
+                 (git-ignored)
                  public/policy/ holds the policy pages, served at /terms.html … only with open
-                 signup; a billing package may serve its own (billing.policy_page)
+                 signup; an installed extension may serve its own pages (extension.page)
 docs/agent-commands.md   the generic Agent Commands spec the guide links to
 Dockerfile       frontend build, then Python 3.12 + uv, one uvicorn worker
 ```
@@ -240,19 +244,19 @@ the call budget charged; every other request goes to FastMCP untouched.
   Common Brain's Forget is the other: `POST /api/app/brain/…/forget`
   removes a memory or page with its whole history, for the person in the browser only.
   An agent archives, or hands over `brain_forget_link`, a link to the app that grants nothing.
-- **Pro is derived, never set.** While the suite is free (`plans/settings.free_max()`, the
-  default), `plans/plans.of` answers Max for a hosted account with a confirmed email
-  (`lists.email_verified_at`, one of `PLAN_COLUMNS`), never stored; an unconfirmed one keeps
-  the trial caps, a self-host its own. The app shows no plan, price or upsell then
-  (`plan.free`, `config.free`). Otherwise `plans/plans.of` reads `lists.plan_status` +
-  `plan_until`, which only the billing package writes (through `plans/billing.py`, the one
-  seam); without it they never change. The one other way in is the free grant,
+- **An account's level is derived, never set.** While the suite is free
+  (`plans/settings.free_max()`, the default), `plans/plans.of` answers max for a hosted
+  account with a confirmed email (`lists.email_verified_at`, one of `PLAN_COLUMNS`), never
+  stored; an unconfirmed one keeps the trial caps, a self-host its own. The app shows no level
+  then (`plan.free`, `config.free`). Otherwise `plans/plans.of` reads `lists.plan_status` +
+  `plan_until`, which only the optional extension writes (through `plans/extension.py`, the
+  one seam); without it they never change. The one other way in is a grant,
   `lists.pro_comp_until` + `comp_plan` (+ `comp_source`), set only by `plans/admin.py`: the
-  operator's `comp`, and Max for an approved Springform connect. Max exists only as that grant
-  (`plans/plans.of`), and outranks a subscription. Every SELECT that feeds `plans/plans.of`
-  names `plans/caps.PLAN_COLUMNS`. Every cap function takes `plan`; a new cap check passes
-  `plans/plans.of(row)` like the others. `admin.py disable` and `delete` refuse a list with a
-  billing customer unless the package is there to check it.
+  operator's `comp`, and max for an approved Springform connect. A max grant outranks a stored
+  level (`plans/plans.of`). Every SELECT that feeds `plans/plans.of` names
+  `plans/caps.PLAN_COLUMNS`. Every cap function takes `plan` (the level); a new cap check
+  passes `plans/plans.of(row)` like the others. `admin.py disable` and `delete` refuse a list
+  tied to an outside account (`stripe_customer`) unless the extension is there to check it.
 - **Simple Sites pages on the app and short hosts are always served sandboxed.**
   `pages._site` answers on those hosts, or at the main host's top level when Sites has no
   configured address; visitor pages, short names, data and unlock never answer under an app prefix,
@@ -260,7 +264,7 @@ the call budget charged; every other request goes to FastMCP untouched.
   blank origin and cannot use the visitor's session. Never add `allow-same-origin`, and never
   serve unsandboxed content there, whatever the configuration. Only the isolated content
   host below is exempt. A miss there is a wrong link (`wrong_token_status`).
-  A locked page (Pro, `sites.password_hash`) answers its form with 403 until the visitor's
+  A locked page (a raised level, `sites.password_hash`) answers its form with 403 until the visitor's
   `sp_<code>` pass checks out (`sites.unlocked`: expiry + HMAC keyed by the hash); every
   try at `/<address>/unlock` is charged to `ratelimit.password_limiter` before any hashing,
   and the hash never appears in an answer (`_view` turns it into `locked`).
@@ -367,7 +371,7 @@ the call budget charged; every other request goes to FastMCP untouched.
 - **The short host (`SITES_SHORT_URL`, e.g. ss.page) serves page and link addresses only.**
   `main._ShortHost` lets through `GET`/`HEAD /<address>` and `POST /<address>/unlock`, plus
   `GET`/`POST`/`OPTIONS /<address>/data`. One-segment short names resolve to link redirects
-  while the account has a paid tier or its 30-day grace has not passed. It sends every other
+  while the account has a raised level or its 30-day grace has not passed. It sends every other
   GET to the same path on `SITES_BASE_URL`, and 404s the rest, so no app, API,
   agent link, sign-in or session cookie ever answers there. `sites.address` hands out the
   short host; `SITES_BASE_URL` keeps serving the same addresses.

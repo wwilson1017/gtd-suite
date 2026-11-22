@@ -1,4 +1,4 @@
-"""Plans derived from the stored plan columns (plans.py): a subscription's last synced
+"""Levels derived from the stored level columns (plans.py): the extension's last stored
 status within its period and grace, the operator's grants, and the caps they set."""
 
 import datetime
@@ -31,10 +31,10 @@ def _row(list_id):
     return db.get_db().execute("SELECT * FROM lists WHERE id = ?", (list_id,)).fetchone()
 
 
-def test_pro_is_a_live_status_within_its_period_and_three_days_of_grace(L):
+def test_a_stored_level_is_live_within_its_period_and_three_days_of_grace(L):
     _plan(L, "active")
     assert plans.active(_row(L))
-    _plan(L, "past_due", days=-2)  # Stripe is retrying the card: still Pro
+    _plan(L, "past_due", days=-2)  # a stored level past due: still raised
     assert plans.active(_row(L))
     _plan(L, "active", days=-4)  # a renewal we never heard about: lapsed
     assert not plans.active(_row(L))
@@ -52,7 +52,7 @@ def test_pro_is_a_live_status_within_its_period_and_three_days_of_grace(L):
         (recordings, "recording_cap_for", lambda L: recordings._check_cap(db.get_db(), L)),
     ],
 )
-def test_every_apps_cap_check_asks_with_pro(L, monkeypatch, module, name, call):
+def test_every_apps_cap_check_asks_with_the_level(L, monkeypatch, module, name, call):
     seen = []
     real = getattr(common, name)
     monkeypatch.setattr(
@@ -85,28 +85,31 @@ def _comp(list_id, plan, days=30):
 def test_the_tier_is_the_highest_that_applies(L):
     assert plans.of(_row(L)) is None
     _comp(L, "pro")
-    assert plans.of(_row(L)) == "pro" and plans.pro_source(_row(L)) == "comp"
+    assert plans.of(_row(L)) == "pro" and plans.source(_row(L)) == "grant"
     _plan(L, "active")
-    assert plans.of(_row(L)) == "pro" and plans.pro_source(_row(L)) == "stripe"
-    _comp(L, "max")  # a Pro subscription plus a Max grant is Max, from the grant
-    assert plans.of(_row(L)) == "max" and plans.pro_source(_row(L)) == "comp"
+    assert plans.of(_row(L)) == "pro" and plans.source(_row(L)) == "status"
+    _comp(L, "max")  # a stored pro level plus a max grant is max, from the grant
+    assert plans.of(_row(L)) == "max" and plans.source(_row(L)) == "grant"
     assert plans.active(_row(L))
-    _comp(L, "max", days=-1)  # the grant ended: the subscription still holds
-    assert plans.of(_row(L)) == "pro" and plans.pro_source(_row(L)) == "stripe"
+    _comp(L, "max", days=-1)  # the grant ended: the stored level still holds
+    assert plans.of(_row(L)) == "pro" and plans.source(_row(L)) == "status"
     _plan(L, "canceled")
     assert plans.of(_row(L)) is None
 
 
-def test_no_upsell_where_pro_is_not_on_sale(L):
+def test_no_cap_note_without_the_extension(L):
     _confirm(L)
     for i in range(common.SITE_VERIFIED_CAPS[0]):
         sites.publish(L, f"# Page {i}")
     with pytest.raises(ValidationError) as refused:
         sites.publish(L, "# One more")
-    assert "Pro" not in str(refused.value)
+    cap = common.SITE_VERIFIED_CAPS[0]
+    assert (
+        str(refused.value) == f"This account holds {cap} pages, the limit. Update or delete one. Nothing was changed."
+    )
 
 
-def test_unconfirmed_subscription_keeps_small_site_and_storage_limits(L):
+def test_unconfirmed_stored_level_keeps_small_site_and_storage_limits(L):
     _plan(L, "active")
     row = _row(L)
     assert row["email_verified_at"] is None

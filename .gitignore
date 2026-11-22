@@ -19,5 +19,5 @@ data/
 # Frontend build output (served by backend/pages.py)
 backend/static/
 
-# A billing package's selling UI, copied in by a build that sells (frontend/vite.config.ts)
-frontend/src/plans/billing/
+# An installed extension's screens, copied in by a build that has one (frontend/vite.config.ts)
+frontend/src/plans/extension/

@@ -10,10 +10,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Session } from '../apps/todo-gtd/types';
 import type { Site, SiteCaps } from '../apps/sites/types';
 
-// Pro is not on sale here.
+// The extension offers nothing here.
 const todoApi = vi.hoisted(() => ({
   getSession: vi.fn(),
-  getConfig: vi.fn(async () => ({ billing: false })),
+  getConfig: vi.fn(async () => ({ offers: false })),
 }));
 vi.mock('../apps/todo-gtd/api', () => todoApi);
 const api = vi.hoisted(() => ({
@@ -104,15 +104,15 @@ afterEach(async () => {
 });
 
 describe('Sites', () => {
-  it('locks a page with a password on Pro, and takes a lock off', async () => {
+  it('locks a page with a password on a raised level, and takes a lock off', async () => {
     await show();
     expect([...host.querySelectorAll('button')].some((b) => b.textContent === 'Lock with a password')).toBe(false); // free: no lock
     await act(async () => {
       root.unmount();
     });
     root = createRoot(host);
-    const pro = { pro: true, status: 'active', until: '2027-01-01T00:00:00Z', cancels: false, manageable: true };
-    await show({ plan: pro });
+    const raised = { raised: true, tier: 'pro' as const };
+    await show({ plan: raised });
     api.updateSite.mockResolvedValue({ ...PAGE, locked: true });
     await act(async () => {
       button('Lock with a password').click();
@@ -128,7 +128,7 @@ describe('Sites', () => {
       root.unmount();
     });
     root = createRoot(host);
-    await show({ plan: pro }, [{ ...PAGE, locked: true }]);
+    await show({ plan: raised }, [{ ...PAGE, locked: true }]);
     expect(host.textContent).toContain('🔒 Password');
     await act(async () => {
       button('Remove password').click();
@@ -137,8 +137,8 @@ describe('Sites', () => {
   });
 
   it('keeps the typed password when the save fails', async () => {
-    const pro = { pro: true, status: 'active', until: '2027-01-01T00:00:00Z', cancels: false, manageable: true };
-    await show({ plan: pro });
+    const raised = { raised: true, tier: 'pro' as const };
+    await show({ plan: raised });
     api.updateSite.mockRejectedValue(new Error('busy'));
     await act(async () => {
       button('Lock with a password').click();
@@ -152,7 +152,7 @@ describe('Sites', () => {
     expect(still?.value).toBe('open sesame');
   });
 
-  it('shows views where the server sends them (Pro), and nothing where it does not', async () => {
+  it('shows views where the server sends them, and nothing where it does not', async () => {
     await show();
     expect(host.textContent).not.toMatch(/\bviews?\b/);
     await act(async () => {
@@ -163,7 +163,7 @@ describe('Sites', () => {
     expect(host.textContent).toContain('3 views');
   });
 
-  it('takes the bigger page size the plan allows (Max: 10 MB)', async () => {
+  it('takes the bigger page size the level allows (max: 10 MB)', async () => {
     await show({}, [], { pages: 10_000, links: 10_000, page_bytes: 10_000_000 });
     const input = host.querySelector<HTMLInputElement>('input[type=file]')!;
     const big = new File(['x'], 'deck.html');
@@ -176,7 +176,7 @@ describe('Sites', () => {
     expect(text).toHaveBeenCalled();
     expect(host.querySelector('[role=alert]')).toBeNull();
   });
-  it('lets a self-host without a plan lock pages and see view counts', async () => {
+  it('lets a self-host without a level lock pages and see view counts', async () => {
     await show({ hosted: false }, [{ ...PAGE, views: 3 }]);
     expect(host.textContent).toContain('3 views');
     await act(async () => {

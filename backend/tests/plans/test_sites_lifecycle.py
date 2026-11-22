@@ -1,4 +1,4 @@
-"""Plan cases moved from test_sites_lifecycle.py."""
+"""Level cases moved from test_sites_lifecycle.py."""
 
 from datetime import timedelta
 import pytest
@@ -62,7 +62,7 @@ def test_short_name_policy(account, name):
 @pytest.mark.parametrize("tier, cap", [("pro", 10), ("max", 100)])
 def test_short_name_caps_and_uniqueness(account, tier, cap):
     confirm_list(account)
-    with pytest.raises(ValidationError, match="Pro or Max"):
+    with pytest.raises(ValidationError, match="not part of this account.s limits"):
         sites.shorten(account, "https://example.com", short_name="hello")
     grant(account, tier)
     for n in range(cap):
@@ -154,9 +154,9 @@ def test_restore_keeps_live_names_and_grace_and_never_reclaims_snapshot_names(ac
     assert "has no short name" in capsys.readouterr().out
 
 
-def test_paid_account_with_unconfirmed_new_email_keeps_caps_and_no_expiry(account):
+def test_raised_account_with_unconfirmed_new_email_keeps_caps_and_no_expiry(account):
     grant(account)
-    with db.transaction() as conn:  # changed its address: unconfirmed again, still paying
+    with db.transaction() as conn:  # changed its address: unconfirmed again, still raised
         conn.execute("UPDATE lists SET email_verified_at = NULL WHERE id = ?", (account,))
-    pages = [sites.publish(account, "Paid") for _ in range(2)]
+    pages = [sites.publish(account, "Raised") for _ in range(2)]
     assert all(page["expires_at"] is None for page in pages)

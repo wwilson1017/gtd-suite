@@ -26,7 +26,7 @@ import secrets
 import sqlite3
 import string
 
-from backend.plans import caps as paid_caps
+from backend.plans import caps as plan_caps
 from backend import apps, common, db, lifecycle, sessions, settings
 
 # 43 letters and digits: 62**43 > 2**256, not enumerable. No - or _, which a chat's
@@ -159,7 +159,7 @@ def get_list(list_id: int) -> dict | None:
         .execute(
             "SELECT id, account_no, name, agent_token, capture_token, tz, email, email_verified_at, "
             "created_at, last_used_at, review_started_at, disabled_at, apps, sites_own_host, "
-            f"{paid_caps.ACCOUNT_COLUMNS} FROM lists WHERE id = ?",
+            f"{plan_caps.ACCOUNT_COLUMNS} FROM lists WHERE id = ?",
             (list_id,),
         )
         .fetchone()

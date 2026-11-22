@@ -1,4 +1,4 @@
-"""Plan cases moved from test_admin.py."""
+"""Level cases moved from test_admin.py."""
 
 import json
 import re
@@ -25,25 +25,27 @@ def test_an_older_database_gains_account_numbers_and_comp_plan(todo_db):
         db.get_db().execute("UPDATE lists SET account_no = ? WHERE id = ?", (number, second))
 
 
-def test_comp_plan_max_shows_in_show_stats_and_the_session(new_list, run):
+def test_a_max_grant_shows_in_show_stats_and_the_session(new_list, run):
     made = new_list()
     lid, client = made["list_id"], made["client"]
     number = lists.get_list(lid)["account_no"]
     trial = sites.publish(lid, "Trial")
     assert trial["expires_at"] is not None
-    code, out = run("comp", number, "--plan", "max", "--until", "2099-01-01")
-    assert code == 0 and "on Max for free until 2099-01-01" in out
+    code, out = run("comp", number, "--level", "max", "--until", "2099-01-01")
+    assert code == 0 and "granted max until 2099-01-01" in out
     assert sites.get_site(lid, trial["id"])["expires_at"] is None  # the grant keeps the trial page
     assert _log() == [("comp", lid)]
     data = json.loads(run("show", lid, "--json")[1])
-    assert data["tier"] == "max" and data["pro"] and data["plan"]["comp_plan"] == "max"
+    assert data["tier"] == "max" and data["raised"] and data["plan"]["comp_plan"] == "max"
     text = run("show", lid)[1]
-    assert "Plan: max" in text and "Free Max granted until 2099-01-01" in text
+    assert "Level: max" in text and "Granted max until 2099-01-01" in text
     assert json.loads(run("stats", "--json")[1])["max_now"] == 1
-    assert "(1 free, 1 on Max)" in run("stats")[1]
-    plan = client.get("/api/app/session").json()["plan"]
-    assert plan["tier"] == "max" and plan["pro"] and plan["source"] == "comp"
-    assert "on Pro for free for good" in run("comp", number.replace("-", ""))[1]  # plain comp grants Pro
+    assert "(1 granted, 1 on max)" in run("stats")[1]
+    level = client.get("/api/app/session").json()["plan"]
+    assert level["tier"] == "max" and level["raised"]
+    assert "granted pro for good" in run("comp", number.replace("-", ""))[1]  # a plain comp grants pro
+    assert "granted max" in run("comp", lid, "--plan", "max")[1]  # the old spelling still works
+    run("comp", lid)
     assert json.loads(run("show", lid, "--json")[1])["tier"] == "pro"
     assert run("comp", lid, "--off")[0] == 0
     assert json.loads(run("show", lid, "--json")[1])["tier"] is None

@@ -18,9 +18,9 @@ import datetime
 import json
 from typing import cast
 
-from backend.plans import caps as paid_caps
+from backend.plans import caps as plan_caps
 from backend.plans import plans
-from backend.plans import billing
+from backend.plans import extension
 from backend import apps, common, db, settings
 from backend.common import (
     AREA_FIELDS,
@@ -106,7 +106,7 @@ def _check_cap(conn, list_id: int, table: str) -> None:
     holds its cap, which common.caps_for picks from the hosting mode and whether
     the list's email is confirmed. Every creation path calls this. The caller
     holds the write transaction, so the count cannot go stale."""
-    row = conn.execute(f"SELECT {paid_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (list_id,)).fetchone()
+    row = conn.execute(f"SELECT {plan_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (list_id,)).fetchone()
     verified, hosted = bool(row and row["email_verified_at"]), settings.open_signup()
     plan = plans.of(row) if row else None
     cap = common.caps_for(verified, hosted, plan)[tuple(_FULL).index(table)]
@@ -117,7 +117,7 @@ def _check_cap(conn, list_id: int, table: str) -> None:
         raise ValidationError(
             f"This list holds {cap} {table} until an email is confirmed in {apps.settings_page()}. Nothing was changed."
         )
-    raise ValidationError(f"{_FULL[table].format(cap)}{billing.upsell(hosted and not plan)} Nothing was changed.")
+    raise ValidationError(f"{_FULL[table].format(cap)}{extension.cap_note(hosted and not plan)} Nothing was changed.")
 
 
 def _resolve_project_id(conn, list_id: int, name: str) -> int:

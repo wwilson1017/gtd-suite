@@ -1,10 +1,10 @@
-"""Fresh databases and pre-billing databases get identical plan columns."""
+"""Fresh databases and older databases get identical level columns."""
 
 from backend import db, lists
 from backend.plans import caps
 
 
-def test_paid_columns_migrate_with_original_types_defaults_and_names(todo_db):
+def test_level_columns_migrate_with_original_types_defaults_and_names(todo_db):
     conn = db.get_db()
     account = lists.create_list()["list_id"]
 
