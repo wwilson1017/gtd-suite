@@ -76,13 +76,11 @@ LEGACY_PATH_SQL = "kind = 'page' AND (data != '' OR data_records > 0 OR instr(bo
 
 def hosted(row) -> bool:
     """Whether this page's canonical address is on its isolated origin."""
-    return bool(
-        settings.sites_content_domain()
-        and db.get_db().execute("SELECT sites_own_host FROM lists WHERE id = ?", (row["list_id"],)).fetchone()[0]
-        and row["kind"] == "page"
-        and row["host"]
-        and not row["legacy_path"]
-    )
+    if not (settings.sites_content_domain() and row["kind"] == "page" and row["host"] and not row["legacy_path"]):
+        return False
+    if "sites_own_host" in row.keys():  # a listing reads the account's setting with its rows
+        return bool(row["sites_own_host"])
+    return bool(db.get_db().execute("SELECT sites_own_host FROM lists WHERE id = ?", (row["list_id"],)).fetchone()[0])
 
 
 def host_url(row) -> str:
@@ -510,7 +508,11 @@ def list_sites(
     """The list's pages and links, most recently changed first, without content: of
     one ``kind``, in one ``folder`` ('' for those in none), and matching ``query`` (words
     found in the title, note, folder, full address or a link's target, any case)."""
-    sql, params = f"SELECT {_COLUMNS}, list_id, host, legacy_path, suspended_at FROM sites WHERE list_id = ?", [list_id]
+    sql, params = (
+        f"SELECT {_COLUMNS}, list_id, host, legacy_path, suspended_at, "
+        "(SELECT sites_own_host FROM lists WHERE id = sites.list_id) AS sites_own_host FROM sites WHERE list_id = ?",
+        [list_id],
+    )
     if kind is not None:
         if kind not in ("page", "link"):
             raise ValidationError("kind must be 'page' or 'link'")

@@ -154,3 +154,20 @@ def test_folder_site_cannot_be_republished_while_off(client, monkeypatch):
     assert refused.status_code == 400 and "own address" in refused.text
     assert client.put("/api/app/sites/own-host", json={"on": True}).status_code == 200
     assert sites.update(lid, page["id"], status="published")["status"] == "published"
+
+
+def test_listing_reads_the_setting_once(L, monkeypatch):
+    monkeypatch.setenv("SITES_BASE_URL", "https://sites.example")
+    monkeypatch.setenv("SITES_CONTENT_DOMAIN", "content.example")
+    with db.transaction() as conn:
+        conn.execute("UPDATE lists SET sites_own_host = 1, email_verified_at = '2026-01-01' WHERE id = ?", (L,))
+    for i in range(5):
+        sites.publish(L, f"Page {i}")
+    seen: list[str] = []
+    db.get_db().set_trace_callback(seen.append)
+    try:
+        listed = sites.list_sites(L)
+    finally:
+        db.get_db().set_trace_callback(None)
+    assert all(".content.example/" in page["address"] for page in listed)
+    assert sum("sites_own_host" in sql for sql in seen) == 1
