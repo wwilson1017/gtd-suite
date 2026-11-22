@@ -82,7 +82,7 @@ backend/
                  atomic cross-brain moves; memories (short facts every AI loads; the person locks them) and
                  pages (Markdown/HTML at a path); every write a version (history, restore, the
                  what-changed feed, each AI's catch-up); the AI cap and the email nudge; secrets
-                 blanked; Forget; curator queues, probe evals, contact-drop warnings and snapshot exports.
+                 blanked; Forget; review dates and the monthly tidy hint (tidy_due); curator queues, probe evals, contact-drop warnings and snapshot exports.
                  Pass labels and reasons in history. No AI runs here, ever
   brain_import.py Markdown zip import: dry run, resumable chunks and passes, files, archive missing
   brain_routes.py the brain API under /api/app, with Forget (POST …/forget)
