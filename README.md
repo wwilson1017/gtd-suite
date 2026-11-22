@@ -12,7 +12,7 @@ in a browser and connect your own AI tools. The server runs no AI itself.
 - **Simple Sites:** publish pages, file sites and short links.
 - **Common Brain:** shared memories, pages and files with history and access rules.
 
-Would rather not host it? The same code runs at https://todogtd.com.
+Don't want to self-host it? No problem! It's 100% free: sign up and run the app suite at https://todogtd.com.
 
 ## Run it yourself
 
