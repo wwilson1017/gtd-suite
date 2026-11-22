@@ -163,6 +163,12 @@ def _restore_site_state(conn, list_id: int, live_sites: dict) -> None:
     for row in missing:
         conn.execute("UPDATE main.sites SET status = 'unpublished' WHERE id = ?", (row[0],))
         print(f"Warning: site {row[0]} restored unpublished because file bytes are no longer available.")
+    if not conn.execute("SELECT sites_own_host FROM main.lists WHERE id = ?", (list_id,)).fetchone()[0]:
+        for row in conn.execute(
+            "SELECT id FROM main.sites WHERE list_id = ? AND layout = 'files' AND status = 'published'", (list_id,)
+        ).fetchall():
+            conn.execute("UPDATE main.sites SET status = 'unpublished' WHERE id = ?", (row[0],))
+            print(f"Warning: folder site {row[0]} restored unpublished because own page addresses are off.")
     for row in conn.execute(
         "SELECT id, name FROM main.sites WHERE list_id = ? AND kind = 'page' AND host IS NULL", (list_id,)
     ).fetchall():

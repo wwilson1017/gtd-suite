@@ -7,7 +7,6 @@ PUBLIC_BASE_URL     the address every generated link starts with (the anchor app
 SITES_SHORT_URL     a shorter address Simple Sites hands its pages and links out at (e.g.
                     https://ss.page); its host serves those and nothing else (main.py)
 SITES_CONTENT_DOMAIN  isolated page domain, without a scheme; needs SITES_BASE_URL
-SITES_CONTENT_LISTS   while set, only these comma-separated list ids use content hosts
 OPEN_SIGNUP         true = hosted, anyone may create a list; default false = one list
 SIGNUP_CLOSED       true = hosted, but no new accounts: sign-in and existing accounts work (router.py)
 RESET_CODE          self-host only: the secret POST /api/reset accepts
@@ -193,12 +192,6 @@ def sites_content_domain() -> str:
     ):
         raise ValueError("SITES_CONTENT_DOMAIN must be a DNS domain without a scheme or port")
     return domain
-
-
-def sites_content_allowed(list_id: int) -> bool:
-    """An unset rollout gate allows everyone; an empty or invalid gate allows nobody."""
-    allowed = os.environ.get("SITES_CONTENT_LISTS")
-    return allowed is None or str(list_id) in {part.strip() for part in allowed.split(",")}
 
 
 def on_short_host(request: Request) -> bool:

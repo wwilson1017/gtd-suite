@@ -158,7 +158,7 @@ def get_list(list_id: int) -> dict | None:
         db.get_db()
         .execute(
             "SELECT id, account_no, name, agent_token, capture_token, tz, email, email_verified_at, "
-            "created_at, last_used_at, review_started_at, disabled_at, apps, "
+            "created_at, last_used_at, review_started_at, disabled_at, apps, sites_own_host, "
             f"{paid_caps.ACCOUNT_COLUMNS} FROM lists WHERE id = ?",
             (list_id,),
         )

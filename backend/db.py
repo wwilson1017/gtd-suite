@@ -63,6 +63,7 @@ _LISTS_DDL = (
     apps              TEXT NOT NULL DEFAULT '["todo"]',
     -- Projects' sample projects (samples.py): NULL never made, 'on' shown, 'off' put away.
     projects_sample   TEXT,
+    sites_own_host    INTEGER NOT NULL DEFAULT 0,
 """
     + caps.LISTS_DDL
 )
@@ -805,6 +806,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
     32. `project_links`: a new table (project_links.py); no existing project has a link.
     33. `connect_codes.client`, the grant source and the Springform stamp (in paid.caps.COLUMNS): plain added
         columns; every existing code is a Sites code and every existing grant the operator's.
+    34. `lists.sites_own_host`: opt-in own addresses, enabled once for existing folder sites.
     """
     from backend import brain, lists, sites  # here, not at the top: lists imports this module
 
@@ -1009,6 +1011,22 @@ def _migrate(conn: sqlite3.Connection) -> None:
             # Step 33: which client a connection code is for (connect.py).
             if "client" not in {r["name"] for r in conn.execute("PRAGMA table_info(connect_codes)")}:
                 conn.execute("ALTER TABLE connect_codes ADD COLUMN client TEXT NOT NULL DEFAULT 'sites'")
+            # Step 34: own page addresses are the person's choice; folder sites need them.
+            if "sites_own_host" not in {r["name"] for r in conn.execute("PRAGMA table_info(lists)")}:
+                conn.execute("ALTER TABLE lists ADD COLUMN sites_own_host INTEGER NOT NULL DEFAULT 0")
+                conn.execute(
+                    "UPDATE lists SET sites_own_host = 1 WHERE id IN (SELECT list_id FROM sites WHERE layout = 'files')"
+                )
+                # Accounts the retired SITES_CONTENT_LISTS gate already served on hosts keep them
+                # (unset meant everyone), so no handed-out host address stops answering.
+                if os.environ.get("SITES_CONTENT_DOMAIN", "").strip():
+                    gate = os.environ.get("SITES_CONTENT_LISTS")
+                    hosted = "SELECT list_id FROM sites WHERE kind = 'page' AND host IS NOT NULL AND legacy_path = 0"
+                    if gate is None:
+                        conn.execute(f"UPDATE lists SET sites_own_host = 1 WHERE id IN ({hosted})")
+                    else:
+                        ids = [int(part) for part in gate.split(",") if part.strip().isdigit()]
+                        conn.executemany("UPDATE lists SET sites_own_host = 1 WHERE id = ?", [(i,) for i in ids])
             # After the rebuild: SQLite refuses to drop a table a trigger names.
             for trigger in _rev_triggers():
                 conn.execute(trigger)

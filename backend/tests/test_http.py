@@ -1026,6 +1026,7 @@ def test_config_is_public_and_says_whether_this_browser_is_signed_in(client):
         },
         "moved": "",
         "sites_short_host": "",
+        "sites_content_domain": "",
     }
     client.post("/api/lists")
     assert client.get("/api/config").json()["signed_in"] is True

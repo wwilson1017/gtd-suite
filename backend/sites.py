@@ -76,13 +76,11 @@ LEGACY_PATH_SQL = "kind = 'page' AND (data != '' OR data_records > 0 OR instr(bo
 
 def hosted(row) -> bool:
     """Whether this page's canonical address is on its isolated origin."""
-    return bool(
-        settings.sites_content_domain()
-        and settings.sites_content_allowed(row["list_id"])
-        and row["kind"] == "page"
-        and row["host"]
-        and not row["legacy_path"]
-    )
+    if not (settings.sites_content_domain() and row["kind"] == "page" and row["host"] and not row["legacy_path"]):
+        return False
+    if "sites_own_host" in row.keys():  # a listing reads the account's setting with its rows
+        return bool(row["sites_own_host"])
+    return bool(db.get_db().execute("SELECT sites_own_host FROM lists WHERE id = ?", (row["list_id"],)).fetchone()[0])
 
 
 def host_url(row) -> str:
@@ -491,6 +489,10 @@ def update(
             if status not in STATUSES:
                 raise ValidationError("status must be 'published' or 'unpublished'")
             fields["status"] = status
+            if status == "published" and row["layout"] == "files" and content is None:
+                own = conn.execute("SELECT sites_own_host FROM lists WHERE id = ?", (list_id,)).fetchone()
+                if not own[0]:
+                    raise ValidationError(_needs_own_host())
         if fields:
             if set(fields) - {"note", "folder"}:  # filing and noting are not a change of the page
                 fields["updated_at"] = common.now_iso()
@@ -506,7 +508,11 @@ def list_sites(
     """The list's pages and links, most recently changed first, without content: of
     one ``kind``, in one ``folder`` ('' for those in none), and matching ``query`` (words
     found in the title, note, folder, full address or a link's target, any case)."""
-    sql, params = f"SELECT {_COLUMNS}, list_id, host, legacy_path, suspended_at FROM sites WHERE list_id = ?", [list_id]
+    sql, params = (
+        f"SELECT {_COLUMNS}, list_id, host, legacy_path, suspended_at, "
+        "(SELECT sites_own_host FROM lists WHERE id = sites.list_id) AS sites_own_host FROM sites WHERE list_id = ?",
+        [list_id],
+    )
     if kind is not None:
         if kind not in ("page", "link"):
             raise ValidationError("kind must be 'page' or 'link'")
@@ -1206,7 +1212,7 @@ def _manifest(manifest) -> list[dict]:
 def _live_list_in(conn, list_id: int):
     live, params = lists.live_where()
     row = conn.execute(
-        f"SELECT {paid_caps.PLAN_COLUMNS} FROM lists WHERE id = ? AND {live}", (list_id, *params)
+        f"SELECT sites_own_host, {paid_caps.PLAN_COLUMNS} FROM lists WHERE id = ? AND {live}", (list_id, *params)
     ).fetchone()
     if row is None:
         raise NotFoundError("Account not found")
@@ -1218,12 +1224,19 @@ def _file_limits(row) -> tuple[int, int]:
     return common.site_bytes_for(*args), common.storage_quota_for(*args)
 
 
+def _needs_own_host() -> str:
+    return (
+        "A folder site needs its own address. Ask the person to turn on 'Own address for each page' "
+        f"in {apps.settings_page()} ({settings.app_url('sites')}/app/connect/addresses); an AI cannot turn it on."
+    )
+
+
 def _sync_ready_in(conn, list_id: int, size: int) -> int:
     row = _live_list_in(conn, list_id)
     if not settings.sites_content_domain() or not settings.files_s3():
         raise ValidationError("File sync needs a content domain and a file store")
-    if not settings.sites_content_allowed(list_id):
-        raise ValidationError("File sync is not enabled for this account yet")
+    if not row["sites_own_host"]:
+        raise ValidationError(_needs_own_host())
     limit, quota = _file_limits(row)
     _fits(size, limit)
     return quota

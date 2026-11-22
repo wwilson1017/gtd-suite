@@ -73,8 +73,23 @@ describe('SitesConnectFlow', () => {
     expect(host.textContent).toContain(code); // shown once this code made the account
     expect(api.todoFetch).not.toHaveBeenCalled();
     await click('Approve');
-    expect(api.todoFetch).toHaveBeenCalledWith(`/connect/${code}`, { method: 'POST', body: '{}' });
+    expect(api.todoFetch).toHaveBeenCalledWith(`/connect/${code}`, {
+      method: 'POST',
+      body: JSON.stringify({ own_host: true }),
+    });
     expect(host.textContent).toContain('Return to your terminal');
+  });
+  it('lets the person decline own page addresses', async () => {
+    await mount();
+    await click('Create account');
+    const checkbox = host.querySelector<HTMLInputElement>('input[type=checkbox]')!;
+    expect(checkbox.checked).toBe(true);
+    await act(async () => checkbox.click());
+    await click('Approve');
+    expect(api.todoFetch).toHaveBeenCalledWith(`/connect/${code}`, {
+      method: 'POST',
+      body: JSON.stringify({ own_host: false }),
+    });
   });
   it('does not require email', async () => {
     await mount();
@@ -96,15 +111,15 @@ describe('SitesConnectFlow', () => {
     expect(host.textContent).toContain('Type the code shown in your terminal');
     expect(host.textContent).not.toContain(code); // the URL's code is never shown to an account that must type it
     expect(button('Approve').disabled).toBe(true);
-    await fill('input', 'WRNG-2345');
+    await fill('input:not([type=checkbox])', 'WRNG-2345');
     api.todoFetch.mockRejectedValueOnce(new ApiError(400, 'Type the code shown in your terminal', 'refused'));
     await click('Approve');
     expect(api.todoFetch).toHaveBeenCalledWith(`/connect/${code}`, {
       method: 'POST',
-      body: JSON.stringify({ typed_code: 'WRNG-2345' }),
+      body: JSON.stringify({ typed_code: 'WRNG-2345', own_host: true }),
     });
     expect(host.querySelector('[role=alert]')).not.toBeNull();
-    await fill('input', code);
+    await fill('input:not([type=checkbox])', code);
     await click('Approve');
     expect(host.textContent).toContain('Approved.');
   });
@@ -122,6 +137,7 @@ describe('SitesConnectFlow', () => {
     expect(button('Create account').disabled).toBe(true); // its free grant needs a confirmed email
     await fill('input[type=email]', 'me@example.com');
     await click('Create account');
+    expect(host.querySelector('input[type=checkbox]')).toBeNull();
     expect(host.textContent).toContain('Connect Springform to your GTD account');
     expect(host.textContent).toContain('A Springform install wants to use your GTD account');
     await click('Approve');

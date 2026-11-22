@@ -36,13 +36,14 @@ from scripts import admin, restore_list
 def account(store, monkeypatch):
     monkeypatch.setenv("SITES_BASE_URL", "https://sites.example")
     monkeypatch.setenv("SITES_CONTENT_DOMAIN", "content.example")
-    monkeypatch.delenv("SITES_CONTENT_LISTS", raising=False)
     lid = lists.create_list("UTC")["list_id"]
     confirm_list(lid)
     turn_on(lid, "sites")
     with site_host._cache_lock:
         site_host._cache.clear()
         site_host._cache_size = 0
+    with db.transaction() as conn:
+        conn.execute("UPDATE lists SET sites_own_host = 1 WHERE id = ?", (lid,))
     return lid
 
 
@@ -140,6 +141,8 @@ def test_idempotent_reservations_reuse_and_checksum(store, account):
         sites.sync(account, [item("index.html", b"hello", size=1)], site_id=page["id"])
     other = lists.create_list("UTC")["list_id"]
     confirm_list(other)
+    with db.transaction() as conn:
+        conn.execute("UPDATE lists SET sites_own_host = 1 WHERE id = ?", (other,))
     assert len(sites.sync(other, manifest(data), client_ref="deck")["missing"]) == 2
     with pytest.raises(NotFoundError):
         sites.sync(other, manifest(data), site_id=page["id"])
@@ -152,10 +155,12 @@ def test_configuration_and_live_checks(store, account, monkeypatch):
             m.delenv(setting)
             with pytest.raises(ValidationError, match="needs a content domain and a file store"):
                 sites.sync(account, entries, client_ref="d")
-    monkeypatch.setenv("SITES_CONTENT_LISTS", str(account + 1))
-    with pytest.raises(ValidationError, match="not enabled"):
+    with db.transaction() as conn:
+        conn.execute("UPDATE lists SET sites_own_host = 0 WHERE id = ?", (account,))
+    with pytest.raises(ValidationError, match="A folder site needs its own address.*an AI cannot turn it on"):
         sites.sync(account, entries, client_ref="d")
-    monkeypatch.delenv("SITES_CONTENT_LISTS")
+    with db.transaction() as conn:
+        conn.execute("UPDATE lists SET sites_own_host = 1 WHERE id = ?", (account,))
 
     def disable():
         with db.transaction() as conn:
@@ -531,3 +536,14 @@ def test_reconcile_never_touches_another_deployments_prefix(store, monkeypatch):
         monkeypatch.setenv("SITES_FILES_PREFIX", bad)
         with pytest.raises(ValueError):
             app_settings.sites_files_prefix()
+
+
+def test_restore_unpublishes_folder_sites_while_own_addresses_are_off(store, account, capsys):
+    page = publish(store, account)
+    before = backup.snapshot()
+    sites.update(account, page["id"], status="unpublished")
+    with db.transaction() as conn:
+        conn.execute("UPDATE lists SET sites_own_host = 0 WHERE id = ?", (account,))
+    restore_list.restore(before, account, db.db_path())
+    assert sites.get_site(account, page["id"])["status"] == "unpublished"
+    assert "own page addresses are off" in capsys.readouterr().out

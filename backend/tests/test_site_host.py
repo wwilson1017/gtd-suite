@@ -18,11 +18,12 @@ def hosted(L, monkeypatch, confirm):
     monkeypatch.setenv("SITES_BASE_URL", "https://sites.example")
     monkeypatch.setenv("SITES_SHORT_URL", "https://ss.example")
     monkeypatch.setenv("SITES_CONTENT_DOMAIN", "content.example")
-    monkeypatch.delenv("SITES_CONTENT_LISTS", raising=False)
     confirm(L)
     turn_on(L, "sites")
     ratelimit.clear_all()
     sites.flush_views()
+    with db.transaction() as conn:
+        conn.execute("UPDATE lists SET sites_own_host = 1 WHERE id = ?", (L,))
     return L
 
 
@@ -294,21 +295,22 @@ def test_new_data_page_uses_absolute_cross_origin_data_url(hosted, browser):
     assert browser.get(page["address"] + "data").status_code == 404
 
 
-def test_rollout_gate_covers_all_addresses_and_lookups(hosted, browser, monkeypatch, confirm):
+def test_account_setting_covers_all_addresses_and_lookups(hosted, browser, monkeypatch, confirm):
     other = lists.create_list("UTC")["list_id"]
     confirm(other)
     pages = [sites.publish(lid, "Hello") for lid in (hosted, other)]
-    monkeypatch.setenv("SITES_CONTENT_LISTS", f" {hosted}, 999999 ")
     for lid, page, allowed in zip((hosted, other), pages, (True, False)):
         expected = page["address"] if allowed else old_url(page)
         assert sites.get_site(lid, page["id"])["address"] == expected
         assert sites.list_sites(lid)[0]["address"] == expected
         assert bool(sites.lookup_host(row(page)["host"])) is allowed
-        assert browser.get(page["address"]).status_code == (200 if allowed else 404)
+        assert browser.get(sites.host_url(row(page))).status_code == (200 if allowed else 404)
         assert browser.get(old_url(page)).status_code == (302 if allowed else 200)
-    monkeypatch.setenv("SITES_CONTENT_LISTS", "")
+    with db.transaction() as conn:
+        conn.execute("UPDATE lists SET sites_own_host = 0 WHERE id = ?", (hosted,))
     assert not sites.hosted(row(pages[0]))
-    monkeypatch.delenv("SITES_CONTENT_LISTS")
+    with db.transaction() as conn:
+        conn.execute("UPDATE lists SET sites_own_host = 1 WHERE id = ?", (other,))
     assert sites.hosted(row(pages[1]))
     monkeypatch.delenv("SITES_CONTENT_DOMAIN")
     assert sites.get_site(hosted, pages[0]["id"])["address"] == old_url(pages[0])

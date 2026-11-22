@@ -664,6 +664,7 @@ def get_session(request: Request, response: Response):
     return {
         "list_id": owner,
         "account_no": row["account_no"],
+        "sites_own_host": bool(row["sites_own_host"]),
         "state": lifecycle.state(row),
         "email": row["email"],
         "verified": verified,
@@ -714,6 +715,7 @@ def get_config(request: Request, response: Response):
         "moved": settings.moved_to(request),
         # Where Simple Sites hands its addresses out, when that is not its own host.
         "sites_short_host": urlsplit(settings.sites_short_url()).netloc,
+        "sites_content_domain": settings.sites_content_domain(),
     }
 
 
@@ -748,7 +750,14 @@ def poll_connect(body: ConnectPoll, request: Request, response: Response):
 
 @router.post("/app/connect/{user_code}")
 def approve_connect(user_code: str, body: ConnectApproval | None = None, owner: int = Depends(session_owner)):
-    _call(connect.approve, owner, user_code, body.typed_code if body else None, body.client if body else "sites")
+    _call(
+        connect.approve,
+        owner,
+        user_code,
+        body.typed_code if body else None,
+        body.client if body else "sites",
+        body.own_host if body else None,
+    )
     return {"ok": True}
 
 

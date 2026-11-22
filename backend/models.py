@@ -109,6 +109,7 @@ class ConnectStart(BaseModel):
 
 
 class ConnectApproval(BaseModel):
+    own_host: bool | None = None
     typed_code: str | None = Field(default=None, max_length=32)
     client: Literal["sites", "springform"] = "sites"
 

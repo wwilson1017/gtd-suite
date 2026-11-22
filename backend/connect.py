@@ -58,7 +58,9 @@ def created_in(conn, code: str, list_id: int) -> None:
     conn.execute("UPDATE connect_codes SET created_list_id = ? WHERE user_code = ?", (list_id, code))
 
 
-def approve(list_id: int, code: str, typed_code: str | None, client: str = "sites") -> None:
+def approve(
+    list_id: int, code: str, typed_code: str | None, client: str = "sites", own_host: bool | None = None
+) -> None:
     """``client`` is what the approve page told the person it was connecting; a code for
     another client is refused, so the page's wording always matches what approval does."""
     with db.transaction() as conn:
@@ -86,6 +88,8 @@ def approve(list_id: int, code: str, typed_code: str | None, client: str = "site
                 paid_admin.springform_comp_in(conn, list_id)
         else:
             lists.set_app_in(conn, list_id, "sites", True)
+            if own_host is True:
+                conn.execute("UPDATE lists SET sites_own_host = 1 WHERE id = ?", (list_id,))
         conn.execute(
             "UPDATE connect_codes SET list_id = ?, approved_at = ? WHERE user_code = ?",
             (list_id, common.now_iso(), code),

@@ -164,6 +164,7 @@ def test_route_table_is_exactly_the_planned_surface(client):
         ("GET", f"{a}/sites"),
         ("POST", f"{a}/sites"),
         ("POST", f"{a}/sites/links"),
+        ("PUT", f"{a}/sites/own-host"),
         ("GET", f"{a}/sites/{{site_id}}"),
         ("PUT", f"{a}/sites/{{site_id}}"),
         ("DELETE", f"{a}/sites/{{site_id}}"),
@@ -214,6 +215,7 @@ def test_the_session_names_the_list_and_needs_no_x_list(new_list):
     assert res.json() == {
         "list_id": made["list_id"],
         "account_no": lists.get_list(made["list_id"])["account_no"],
+        "sites_own_host": False,
         "state": "active",
         "email": None,
         "verified": False,

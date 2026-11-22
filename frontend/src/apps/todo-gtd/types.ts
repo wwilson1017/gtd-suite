@@ -107,6 +107,7 @@ export interface NewList {
 
 /** GET /api/app/session — the app's first call: which list this browser is in. */
 export interface Session {
+  sites_own_host?: boolean;
   brains?: import('./brainSelection').BrainSummary[];
   list_id: number;
   /** The account's random number (1234-5678): what a person says to name their account. */
