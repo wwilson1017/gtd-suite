@@ -168,7 +168,8 @@ def brain_start() -> dict:
     """Call this first in every conversation, before answering. Returns the rules
     every AI follows here, every memory (locked ones are the person's own words),
     the pages, what changed since you were last here, where things go across the
-    person's apps, and whether to set up or tidy the brain."""
+    person's apps, whether to set up or tidy the brain, and some days a `tickle`: one
+    question the brain cannot answer, to ask the person."""
     carried = _scope()
     results, mems = [], []
     for b in carried:
@@ -184,6 +185,14 @@ def brain_start() -> dict:
             part["set_up"] = (
                 "This brain is unnamed. Offer the naming interview in brain_onboard, then brain_setup with the person's agreement."
             )
+        tickle = part.pop("tickle", None)
+        # One question per chat, and none for a key that cannot record the ask.
+        if tickle and not any("tickle" in r for r in results) and (_key.get() or {}).get("access") != "read":
+            tickle["do"] = _prose(b, tickle["do"])  # the question itself is data
+            if len(carried) > 1:
+                tickle["save_to"] = [f"{b['folder']}/{p}" for p in tickle.get("save_to", [])]
+                tickle["do"] += f" Pass brain={b['folder']}."
+            part["tickle"] = tickle
         results.append(part)
     shown, left = store._core(mems)
     out = (
@@ -523,7 +532,22 @@ def brain_onboard_done(brain: _arg(str | None, "Brain folder; defaults to the fi
     """Mark this AI's set-up done. Returns the one line the person pastes into
     this AI's custom instructions, so every chat starts with the brain."""
     b = _select(brain)
-    return store.onboarded(b["id"], _by())
+    out = store.onboarded(b["id"], _by())
+    if "top_questions" in out:
+        out["top_questions"] = _prose(b, out["top_questions"])
+    return out
+
+
+@_tool("Record a tickle", read_only=False, app="brain")
+def brain_tickle_record(
+    question: _arg(str, "The tickle's question, exactly as brain_start gave it"),
+    brain: _arg(str | None, "Brain folder; defaults to the first brain") = None,
+) -> dict:
+    """Record that you asked the person the `tickle` question from brain_start, whether
+    they answered or skipped it: it rests for five days, and no other question is
+    offered today. Save their answer first, with the usual write tools."""
+    b = _select(brain)
+    return store.tickle_record(b["id"], question, _by())
 
 
 @_tool("Tidy the brain", read_only=True, app="brain")

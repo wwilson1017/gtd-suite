@@ -65,6 +65,7 @@ export function BrainHome() {
             <MemoryList data={data} fresh={fresh} reload={reload} />
             <PagesPanel data={data} fresh={fresh} />
           </div>
+          {!!data.misses?.length && <Misses misses={data.misses} />}
         </div>
       )}
       {!data && !error && <p className="text-sm text-muted">Loading your brain…</p>}
@@ -361,6 +362,30 @@ function MemoryRow({
 }
 
 // ── Pages ─────────────────────────────────────────────────────────────────────
+
+function Misses({ misses }: { misses: NonNullable<Overview['misses']> }) {
+  return (
+    <section className="cb-panel p-4 sm:p-5" aria-labelledby="cb-misses">
+      <h2 id="cb-misses" className="font-heading text-lg font-bold text-white">
+        Questions your brain couldn&rsquo;t answer
+      </h2>
+      <p className="mt-1 text-xs text-muted">
+        What your AIs searched for and didn&rsquo;t find. Tell an AI the answer, or add a memory, and it leaves this
+        list.
+      </p>
+      <ul className="mt-3 space-y-1">
+        {misses.map((m) => (
+          <li key={m.query} className="flex items-baseline gap-2 px-2 py-1.5">
+            <span className="min-w-0 flex-1 truncate text-sm text-white">{m.query}</span>
+            <span className="shrink-0 text-xs text-muted">
+              asked {m.asked === 1 ? 'once' : `${m.asked} times`} · {ago(m.last)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
 
 function PagesPanel({ data, fresh }: { data: Overview; fresh: Set<string> }) {
   const [adding, setAdding] = useState(false);

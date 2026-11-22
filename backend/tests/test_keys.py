@@ -624,6 +624,7 @@ def gate_arguments(multi):
         "brain_curate": {},
         "brain_forget_link": {"kind": "page", "id": multi["public"]["id"]},
         "brain_eval": {},
+        "brain_tickle_record": {"question": "public"},
         "brain_export_link": {},
         "brain_setup": {"name": "Work", "description": "Work only", "rules": ["Work only"]},
     }
@@ -704,6 +705,7 @@ async def test_every_brain_tool_obeys_the_grant(connect, http, multi, multi_stor
             "brain_onboard_done": {"brain": "personal"},
             "brain_curate": {"brain": "personal"},
             "brain_eval": {"brain": "personal"},
+            "brain_tickle_record": {"brain": "personal", "question": "public"},
             "brain_export_link": {"brain": "personal"},
         }.items():
             await invoke(name, arguments, refused=True)

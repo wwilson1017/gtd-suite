@@ -574,6 +574,15 @@ CREATE TABLE IF NOT EXISTS brain_misses (
     at          TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_brain_misses_list ON brain_misses(list_id, at);
+-- Questions an AI asked the person on the brain's behalf (brain.tickle_record): when and how
+-- often, so a question rests. Bookkeeping, not content: its rows go with their brain.
+CREATE TABLE IF NOT EXISTS brain_tickles (
+    brain_id    INTEGER NOT NULL REFERENCES brains(id) ON DELETE CASCADE,
+    question    TEXT NOT NULL,
+    last_at     TEXT NOT NULL,
+    count       INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (brain_id, question)
+);
 -- Brain search's full-text index over pages and memories: _migrate step 22 (_BRAIN_FTS).
 
 -- Common Brain's files (files.py), one row per version; the bytes are in the object store

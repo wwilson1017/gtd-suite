@@ -65,6 +65,7 @@ const OVERVIEW = {
   caps: { ais: 1, memories: 50, pages: 10 },
   nudge: true,
   custom_instruction: 'I use Common Brain…',
+  misses: [{ query: 'wifi password', asked: 3, last: AT }],
 };
 
 let overviewCalls = 0;
@@ -156,6 +157,9 @@ describe('Root on Common Brain', () => {
     expect(host.textContent).toContain('2 of 50');
     expect(host.textContent).toContain('Add your email to keep growing');
     expect(host.textContent).toContain('Sam');
+    // What AIs searched for and did not find.
+    expect(host.querySelector('[aria-labelledby="cb-misses"]')!.textContent).toContain('wifi password');
+    expect(host.textContent).toContain('asked 3 times');
     // The connected AIs show when each last opened the brain, never a set-up state.
     const strip = host.querySelector('[aria-label="Connected AIs"]')!.textContent;
     expect(strip).toContain('ChatGPT');

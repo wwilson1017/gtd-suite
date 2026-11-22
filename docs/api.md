@@ -160,6 +160,13 @@ logs no misses. Eval reads `- id: query => expected; expected` lines from `<fold
 and appends the score to `<folder>/scorecard`. Write tools take `pass_label` and `reason`
 for the history.
 
+Some days `brain_start` returns a `tickle`: one question the brain can't answer, for the AI
+to ask the person. It is the first line of `curator/golden` whose probe fails, else a search
+missed twice or more in 30 days. After asking (and saving the answer on the `save_to` page,
+or with `brain_remember`), call `brain_tickle_record(question)`: the question rests five
+days and no other is offered that day. The set-up (`brain_onboard`) asks for the person's
+top questions and writes `curator/golden`.
+
 ## Site sync
 
 With a file store and a content domain, and "Own address for each page" on in Sites

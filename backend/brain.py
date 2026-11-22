@@ -1761,6 +1761,9 @@ def start(brain_id: int, by: str, apps_on: list[str], *, restricted: bool = Fals
             f"The memory is nearly full ({n_mems} of {plan['memories']}). Offer the "
             "person a tidy: call brain_curate and follow it."
         )
+    tickle = None if restricted or nudge else _tickle(brain_id, by)
+    if tickle:
+        out["tickle"] = tickle
     return out
 
 
@@ -1791,6 +1794,12 @@ def onboard_script(brain_id: int, by: str) -> dict:
             "Interview the gaps: from the checklist below, ask about the topics neither you nor "
             "the brain covers, one or two questions at a time, five or six questions at most. "
             "Save each answer as you go.",
+            "Top questions: ask what the person most wants this brain to answer, up to 20 "
+            "questions. Write each as one line on the page curator/golden: - q1: <the few words "
+            "you would search for> => <the path of the page that answers it> (where there is no "
+            "answer yet, the page it will go on, like people/sam). If curator/golden exists, add "
+            "only new lines with brain_page_append. Then call brain_eval: a question it fails "
+            "comes back in brain_start, one a day, for an AI to ask the person.",
             "Put anything longer than a sentence on a page (people/<name>, projects/<name>), and "
             "append one line to today's journal, daily/<YYYY-MM-DD>: who set up the brain and "
             "how many memories it holds.",
@@ -1826,6 +1835,14 @@ def onboarded(brain_id: int, by: str) -> dict:
         "custom_instruction": CUSTOM_INSTRUCTION,
         "where_to_paste": WHERE_TO_PASTE,
         "say": "Paste this line into my custom instructions, so I check the brain every time.",
+        **(
+            {}
+            if _tickle_pool(db.get_db(), brain_id)[0]
+            else {
+                "top_questions": "curator/golden has no questions yet: do brain_onboard's Top questions "
+                "step, so brain_eval has a score and the brain can ask for what it is missing."
+            }
+        ),
     }
 
 
@@ -1944,12 +1961,13 @@ def curate(
     rules = _curator_rules(conn, brain_id)
     required = _front(rules or "").get("required", [])
     required = required if isinstance(required, list) else []
-    now_page = False
+    now_page = golden = False
     for p in conn.execute(
         "SELECT path, body, updated_at FROM brain_pages WHERE brain_id = ? AND status = 'active' ORDER BY path",
         (brain_id,),
     ):
         now_page |= p["path"] == "now"
+        golden |= p["path"] == f"{folder}/golden"
         parts = set(p["path"].split("/"))
         if not parts & {"archive", "curator"}:
             if "inbox" in parts and "daily" not in parts and len(queue["inbox"]) < 20:
@@ -2012,6 +2030,9 @@ def curate(
                 {"id": m["id"], "text": m["text"]} for m in mems if len(m["text"]) > 200 and not m["locked"]
             ][:20],
             "now_page": "exists" if now_page else "missing: make it",
+            "golden": "exists"
+            if golden
+            else "missing: ask the person's top questions and write the golden page (brain_onboard has the step)",
         },
         "counts": {
             "memories": f"{_count(conn, 'brain_memories', brain_id)} of {plan['memories']}",
@@ -2020,26 +2041,31 @@ def curate(
     }
 
 
+def _golden(body: str) -> list[tuple[str, str, list[str]]]:
+    """The golden page's lines, - <id>: <query> => <expected>; <expected>, as (id, query, expected)."""
+    lines = (re.fullmatch(r"\s*-\s+([^:]+):\s*(.+?)\s*=>\s*(.+)\s*", line) for line in body.splitlines())
+    return [(m[1].strip(), m[2], [e.strip() for e in m[3].split(";") if e.strip()]) for m in lines if m]
+
+
+def _probe(brain_id: int, query: str, expected: list[str], by: str) -> bool:
+    """Whether every expected string is in a top-10 page's path or title. Logs no miss."""
+    try:
+        hits = search(brain_id, query, by=by, limit=10, probe=True)["pages"]
+    except ValidationError:
+        return False
+    strings = [p[k] for p in hits for k in ("path", "title")]
+    return bool(expected) and all(any(e in s for s in strings) for e in expected)
+
+
 def evaluate(brain_id: int, folder: str = "curator", by: str = YOU) -> dict:
     """Probe the golden questions and append the score to the curator's scorecard."""
     folder = path_of(folder)
     golden = get_page(brain_id, path=f"{folder}/golden")
     failures, total = [], 0
-    for line in golden["body"].splitlines():
-        match = re.fullmatch(r"\s*-\s+([^:]+):\s*(.+?)\s*=>\s*(.+)\s*", line)
-        if not match:
-            continue
-        ident, query, expected = match.groups()
-        expected = [e.strip() for e in expected.split(";") if e.strip()]
+    for ident, query, expected in _golden(golden["body"]):
         total += 1
-        try:
-            hits = search(brain_id, query, by=by, limit=10, probe=True)["pages"]
-            strings = [p[k] for p in hits for k in ("path", "title")]
-            passed = bool(expected) and all(any(e in s for s in strings) for e in expected)
-        except ValidationError:
-            passed = False
-        if not passed:
-            failures.append(ident.strip())
+        if not _probe(brain_id, query, expected, by):
+            failures.append(ident)
     if not total:
         raise ValidationError("The golden page needs lines: - <id>: <query> => <expected>; <expected>")
     score = total - len(failures)
@@ -2050,6 +2076,158 @@ def evaluate(brain_id: int, folder: str = "curator", by: str = YOU) -> dict:
         by=by,
     )
     return {"score": score, "n": total, "failures": failures}
+
+
+# ── Tickles: one unanswered question a day, for an AI to ask the person ───────
+
+GOLDEN_PAGE = "curator/golden"
+TICKLE_DO = (
+    "Only if the person is in this chat: ask them this one question when the moment suits, once. "
+    "Save what they say with its source (on the save_to page when there is one, so the question "
+    "passes; else brain_remember), then call brain_tickle_record with the question, also when "
+    f"they skip it, so it rests for {common.TICKLE_REST_DAYS} days. Nobody to ask (an unattended run): do nothing."
+)
+
+
+def _question(text) -> str:
+    """A question's one identity for picking, resting and recording (curate groups misses the same way)."""
+    return " ".join(re.sub(r"^\[[^\]]*\]\s*", "", str(text or "")).lower().split())
+
+
+def _miss_groups(conn, brain_id: int) -> list[dict]:
+    """The last 30 days of misses, one per question, most asked first. `raw` keeps the
+    words as last searched: an OR between them must stay an OR."""
+    month = common.to_iso(common.utcnow() - datetime.timedelta(days=30))
+    groups: dict[str, dict] = {}
+    for r in conn.execute(
+        "SELECT query, at FROM brain_misses WHERE brain_id = ? AND at > ? ORDER BY id", (brain_id, month)
+    ):
+        key = _question(r["query"])
+        if key:
+            group = groups.setdefault(key, {"query": key, "asked": 0})
+            group.update(asked=group["asked"] + 1, last=r["at"], raw=re.sub(r"^\[[^\]]*\]\s*", "", r["query"]))
+    return sorted(groups.values(), key=lambda g: (-g["asked"], g["query"]))
+
+
+def _answered(conn, brain_id: int, query: str) -> bool:
+    """Whether a memory or page now holds every word of a missed search: the test
+    search() logs a miss by, less the pages under curator/ and archive/, which quote
+    questions rather than answer them."""
+    match = _fts_query(query.replace("\x00", " ").split())
+    if not match:
+        return True
+    find = (
+        "SELECT 1 FROM {0}_fts CROSS JOIN {0} ON {0}.id = {0}_fts.rowid "
+        "WHERE {0}_fts MATCH ? AND brain_id = ? AND status = 'active'{1} LIMIT 1"
+    )
+    return bool(
+        conn.execute(find.format("brain_memories", ""), (match, brain_id)).fetchone()
+        or conn.execute(
+            find.format("brain_pages", " AND brain_pages.path NOT LIKE 'curator/%' AND brain_pages.path NOT LIKE 'archive/%'"),
+            (match, brain_id),
+        ).fetchone()
+    )
+
+
+def unanswered(brain_id: int, limit: int = 5) -> list[dict]:
+    """What AIs searched for and the brain still cannot answer, most asked first: the
+    short list on the brain's home.
+    # simplification: checks the 20 most-asked questions on every load; store an
+    # answered stamp on the miss if a brain's home gets slow."""
+    conn = db.get_db()
+    open_ = (g for g in _miss_groups(conn, brain_id)[:20] if not _answered(conn, brain_id, g["raw"]))
+    return [{k: g[k] for k in ("query", "asked", "last")} for g, _ in zip(open_, range(limit))]
+
+
+def _tickle_pool(conn, brain_id: int) -> tuple[list[tuple[str, str, list[str]]], list[dict]]:
+    """What may be asked: the golden questions (the first 20 lines, however long the
+    page) and the misses asked twice or more.
+    # simplification: only curator/golden, not a curator's own working folder; pass
+    # the folder through brain_start if a second folder ever holds golden questions."""
+    row = conn.execute(
+        "SELECT body FROM brain_pages WHERE brain_id = ? AND path = ? AND status = 'active'", (brain_id, GOLDEN_PAGE)
+    ).fetchone()
+    golden = [(_question(q), q, expected) for _, q, expected in _golden(row["body"] if row else "")[:20]]
+    return golden, [g for g in _miss_groups(conn, brain_id) if g["asked"] >= 2][:20]
+
+
+def _tickle(brain_id: int, by: str) -> dict | None:
+    """The one question to ask the person today, or None: the first golden question the
+    brain cannot answer, else the most-asked repeated miss still unanswered. A question
+    rests common.TICKLE_REST_DAYS of the account's calendar days after it is recorded,
+    and once one is recorded no other is offered that day. Reads only.
+    # simplification: the rest starts when an AI records the ask, so two chats opened at
+    # once can be handed the same question; reserve it at hand-out if that ever nags."""
+    conn = db.get_db()
+    brain_row = conn.execute(
+        "SELECT ai_access, (SELECT tz FROM lists WHERE id = brains.list_id) AS tz FROM brains WHERE id = ?",
+        (brain_id,),
+    ).fetchone()
+    if brain_row is None or brain_row["ai_access"] != "write":
+        return None
+    tz = brain_row["tz"]
+    asked = {
+        r["question"]: r
+        for r in conn.execute("SELECT question, last_at, count FROM brain_tickles WHERE brain_id = ?", (brain_id,))
+    }
+    today = common.business_today(tz)
+    if any(common.local_date(r["last_at"], tz) == today for r in asked.values()):
+        return None
+    cutoff = common.tickle_cutoff(tz)
+    golden, misses = _tickle_pool(conn, brain_id)
+    pick: dict | None = None
+    for key, query, expected in golden:
+        if (key not in asked or asked[key]["last_at"] < cutoff) and not _probe(brain_id, query, expected, by):
+            pick = {"question": query, "from": "golden", "save_to": expected}
+            break
+    else:
+        for g in misses:
+            key = g["query"]
+            if (key not in asked or asked[key]["last_at"] < cutoff) and not _answered(conn, brain_id, g["raw"]):
+                pick = {"question": key, "from": "miss", "searched": g["asked"]}
+                break
+    if pick is None:
+        return None
+    count = asked[key]["count"] if key in asked else 0
+    stale = count >= common.TICKLE_STALE_COUNT
+    return {
+        **pick,
+        "times_asked": count,
+        "stale": stale,
+        "do": TICKLE_DO
+        + (
+            f" It has been asked {count} times with no answer: ask first whether it still matters; if not, "
+            "take its line off curator/golden (a miss ages out after 30 days)."
+            if stale
+            else ""
+        ),
+    }
+
+
+def tickle_record(brain_id: int, question: str, by: str) -> dict:
+    """Stamp a question as asked, so it rests. Only a golden question or a repeated miss
+    (answered since or not: the order is ask, save, record), which bounds the table. A
+    repeat inside the rest is the same ask and is not counted again."""
+    key = _question(question)
+    with db.transaction() as conn:
+        _policy_in(conn, brain_id, by)
+        _join_in(conn, brain_id, by, write=True)
+        golden, misses = _tickle_pool(conn, brain_id)
+        if key not in {k for k, _, _ in golden} | {g["query"] for g in misses}:
+            raise ValidationError("That is not a question brain_start hands out. Nothing was recorded.")
+        tz = conn.execute("SELECT tz FROM lists WHERE id = ?", (_list_of(conn, brain_id),)).fetchone()["tz"]
+        row = conn.execute(
+            "SELECT last_at, count FROM brain_tickles WHERE brain_id = ? AND question = ?", (brain_id, key)
+        ).fetchone()
+        count = row["count"] if row else 0
+        if not row or row["last_at"] < common.tickle_cutoff(tz):
+            count += 1
+            conn.execute(
+                "INSERT INTO brain_tickles (brain_id, question, last_at, count) VALUES (?, ?, ?, ?) "
+                "ON CONFLICT (brain_id, question) DO UPDATE SET last_at = excluded.last_at, count = excluded.count",
+                (brain_id, key, common.now_iso(), count),
+            )
+    return {"ok": True, "question": key, "times_asked": count, "rests_days": common.TICKLE_REST_DAYS}
 
 
 # ── The app's overview, export and share ──────────────────────────────────────
@@ -2073,6 +2251,7 @@ def overview(brain_id: int) -> dict:
             or _count(conn, "brain_memories", brain_id) >= plan["memories"] - 5
         ),
         "custom_instruction": CUSTOM_INSTRUCTION,
+        "misses": unanswered(brain_id),
     }
 
 
