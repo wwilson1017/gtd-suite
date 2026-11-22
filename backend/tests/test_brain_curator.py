@@ -495,7 +495,9 @@ def test_transcript_step_is_always_returned_and_the_skill_carries_it(B):
         step = next(s for s in steps if s.startswith("Meeting transcript"))
         for said in ("further source", "exact quote", "[14:32]", "what it replaced", "change nothing"):
             assert said in step
-        assert "the person who said it to acme/curator/questions" in step
+        assert "append a question to acme/curator/questions" in step and "the person who said it" in step
+        assert "daily/<meeting date>" in step and "no approval" in step
         assert steps[-1].startswith("Finish:")
     skill = brain.CURATOR_SKILL.split("## Meeting transcripts")[1]
     assert "further source" in skill and "change nothing" in skill and "<folder>/questions" in skill
+    assert "meeting transcript" in brain.CURATOR_SKILL.split("---")[1]
