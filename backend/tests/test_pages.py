@@ -181,7 +181,7 @@ def test_pages_say_how_to_build_when_there_is_no_build(client, tmp_path, monkeyp
 
 @pytest.mark.parametrize("open_signup", [True, False])
 @pytest.mark.parametrize("method", ["GET", "HEAD"])
-@pytest.mark.parametrize("name", ["terms.html", "privacy.html", "support.html", "legal.css"])
+@pytest.mark.parametrize("name", ["terms.html", "privacy.html", "security.html", "support.html", "legal.css"])
 def test_policy_files_keep_public_addresses_only_on_hosted_servers(
     client, built, monkeypatch, open_signup, method, name
 ):
@@ -214,7 +214,7 @@ def test_policy_links_still_use_public_addresses():
         def handle_starttag(self, tag, attrs):
             links.extend(value for key, value in attrs if key == "href" and value and value.startswith("/"))
 
-    names = {"terms.html", "privacy.html", "support.html", "legal.css"}
+    names = {"terms.html", "privacy.html", "security.html", "support.html", "legal.css"}
     public = FRONTEND_INDEX.parent / "public" / "policy"
     for name in names - {"legal.css"}:
         links.clear()

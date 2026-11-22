@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Security · GTD suite</title>
+    <link rel="stylesheet" href="/legal.css" />
+  </head>
+  <body>
+    <main>
+      <nav>
+        <a href="/">← Back to the app</a><a href="/terms.html">Terms of Service</a><a href="/privacy.html">Privacy</a
+        ><a href="/security.html" aria-current="page">Security</a><a href="/support.html">Support</a>
+      </nav>
+      <h1>Security</h1>
+
+      <p class="sub">How your data is protected, and where the limits are</p>
+
+      <div class="box">
+        In short: your data travels over HTTPS, backups of the database are encrypted, and the links that open your
+        account can be replaced at any time. It is not end-to-end encrypted: the server has to read your content to
+        search it and hand it to the AI tools you connect. This page says what is protected, what is not, and what you
+        control.
+      </div>
+
+      <h2>Where your data is</h2>
+      <ul>
+        <li><b>Railway</b> runs the apps and the database, in Virginia, United States.</li>
+        <li><b>Cloudflare</b> stores Common Brain's files (R2) and runs our domain names.</li>
+        <li><b>Resend</b> sends sign-in, confirmation and security emails.</li>
+        <li>
+          Everything between your browser, your AI tools and the apps travels over HTTPS, so it is encrypted on the way.
+        </li>
+      </ul>
+
+      <h2>Backups</h2>
+      <ul>
+        <li>
+          A copy of the database (a snapshot) is taken every hour. Snapshots taken since DRILL_DATE are encrypted with
+          <a href="https://age-encryption.org">age</a>, an open encryption tool.
+        </li>
+        <li>
+          The key that opens them is not kept on the server. A stolen snapshot, from the server or from our backup
+          machines, can't be opened without it.
+        </li>
+        <li>Snapshots from before that date are not encrypted. They age out within a year.</li>
+        <li>Files you add to Common Brain live in Cloudflare R2. They are not part of these snapshots.</li>
+      </ul>
+
+      <h2>What is not encrypted</h2>
+      <ul>
+        <li>
+          <b>Not end to end.</b> With end-to-end encryption only you could read your content. Here the server must read
+          it, to search it and to serve it to the AI tools you connect. Those tools see it in plain text too, under
+          their own policies.
+        </li>
+        <li>
+          <b>The live database is not separately encrypted.</b> It has to be readable for the apps to work. Backup
+          encryption protects the copies, not the running server.
+        </li>
+        <li>
+          <b>We can read your content.</b> Whoever runs the server can. We look only when you ask for help, when it is
+          needed to keep the service running or secure, or when the law requires it.
+        </li>
+        <li>
+          There is no admin web page to break into. The service is managed with a command-line tool on the server
+          itself, and that tool never prints your agent or capture link.
+        </li>
+      </ul>
+
+      <h2>Links and keys</h2>
+      <p>An account is opened by links and keys, not a password. Here is how each is stored:</p>
+      <ul>
+        <li>
+          <b>Stored only as a hash</b> (a one-way fingerprint, so the real value can't be read back from the database):
+          the cookie that keeps a browser signed in, sign-in links, program keys and staff links. A program key or staff
+          link is shown once, when you make it.
+        </li>
+        <li>
+          <b>Also stored readable:</b> your agent link and your capture link, so the app can show them to you again.
+          Anyone who could read the live database could read these two.
+        </li>
+        <li>
+          All of them are masked in the app's own logs. Our hosting provider keeps its own request logs; those stay
+          private and are looked at only to fix problems.
+        </li>
+        <li>
+          All of them can be replaced. Replace your agent or capture link in Settings and the old one stops working at
+          once. Revoke a program key or staff link the same way. Signing out ends that browser's session.
+        </li>
+        <li>A sign-in link works once, for one hour. Wrong guesses at a link are limited per address.</li>
+      </ul>
+
+      <h2>Enhanced security</h2>
+      <p>
+        One switch in Settings › Security, for the whole account. It is off until you turn it on. Only you can change
+        it, in the browser; no AI tool can. With it on:
+      </p>
+      <ul>
+        <li>
+          <b>Your main agent link stops working after 30 unused days.</b> Any use starts the 30 days again. Replacing
+          the link gives you a fresh one. The capture link is not covered: it can only add to your inbox. If you turn
+          the switch off, a link that had stopped works again, so replace the link to end it for good.
+        </li>
+        <li>
+          <b>New program keys and staff links need an end date</b> (30, 90 or 365 days). Keys and links you made before
+          keep working with no end date; revoke them and make new ones if you want one. An end date still holds if you
+          turn the switch off later.
+        </li>
+        <li>
+          <b>An email when a new AI tool first connects</b>, sent to your confirmed email, at most once a day. It
+          doesn't name the tool, because that name is whatever the caller claims; Settings shows it. A caller that
+          copies the name of a tool you already use raises no email, and after 50 remembered names new ones raise none.
+        </li>
+        <li>
+          <b>A read log for Common Brain.</b> Each time an AI tool reads from a brain, a row is kept for 90 days and
+          shown in Settings: when, the name the tool gave, which link or key it used (never the link itself), and what
+          it read: the page, memory or file, or the words it searched for. For a file, a row means a download link was
+          handed out, not that the file was downloaded. Only Common Brain reads are logged, not the other apps. The log
+          is best effort: it never blocks a read, so a row can be missed. Turning the switch off stops new rows.
+        </li>
+      </ul>
+
+      <h2>What you control</h2>
+      <ul>
+        <li><b>Replace a link</b> any time you think someone else has it.</li>
+        <li><b>Read-only brains:</b> set a brain so AI tools can read it but not change it.</li>
+        <li>
+          <b>Limited keys:</b> a program key or staff link can be read only, limited to the brains you pick, or limited
+          to writing in certain folders.
+        </li>
+        <li>
+          <b>Confidential pages:</b> a page marked <code>confidential: true</code> is never shown to a folder-limited
+          key.
+        </li>
+        <li><b>Locked memories:</b> lock a memory and no AI tool can change it.</li>
+        <li>
+          <b>History and restore:</b> every change in Common Brain is kept as a version you can bring back. In the other
+          apps, items are archived rather than deleted.
+        </li>
+        <li>
+          <b>Export:</b> Common Brain exports everything as files, and we'll send a full copy of any account on request.
+        </li>
+        <li>
+          <b>Forget:</b> removes a Common Brain memory, page or file for good, with its whole history and its rows in
+          the read log. Only you can do it, in the browser; an AI tool can't. Words an AI searched for stay in the read
+          log until they are 90 days old, and a forgotten item leaves backups as they age out.
+        </li>
+        <li>
+          <b>Run it yourself:</b> the suite is open source (MIT). If you'd rather keep your data on your own server, the
+          code and instructions are at
+          <a href="https://github.com/wwilson1017/gtd-suite">github.com/wwilson1017/gtd-suite</a>.
+        </li>
+      </ul>
+
+      <h2>Report a problem</h2>
+      <p>
+        Found a security hole? Report it privately with the "Report a vulnerability" button on the
+        <a href="https://github.com/wwilson1017/gtd-suite/security">Security tab of the code's page</a>. Please don't
+        open a public issue for it. Worried about your own account? Replace your links in Settings, then email
+        <a href="mailto:support@tncheesecake.com">support@tncheesecake.com</a>.
+      </p>
+
+      <footer>
+        The GTD suite (Todo GTD, Projects GTD, Notes GTD, Simple Sites and Common Brain) is run by Tennessee Cheesecake
+        Inc., 1420 Toshiba Drive, STE B, Lebanon, TN 37087, USA ·
+        <a href="mailto:support@tncheesecake.com">support@tncheesecake.com</a>
+      </footer>
+    </main>
+  </body>
+</html>

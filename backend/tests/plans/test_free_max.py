@@ -94,10 +94,10 @@ def test_nothing_extra_without_the_extension(client):
 
 def test_the_policy_pages_read_free(free, client, built):
     (built / "policy").mkdir()
-    for name in ("terms.html", "privacy.html", "support.html"):
+    for name in ("terms.html", "privacy.html", "security.html", "support.html"):
         (built / "policy" / name).write_text((FRONTEND_INDEX.parent / "public" / "policy" / name).read_text())
     assert "the apps are free" in client.get("/terms.html").text
-    for name in ("terms.html", "privacy.html", "support.html"):
+    for name in ("terms.html", "privacy.html", "security.html", "support.html"):
         text = client.get(f"/{name}").text
         # No sales wording: the words a page that sold something would need.
         assert re.findall(r"(?i)\bpro\b|stripe|refund|subscri|\$5\b|<!--", text) == [], name

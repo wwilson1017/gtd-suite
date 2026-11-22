@@ -8,6 +8,7 @@ import { EXTRA_POLICIES } from '@extension';
 const LINKS: [string, string][] = [
   ['/terms.html', 'Terms'],
   ['/privacy.html', 'Privacy'],
+  ['/security.html', 'Security'],
   ['/support.html', 'Support'],
 ];
 

@@ -89,13 +89,13 @@ describe('LandingPage', () => {
   it('links the policy pages on a hosted server', async () => {
     await mount(OPEN);
     const hrefs = [...host.querySelectorAll('nav[aria-label="Policies"] a')].map((a) => a.getAttribute('href'));
-    expect(hrefs).toEqual(['/terms.html', '/privacy.html', '/support.html']);
+    expect(hrefs).toEqual(['/terms.html', '/privacy.html', '/security.html', '/support.html']);
   });
 
   it('links only the public policy pages while the suite is free', async () => {
     await mount({ ...OPEN, free: true });
     const hrefs = [...host.querySelectorAll('nav[aria-label="Policies"] a')].map((a) => a.getAttribute('href'));
-    expect(hrefs).toEqual(['/terms.html', '/privacy.html', '/support.html']);
+    expect(hrefs).toEqual(['/terms.html', '/privacy.html', '/security.html', '/support.html']);
   });
 
   it('offers sign-in only, and no way to create, while sign-up is closed', async () => {

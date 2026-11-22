@@ -550,7 +550,7 @@ def root_file(name: str, request: Request):
     page = extension.page(name) if settings.open_signup() else None  # the extension's own pages
     if page is not None:
         return HTMLResponse(page)
-    if name in {"terms.html", "privacy.html", "support.html", "legal.css"}:
+    if name in {"terms.html", "privacy.html", "security.html", "support.html", "legal.css"}:
         if not settings.open_signup():
             return _shell(request)  # they describe the hosted service
         candidate = STATIC_DIR / "policy" / name
