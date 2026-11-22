@@ -486,3 +486,16 @@ def test_a_pass_label_or_reason_is_short(L):
     with pytest.raises(ValidationError, match="reason too long"):
         brain.remember(brain.first_brain(L), ["Likes tea", "Rides a bike"], reason="x" * 501)
     assert not brain.memories(brain.first_brain(L))
+
+
+def test_transcript_step_is_always_returned_and_the_skill_carries_it(B):
+    brain.write_page(brain.first_brain(B), "curator/rules", "Keep claims sourced.")
+    for unattended in (False, True):
+        steps = brain.curate(brain.first_brain(B), unattended=unattended, folder="acme/curator")["steps"]
+        step = next(s for s in steps if s.startswith("Meeting transcript"))
+        for said in ("further source", "exact quote", "[14:32]", "what it replaced", "change nothing"):
+            assert said in step
+        assert "the person who said it to acme/curator/questions" in step
+        assert steps[-1].startswith("Finish:")
+    skill = brain.CURATOR_SKILL.split("## Meeting transcripts")[1]
+    assert "further source" in skill and "change nothing" in skill and "<folder>/questions" in skill
