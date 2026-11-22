@@ -152,7 +152,7 @@ def test_the_memory_cap_counts_active_memories_and_names_the_way_up(B, monkeypat
     brain.remember(brain.first_brain(B), [f"fact {i}" for i in range(50)], by="ChatGPT")
     with pytest.raises(ValidationError, match="50 memories until an email"):
         brain.remember(brain.first_brain(B), ["one more"], by="ChatGPT")
-    with pytest.raises(ValidationError, match="add your email under Connect"):
+    with pytest.raises(ValidationError, match="add your email in Settings"):
         brain.remember(brain.first_brain(B), ["one more"])
     brain.update_memory(
         brain.first_brain(B), brain.memories(brain.first_brain(B))[0]["id"], status="archived", by="ChatGPT"

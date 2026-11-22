@@ -239,3 +239,33 @@ it('labels an unnamed brain without settling its name for the AI', async () => {
   expect(host.querySelector('[aria-label="Switch brain"]')!.textContent).toContain('Brain 2');
   expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'PUT')).toBe(false);
 });
+it('keeps the old addresses landing in Settings, with the Common Brain group in its menu', async () => {
+  window.history.replaceState({}, '', '/app/brains');
+  await mount();
+  await wait('Editing Personal');
+  expect(window.location.pathname).toBe('/app/connect/brains');
+  const menu = [...host.querySelectorAll('nav[aria-label="Settings"] a')].map((a) => a.getAttribute('href'));
+  // mail: false, so no email step; the plan is hidden while the suite is free.
+  expect(menu).toEqual(
+    ['ai', 'devices', 'install', 'brains', 'every', 'curator', 'export', 'keys'].map((k) => `/app/connect/${k}`),
+  );
+  expect(host.querySelector('a[aria-label="Settings"][aria-current="page"]')).not.toBeNull();
+  expect([...host.querySelectorAll('header nav a')].map((a) => a.textContent)).toEqual([
+    'Brain',
+    'Files',
+    'Changes',
+    'Archive',
+  ]);
+  await act(async () => root.unmount());
+  root = createRoot(host);
+  window.history.replaceState({}, '', '/app/brains/new');
+  await mount();
+  await wait('Create brain');
+  expect(window.location.pathname + window.location.search).toBe('/app/connect/brains?new');
+  await act(async () => root.unmount());
+  root = createRoot(host);
+  window.history.replaceState({}, '', '/app/connect?brain=22#export');
+  await mount();
+  await wait('Download my brain (.zip)');
+  expect(window.location.pathname + window.location.search).toBe('/app/connect/export?brain=22');
+});

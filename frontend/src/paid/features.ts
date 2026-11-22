@@ -26,7 +26,7 @@ export function shortNameLabel(session: Session | null) {
 }
 
 export function brainLimitSentence(upsell: boolean | undefined, session: Session | null) {
-  if (upsell && allFree(session)) return 'Confirm your email in Connect to make more brains.';
+  if (upsell && allFree(session)) return 'Confirm your email in Settings to make more brains.';
   return upsell ? 'More than one brain is part of Pro' : 'Your account has reached its brain limit.';
 }
 

@@ -99,7 +99,7 @@ function EmailNudge() {
         </p>
       </div>
       <div className="flex gap-2">
-        <Link to="/connect#email" className="cb-btn text-sm">
+        <Link to="/connect/email" className="cb-btn text-sm">
           Add my email
         </Link>
         <button type="button" onClick={later} className="cb-btn-ghost text-sm">
@@ -123,7 +123,7 @@ function SetUp({ first }: { first: boolean }) {
           <p className="mt-1 text-sm text-muted">
             ChatGPT, Claude, Grok, Gemini or a terminal agent: one link, a minute each.
           </p>
-          <Link to="/connect" className="cb-btn mt-3 text-sm">
+          <Link to="/connect/ai" className="cb-btn mt-3 text-sm">
             Connect an AI
           </Link>
         </li>

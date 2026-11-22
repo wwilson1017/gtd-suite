@@ -1,10 +1,10 @@
-// Settings, the same in every app but Common Brain, inside each app's own shell and
+// Settings, the same in every app, inside each app's own shell and
 // colours: a menu of sections in groups (Get started, Account, and the app's own), each
 // section at its own address, /connect/<key>. On a phone the menu is a list that opens
 // one section at a time, with "‹ Settings" back. Until every setup step is done
 // (setup.tsx), a two-step box in the app's band colours sits above the open section.
-// /connect alone opens the first step still to do (on a phone: the menu); the old
-// /connect#email lands on the email.
+// /connect alone opens the first step still to do (on a phone: the menu); an old
+// /connect#<key> (#email, Common Brain's #export) lands on that section.
 import { Fragment } from 'react';
 import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
 import { APP } from '../../../core/app';
@@ -107,7 +107,8 @@ export function SettingsPage({ group }: { group?: Group }) {
   const groups = useGroups(group);
   const welcome = new URLSearchParams(search).has('welcome');
 
-  if (!section && hash === '#email') return <Navigate to={`${SETTINGS}/email`} replace />;
+  if (!section && hash.length > 1)
+    return <Navigate to={{ pathname: `${SETTINGS}/${hash.slice(1)}`, search }} replace />;
   const all = groups.flatMap((g) => g.sections);
   const asked = all.find((s) => s.key === section);
   // A section not here (yet: the plan waits for the server's answer) opens the default.

@@ -579,7 +579,7 @@ def brain_export_link(brain: _arg(str | None, "Brain folder; defaults to the fir
     b = _select(brain)
     base = settings.app_url("brain")
     return {
-        "link": f"{base}/app/connect?brain={b['id']}#export",
+        "link": f"{base}/app/connect/export?brain={b['id']}",
         "say": "Open Export in Common Brain, signed in to the account you want to download.",
     }
 

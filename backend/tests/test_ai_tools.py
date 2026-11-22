@@ -321,18 +321,12 @@ def test_a_version_that_does_not_know_the_table_can_still_delete_a_list(todo_db,
 
 
 async def test_the_agent_links_own_words_point_at_settings_and_connect_your_ai(http, made):
-    # A message any account may get names the page both ways: Common Brain kept Connect.
-    both = "Settings (Connect, in Common Brain)"
-    assert (
-        apps.settings_page(),
-        apps.settings_page("notes"),
-        apps.settings_page("sites"),
-        apps.settings_page("brain"),
-    ) == (both, "Settings", "Settings", "Connect")
+    # Every app, Common Brain too, calls the page Settings.
+    assert apps.settings_page() == "Settings"
     assert apps.off_message("notes") == (
-        f"Notes GTD is off for this account. The person can turn it on in any app on their account: under Apps, in {both}."
+        "Notes GTD is off for this account. The person can turn it on in any app on their account: under Apps, in Settings."
     )
     only(made["list_id"])  # every app off
-    assert (await http.get(link(made))).json()["about"].endswith(f"can turn one on under Apps, in {both}.")
-    assert mcp_server._instructions([]).endswith(f"can turn one on under Apps, in {both}.")
+    assert (await http.get(link(made))).json()["about"].endswith("can turn one on under Apps, in Settings.")
+    assert mcp_server._instructions([]).endswith("can turn one on under Apps, in Settings.")
     assert "under [Connect your AI](/app/connect/ai)." in str(samples._PROJECTS)

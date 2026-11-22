@@ -32,10 +32,9 @@ function browserTz(): string {
 }
 
 /** Into the app. replace(), not assign(): Back must not return to a form already used.
- *  A brand-new account opens once on Settings › Connect your AI, which can skip ahead.
- *  Common Brain opens Home (settings/setup.ts firstPage). */
+ *  A brand-new account opens once on Settings › Connect your AI, which can skip ahead. */
 function openApp(welcome = false) {
-  window.location.replace(BASE + firstPage(APP, welcome));
+  window.location.replace(BASE + firstPage(welcome));
 }
 
 /** `account`: call what the person has an account, not a list (Notes). */

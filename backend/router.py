@@ -767,8 +767,7 @@ def create_list(request: Request, response: Response, body: ListCreate | None = 
             status_code=409,
             headers=_NO_STORE,
             detail=(
-                "This browser is already signed in to a list. Sign out in "
-                f"{apps.settings_page(settings.app_for(request))} to make another."
+                f"This browser is already signed in to a list. Sign out in {apps.settings_page()} to make another."
             ),
         )
     if settings.signup_closed():

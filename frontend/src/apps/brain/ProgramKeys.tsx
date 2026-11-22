@@ -1,4 +1,4 @@
-// Common Brain — Connect → For programs: named keys a program uses instead of the agent
+// Common Brain — Settings › Keys & access: named keys a program uses instead of the agent
 // link (backend/keys.py). Make one (name, scope, access, folders), see it once, list them
 // with when each was last used, revoke one.
 import { useCallback, useEffect, useState } from 'react';

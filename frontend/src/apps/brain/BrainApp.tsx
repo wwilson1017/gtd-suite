@@ -4,11 +4,10 @@ import { BASE } from '../../core/app';
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBrainSelection } from '../todo-gtd/brainSelection';
-import { BrainSettingsPage } from './BrainSettingsPage';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { SessionGate } from '../todo-gtd/PublicTodoApp';
 import { ArchivePage } from './ArchivePage';
-import { BrainConnectPage } from './BrainConnectPage';
+import { BrainSettings } from './BrainSettings';
 import { BrainHome } from './BrainHome';
 import { ChangesPage } from './ChangesPage';
 import { FilesPage } from './FilesPage';
@@ -37,14 +36,15 @@ function BrainRoutes() {
   }, [notice, generation, navigate]);
   return (
     <Routes key={`${id}:${generation}`}>
-      <Route path="/brains" element={<BrainSettingsPage />} />
-      <Route path="/brains/new" element={<BrainSettingsPage creating />} />
+      <Route path="/brains" element={<Navigate to="/connect/brains" replace />} />
+      <Route path="/brains/new" element={<Navigate to="/connect/brains?new" replace />} />
       <Route path="/" element={<BrainHome />} />
       <Route path="/p/:id" element={<PageView />} />
       <Route path="/files" element={<FilesPage />} />
       <Route path="/changes" element={<ChangesPage />} />
       <Route path="/archive" element={<ArchivePage />} />
-      <Route path="/connect" element={<BrainConnectPage />} />
+      <Route path="/connect" element={<BrainSettings />} />
+      <Route path="/connect/:section" element={<BrainSettings />} />
       <Route path="/forget/:kind/:id" element={<ForgetPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

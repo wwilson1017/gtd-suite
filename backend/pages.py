@@ -117,7 +117,7 @@ _RETIRED_WEB_HTML = _page_chrome(
 _INVALID_CAPTURE_HTML = _page_chrome(
     "Capture",
     "<h1>This link isn&rsquo;t valid</h1>"
-    "<p>It may have been regenerated. Open your list, go to <strong>&#9881; Connect</strong>, "
+    "<p>It may have been regenerated. Open your list, go to <strong>Settings › Capture link</strong>, "
     "and copy your current capture link.</p>" + _READD,
 )
 

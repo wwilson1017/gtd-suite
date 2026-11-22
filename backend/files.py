@@ -206,7 +206,7 @@ def reserve(
 
 def _full(quota: dict, used: int, adding: int) -> str:
     if quota["needs_email"] and not quota["files"]:
-        return "Files need a confirmed email: add yours under Connect. It's free. Nothing was reserved."
+        return "Files need a confirmed email: add yours in Settings. It's free. Nothing was reserved."
     return (
         f"That needs {_size(adding)}, and {_size(max(0, quota['files'] - used))} of the "
         f"brain's {_size(quota['files'])} for files is free.{billing.upsell(quota['upsell'])} "

@@ -24,8 +24,7 @@ const SESSION: Session = {
   caps: { todos: 200, projects: 20, areas: 10 },
   apps: ['todo'],
 };
-const CAP =
-  'This list holds 200 todos until an email is confirmed in Settings (Connect, in Common Brain). Nothing was changed.';
+const CAP = 'This list holds 200 todos until an email is confirmed in Settings. Nothing was changed.';
 const FULL = 'This list is full for now.';
 
 let host: HTMLDivElement;
