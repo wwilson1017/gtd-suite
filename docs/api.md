@@ -153,6 +153,12 @@ The zip holds `memories.json`, `pages.json`, `files.json`, `history.json`, a rea
 File bytes aren't included; fetch one with `GET /api/v1/files/{id}`. Exports can't be
 imported back yet.
 
+Every memory and page has a review date: `review_on` on `brain_remember` and
+`brain_memory_update`, a `review_on: YYYY-MM-DD` frontmatter line on a page, and 90 days
+after the last write when none is set. `brain_curate` lists the entries past theirs first
+(`queue.review_due`) and records the tidy; `brain_start` carries a `tidy` line once the last
+one is more than 30 days old.
+
 Curators run `brain_curate(misses_since, unattended, folder)` and `brain_eval(folder)`. The
 working folder defaults to `curator`; rules live at `curator/rules`. Save `misses_until`
 for the next run, and keep going while `misses_more` is true. `brain_search(probe=true)`

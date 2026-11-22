@@ -464,6 +464,7 @@ class BrainMemoryUpdate(BaseModel):
     locked: bool | None = None
     status: str | None = Field(default=None, max_length=MAX_SHORT_CHARS)
     version: int | None = None  # with it, a memory changed since is a 409
+    review_on: str | None = Field(default=None, max_length=MAX_SHORT_CHARS)  # YYYY-MM-DD; '' clears it
 
 
 class BrainPageCreate(BaseModel):

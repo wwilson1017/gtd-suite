@@ -496,6 +496,7 @@ CREATE TABLE IF NOT EXISTS brains (
     settled_at TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
+    tidied_at TEXT,                             -- step 35: when brain_curate last ran (brain.tidy_due)
     UNIQUE(list_id, folder)
 );
 CREATE TABLE IF NOT EXISTS brain_memories (
@@ -509,7 +510,8 @@ CREATE TABLE IF NOT EXISTS brain_memories (
     created_by  TEXT NOT NULL,
     updated_by  TEXT NOT NULL,
     created_at  TEXT NOT NULL,
-    updated_at  TEXT NOT NULL
+    updated_at  TEXT NOT NULL,
+    review_on   TEXT                            -- step 35: recheck by this date (NULL: 90 days after the last write)
 );
 CREATE INDEX IF NOT EXISTS idx_brain_memories_list ON brain_memories(list_id, status);
 CREATE TABLE IF NOT EXISTS brain_pages (
@@ -827,6 +829,8 @@ def _migrate(conn: sqlite3.Connection) -> None:
     33. `connect_codes.client`, the grant source and the Springform stamp (in plans/caps.COLUMNS): plain added
         columns; every existing code is a Sites code and every existing grant the operator's.
     34. `lists.sites_own_host`: opt-in own addresses, enabled once for existing folder sites.
+    35. `brains.tidied_at` and `brain_memories.review_on`: plain added columns, empty on every
+        existing row (a tidy counts from the brain's creation, a review from the last write).
     """
     from backend import brain, lists, sites  # here, not at the top: lists imports this module
 
@@ -1047,6 +1051,10 @@ def _migrate(conn: sqlite3.Connection) -> None:
                     else:
                         ids = [int(part) for part in gate.split(",") if part.strip().isdigit()]
                         conn.executemany("UPDATE lists SET sites_own_host = 1 WHERE id = ?", [(i,) for i in ids])
+            # Step 35: review dates and the last tidy (brain.tidy_due, brain.curate).
+            for table, column in (("brains", "tidied_at"), ("brain_memories", "review_on")):
+                if column not in {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}:
+                    conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} TEXT")
             # After the rebuild: SQLite refuses to drop a table a trigger names.
             for trigger in _rev_triggers():
                 conn.execute(trigger)
