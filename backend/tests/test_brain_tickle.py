@@ -164,8 +164,9 @@ async def test_the_agent_link_hands_out_one_tickle_and_records_it(connect, acct,
     L = acct["list_id"]
     first = brain.first_brain(L)
     second = add_brain(L, "work")
-    for b in (first, second):
-        brain.write_page(b, "curator/golden", "- a: alpha => people/a")
+    # Written through the blended link, a golden line names its page with the brain's folder.
+    brain.write_page(first, "curator/golden", "- a: alpha => brain/people/a")
+    brain.write_page(second, "curator/golden", "- a: alpha => people/a")
     brain.set_link_brains(L, [first, second])
     async with connect(link(acct), name="Claude") as c:
         started = await call(c, "brain_start")
@@ -177,6 +178,13 @@ async def test_the_agent_link_hands_out_one_tickle_and_records_it(connect, acct,
         assert recorded["times_asked"] == 1
         with pytest.raises(Exception, match="not a question"):
             await call(c, "brain_tickle_record", question="made up")
+        # Answered where save_to said, the question passes for the tickle and for brain_eval.
+        await call(c, "brain_page_write", path="brain/people/a", body="alpha is answered")
+        assert (await call(c, "brain_eval", brain="brain"))["score"] == 1
+    freeze("2026-11-03T15:00:00")
+    async with connect(link(acct), name="Claude") as c:
+        guidance = (await call(c, "brain_start"))["guidance"]
+        assert "tickle" not in guidance[0] and guidance[1]["tickle"]["save_to"] == ["work/people/a"]
     # A read-only key is handed nothing: it could not record the ask.
     freeze("2026-11-03T15:00:00")
     async with by_key(connect, new_key(L, access="read")) as c:

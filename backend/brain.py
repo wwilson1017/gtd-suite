@@ -2041,10 +2041,15 @@ def curate(
     }
 
 
-def _golden(body: str) -> list[tuple[str, str, list[str]]]:
-    """The golden page's lines, - <id>: <query> => <expected>; <expected>, as (id, query, expected)."""
+def _golden(conn, brain_id: int, body: str) -> list[tuple[str, str, list[str]]]:
+    """The golden page's lines, - <id>: <query> => <expected>; <expected>, as (id, query, expected).
+    A link that carries several brains writes paths with the brain's folder in front: an
+    expected string loses that prefix, since paths are stored without it."""
+    prefix = conn.execute("SELECT folder FROM brains WHERE id = ?", (brain_id,)).fetchone()["folder"] + "/"
     lines = (re.fullmatch(r"\s*-\s+([^:]+):\s*(.+?)\s*=>\s*(.+)\s*", line) for line in body.splitlines())
-    return [(m[1].strip(), m[2], [e.strip() for e in m[3].split(";") if e.strip()]) for m in lines if m]
+    return [
+        (m[1].strip(), m[2], [e.strip().removeprefix(prefix) for e in m[3].split(";") if e.strip()]) for m in lines if m
+    ]
 
 
 def _probe(brain_id: int, query: str, expected: list[str], by: str) -> bool:
@@ -2062,7 +2067,7 @@ def evaluate(brain_id: int, folder: str = "curator", by: str = YOU) -> dict:
     folder = path_of(folder)
     golden = get_page(brain_id, path=f"{folder}/golden")
     failures, total = [], 0
-    for ident, query, expected in _golden(golden["body"]):
+    for ident, query, expected in _golden(db.get_db(), brain_id, golden["body"]):
         total += 1
         if not _probe(brain_id, query, expected, by):
             failures.append(ident)
@@ -2149,7 +2154,9 @@ def _tickle_pool(conn, brain_id: int) -> tuple[list[tuple[str, str, list[str]]],
     row = conn.execute(
         "SELECT body FROM brain_pages WHERE brain_id = ? AND path = ? AND status = 'active'", (brain_id, GOLDEN_PAGE)
     ).fetchone()
-    golden = [(_question(q), q, expected) for _, q, expected in _golden(row["body"] if row else "")[:20]]
+    golden = [
+        (_question(q), q, expected) for _, q, expected in _golden(conn, brain_id, row["body"] if row else "")[:20]
+    ]
     return golden, [g for g in _miss_groups(conn, brain_id) if g["asked"] >= 2][:20]
 
 
