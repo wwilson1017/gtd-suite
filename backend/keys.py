@@ -15,7 +15,7 @@ agent link, a disabled or removed list refuses its keys.
 
 Staff links share these rows with kind='link': an unprefixed token accepted only
 in token paths by resolve_link. They are Brain-only, default to read, and have a
-separate plan cap. Both kinds carry ordered brain ids validated against the account.
+separate level cap. Both kinds carry ordered brain ids validated against the account.
 
 Named revoke, not delete: a revoked credential keeps its row.
 """
@@ -24,7 +24,7 @@ import datetime
 import json
 import re
 
-from backend.paid import billing
+from backend.plans import extension
 from backend import brain, common, db, lists
 
 PREFIX = "cb_"
@@ -102,7 +102,7 @@ def create(
         cap = brain.account_caps(list_id, conn)
         if kind == "link" and sum(r["kind"] == "link" for r in live) >= cap["links"]:
             raise common.ValidationError(
-                f"This account holds at most {cap['links']} staff links.{billing.upsell(cap['upsell'])}"
+                f"This account holds at most {cap['links']} staff links.{extension.cap_note(cap['raisable'])}"
             )
         if name.lower() in {r["name"].lower() for r in live}:
             raise common.ValidationError(f"There is already a key called {name}")

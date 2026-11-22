@@ -403,7 +403,7 @@ class PersonUpdate(BaseModel):
 
 
 # ── Simple Sites (sites.py) ───────────────────────────────────────────────────
-# Lengths here are outer bounds; sites.py checks the real rules (the plan's page size in UTF-8).
+# Lengths here are outer bounds; sites.py checks the real rules (the level's page size in UTF-8).
 
 
 class SiteCreate(BaseModel):

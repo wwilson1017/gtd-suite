@@ -15,7 +15,7 @@ import sqlite3
 import threading
 from contextlib import contextmanager
 from pathlib import Path
-from backend.paid import caps
+from backend.plans import caps
 
 
 logger = logging.getLogger(__name__)
@@ -776,15 +776,15 @@ def _migrate(conn: sqlite3.Connection) -> None:
         board (no folder).
     14. `boards.sample` (in _BOARD_COLUMNS) and `lists.projects_sample`: plain added
         columns; no existing board is a sample and no existing account has had them.
-    15. Paid fields on lists (paid.caps.COLUMNS): plain added columns; no
-        existing account has a subscription.
+    15. Level fields on lists (plans/caps.COLUMNS): plain added columns; no
+        existing account had a stored level.
     16. `sites.views`: a plain added column; every existing page and link starts at 0.
     17. `sites.password_hash`: a plain added column; no existing page is locked.
-    18. `sites.note` and `sites.folder`, and the grant expiry (in paid.caps.COLUMNS):
+    18. `sites.note` and `sites.folder`, and the grant expiry (in plans/caps.COLUMNS):
         plain added columns; nothing has a note, a folder or a grant yet.
     19. `lists.account_no`: an added column, its unique index (here, not in _SCHEMA, which
         an older database meets without the column) and a random number for every list.
-    20. The grant kind (in paid.caps.COLUMNS): a plain added column with the original default.
+    20. The grant kind (in plans/caps.COLUMNS): a plain added column with the original default.
     21. `brain_pages.confidential`, backfilled from each page's frontmatter (brain.confidential);
         every write sets it from then on. (The program keys' `api_keys` is a new table.)
     22. Brain search's full-text index (_BRAIN_FTS): two external-content FTS5 tables over
@@ -806,7 +806,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
         when each last did. Made here, not in _SCHEMA, so the step knows the table is new
         and fills it once from what the tools already left behind (_fill_ai_tools).
     32. `project_links`: a new table (project_links.py); no existing project has a link.
-    33. `connect_codes.client`, the grant source and the Springform stamp (in paid.caps.COLUMNS): plain added
+    33. `connect_codes.client`, the grant source and the Springform stamp (in plans/caps.COLUMNS): plain added
         columns; every existing code is a Sites code and every existing grant the operator's.
     34. `lists.sites_own_host`: opt-in own addresses, enabled once for existing folder sites.
     35. `brains.tidied_at` and `brain_memories.review_on`: plain added columns, empty on every

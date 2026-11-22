@@ -178,7 +178,7 @@ describe('the email in Settings', () => {
   }
 
   it('promises everything unlocked while the suite is free', async () => {
-    await signedIn({ plan: { pro: false, status: '', until: null, cancels: false, manageable: false, free: true } });
+    await signedIn({ plan: { raised: false, free: true } });
     await render(<EmailSection />);
     expect(host.textContent).toContain('Everything unlocked, free');
     expect(host.textContent).toContain('10 areas. Confirm it and every app is unlocked.');

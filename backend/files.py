@@ -39,7 +39,7 @@ import logging
 import re
 import secrets
 
-from backend.paid import billing
+from backend.plans import extension
 from backend import brain, common, db, keys, objectstore, settings, storage, sites
 from backend.common import ConflictError, NotFoundError, ValidationError
 
@@ -209,7 +209,7 @@ def _full(quota: dict, used: int, adding: int) -> str:
         return "Files need a confirmed email: add yours in Settings. It's free. Nothing was reserved."
     return (
         f"That needs {_size(adding)}, and {_size(max(0, quota['files'] - used))} of the "
-        f"brain's {_size(quota['files'])} for files is free.{billing.upsell(quota['upsell'])} "
+        f"brain's {_size(quota['files'])} for files is free.{extension.cap_note(quota['raisable'])} "
         "Forget files no longer needed to make room. Nothing was reserved."
     )
 

@@ -12,7 +12,7 @@ guide's error table has a 409.
 # _arg(...) in tool signatures is a call inside an annotation, which pyright cannot read.
 # pyright: reportInvalidTypeForm=false
 
-from backend.paid import plans
+from backend.plans import plans
 from backend import agent_cmd, common, mcp_server, notes, settings
 from backend.agent_cmd import Arg, Command
 from backend.common import ConflictError, ValidationError
