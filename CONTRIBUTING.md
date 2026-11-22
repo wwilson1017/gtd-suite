@@ -12,8 +12,8 @@ OPEN_SIGNUP=true uv run uvicorn backend.main:app --workers 1 --reload
 ```
 
 In another terminal, run `cd frontend && npm run dev` and open the address Vite prints.
-Run `scripts/check.sh` before opening a pull request. See [README.md](README.md) for
-settings and running the built app.
+Run `scripts/check.sh` before opening a pull request. See
+[docs/self-hosting.md](docs/self-hosting.md) for settings and running the built app.
 
 Contributions are accepted under the MIT license. The paid folder is part of the repo,
 and changes to it are welcome too. What the hosted service sells is its owner's call.
