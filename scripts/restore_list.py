@@ -12,13 +12,22 @@ content added after the snapshot is gone afterwards, so a fresh snapshot of the 
 database is taken first. Snapshot-only brains return archived and read-only; old
 snapshots without brain ids restore into the live first brain.
 
+An encrypted snapshot (``….db.age``, backup.py) needs the private key: ``--identity <key
+file>``, or ``--identity -`` to type it in. It is decrypted into a private folder beside the
+database, which is removed when the restore ends; the key itself is never written anywhere.
+Or decrypt it elsewhere and pass the plain file.
+
 Safe while the app is running: it is one more SQLite writer, and waits its turn.
 Run it from the app directory with the same DATA_DIR as the app.
 """
 
 import argparse
+import getpass
+import shutil
 import sqlite3
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 from backend import apps, backup, common, db, sites
@@ -182,6 +191,19 @@ def _restore_site_state(conn, list_id: int, live_sites: dict) -> None:
                     raise
 
 
+def _decrypt(snapshot: Path, identity: str | None, folder: Path) -> Path:
+    """The encrypted snapshot, decrypted into ``folder``. The key goes to ``age`` and nowhere else."""
+    if not identity:
+        raise SystemExit(f"{snapshot.name} is encrypted: add --identity <key file>, or --identity - to type the key in")
+    key = getpass.getpass("The age private key (AGE-SECRET-KEY-…): ") + "\n" if identity == "-" else None
+    plain = folder / "snapshot.db"
+    try:
+        subprocess.run(["age", "-d", "-i", identity, "-o", str(plain), str(snapshot)], input=key, text=True, check=True)
+    except (OSError, subprocess.CalledProcessError):
+        raise SystemExit(f"Could not decrypt {snapshot.name}; nothing was changed") from None
+    return plain
+
+
 def main(argv=None) -> None:
     assert __doc__ is not None  # This module defines the CLI description in its docstring.
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
@@ -189,16 +211,28 @@ def main(argv=None) -> None:
     parser.add_argument(
         "--list-id", type=int, required=True, help="the list's id (scripts.admin find --link=<its agent link>)"
     )
+    parser.add_argument("--identity", help="for an encrypted snapshot: the age key file, or - to type the key in")
     args = parser.parse_args(argv)
 
     live = db.db_path()
     if not live.is_file():
         raise SystemExit(f"No database at {live}; is DATA_DIR set as it is for the app?")
     list_id = args.list_id
-    before = backup.snapshot()
-    if before is None:
-        raise SystemExit("Could not snapshot the live database first; nothing was changed")
-    copied = restore(args.snapshot, list_id, live)
+    snapshot, folder = args.snapshot, None
+    try:
+        if snapshot.name.endswith(".age"):
+            # Private (0700), and outside backups/: prune() there deletes every *.tmp, and
+            # both the snapshot below and the running app call it.
+            # simplification: a kill mid-restore leaves this folder; delete DATA_DIR/restore-* by hand
+            folder = tempfile.mkdtemp(prefix="restore-", dir=live.parent)
+            snapshot = _decrypt(snapshot, args.identity, Path(folder))
+        before = backup.snapshot()
+        if before is None:
+            raise SystemExit("Could not snapshot the live database first; nothing was changed")
+        copied = restore(snapshot, list_id, live)
+    finally:
+        if folder:
+            shutil.rmtree(folder, ignore_errors=True)
     print(f"List {list_id} restored from {args.snapshot.name}: " + ", ".join(f"{n} {t}" for t, n in copied.items()))
     print(f"The state just before this is in {before}")
 

@@ -349,6 +349,27 @@ def test_tickle_rows_go_with_their_brain(T, L):
     assert db.get_db().execute("SELECT COUNT(*) FROM brain_tickles").fetchone()[0] == 0
 
 
+def test_answered_misses_never_crowd_out_an_open_one(T, freeze):
+    freeze("2026-11-02T15:00:00")
+    for i in range(25):
+        miss(T, f"solved{i}", times=3)
+    miss(T, "still open")
+    brain.remember(T, [f"solved{i} is known" for i in range(25)], by="Claude")
+    assert [m["query"] for m in brain.overview(T)["misses"]] == ["still open"]
+    assert tickle(T)["question"] == "still open"
+
+
+def test_merge_brain_carries_the_asked_questions(T, B, monkeypatch):
+    from scripts import admin
+
+    monkeypatch.setattr(common, "brains_cap_for", lambda *a, **k: 100)  # room for the merged brain
+    brain.write_page(T, "curator/golden", "- a: alpha => people/a")
+    brain.tickle_record(T, "alpha", "Claude")
+    target = lists.create_list()["list_id"]
+    moved = admin.merge_brain(B, target, "Moved", "moved", yes=True)["to_brain"]
+    assert [r["brain_id"] for r in db.get_db().execute("SELECT brain_id FROM brain_tickles")] == [moved]
+
+
 def test_an_older_database_gets_the_tickle_table_at_startup(T):
     with db.transaction() as conn:
         conn.execute("DROP TABLE brain_tickles")
@@ -682,3 +703,18 @@ def test_a_pass_label_or_reason_is_short(L):
     with pytest.raises(ValidationError, match="reason too long"):
         brain.remember(brain.first_brain(L), ["Likes tea", "Rides a bike"], reason="x" * 501)
     assert not brain.memories(brain.first_brain(L))
+
+
+def test_transcript_step_is_always_returned_and_the_skill_carries_it(B):
+    brain.write_page(brain.first_brain(B), "curator/rules", "Keep claims sourced.")
+    for unattended in (False, True):
+        steps = brain.curate(brain.first_brain(B), unattended=unattended, folder="acme/curator")["steps"]
+        step = next(s for s in steps if s.startswith("Meeting transcript"))
+        for said in ("further source", "exact quote", "[14:32]", "what it replaced", "change nothing"):
+            assert said in step
+        assert "append a question to acme/curator/questions" in step and "the person who said it" in step
+        assert "daily/<meeting date>" in step and "no approval" in step
+        assert steps[-1].startswith("Finish:")
+    skill = brain.CURATOR_SKILL.split("## Meeting transcripts")[1]
+    assert "further source" in skill and "change nothing" in skill and "<folder>/questions" in skill
+    assert "meeting transcript" in brain.CURATOR_SKILL.split("---")[1]
