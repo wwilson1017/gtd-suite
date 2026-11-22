@@ -62,7 +62,7 @@ Only two matter for most people: a persistent `DATA_DIR`, and `PUBLIC_BASE_URL`.
 | `SITES_SHORT_URL` | unset | A shorter address for pages and links (e.g. `https://ss.page`). Needs `SITES_BASE_URL`, which keeps serving every address too. |
 | `SITES_CONTENT_DOMAIN` | unset | An isolated domain giving each page its own subdomain, when the person turns that on in Sites Settings. Needs `SITES_BASE_URL`. Make sure `abuse@<domain>` exists. |
 | `BRAIN_BASE_URL` | unset | Common Brain's own address. Unset, it's at `/brain`. An account started there gets every app. |
-| `RESEND_API_KEY`, `MAIL_FROM` | unset | Both together turn on email: confirming an address and signing in by email. `MAIL_FROM` must be on a domain verified with [Resend](https://resend.com). Without mail, hosted accounts stay on the small limits and are never put away. |
+| `RESEND_API_KEY`, `MAIL_FROM` | unset | Both together turn on email: confirming an address and signing in by email. `MAIL_FROM` must be on a domain verified with [Resend](https://resend.com). Mail also needs `PUBLIC_BASE_URL` (or Railway's domain), since a mailed link is never built from a request's address. Without mail, hosted accounts stay on the small limits and are never put away. |
 | `SNAPSHOT_INTERVAL_SECONDS` | `3600` | How often a backup snapshot is taken. |
 | `FILES_S3_ENDPOINT`, `FILES_S3_BUCKET`, `FILES_S3_KEY_ID`, `FILES_S3_SECRET` | unset | An S3-compatible store (R2, MinIO, S3, B2), path-style, for Common Brain's files and Sites' file sites. Unset, Files is off. See [Files](#files). |
 | `FILES_S3_REGION` | `auto` | `auto` for R2; MinIO and S3 need a real region. |
