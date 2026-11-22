@@ -162,8 +162,8 @@ for the history.
 
 Some days `brain_start` returns a `tickle`: one question the brain can't answer, for the AI
 to ask the person. It is the first line of `curator/golden` whose probe fails, else a search
-missed twice or more in 30 days. After asking (and saving the answer on the `save_to` page,
-or with `brain_remember`), call `brain_tickle_record(question)`: the question rests five
+missed twice or more in 30 days. After asking (and saving the answer on a page its `expects`
+strings name, or with `brain_remember`), call `brain_tickle_record(question)`: the question rests five
 days and no other is offered that day. The set-up (`brain_onboard`) asks for the person's
 top questions and writes `curator/golden`.
 

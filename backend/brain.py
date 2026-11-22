@@ -2088,9 +2088,10 @@ def evaluate(brain_id: int, folder: str = "curator", by: str = YOU) -> dict:
 GOLDEN_PAGE = "curator/golden"
 TICKLE_DO = (
     "Only if the person is in this chat: ask them this one question when the moment suits, once. "
-    "Save what they say with its source (on the save_to page when there is one, so the question "
-    "passes; else brain_remember), then call brain_tickle_record with the question, also when "
-    f"they skip it, so it rests for {common.TICKLE_REST_DAYS} days. Nobody to ask (an unattended run): do nothing."
+    "Save what they say with its source: for a golden question on a page whose path or title holds "
+    "each `expects` string, so the question passes; else with brain_remember. Then call "
+    "brain_tickle_record with the question, also when they skip it, so it rests for "
+    f"{common.TICKLE_REST_DAYS} days. Nobody to ask (an unattended run): do nothing."
 )
 
 
@@ -2190,7 +2191,7 @@ def _tickle(brain_id: int, by: str) -> dict | None:
 
     pick = next(
         (
-            {"key": key, "question": query, "from": "golden", "save_to": expected}
+            {"key": key, "question": query, "from": "golden", "expects": expected}
             for key, query, expected in golden
             if due(key) and not _probe(brain_id, query, expected, by)
         ),
@@ -2215,7 +2216,7 @@ def _tickle(brain_id: int, by: str) -> dict | None:
         "do": TICKLE_DO
         + (
             f" It has been asked {count} times with no answer: ask first whether it still matters; if not, "
-            "take its line off curator/golden (a miss ages out after 30 days)."
+            "record it, then take its line off curator/golden (a miss ages out after 30 days)."
             if stale
             else ""
         ),
@@ -2224,19 +2225,20 @@ def _tickle(brain_id: int, by: str) -> dict | None:
 
 def tickle_record(brain_id: int, question: str, by: str) -> dict:
     """Stamp a question as asked, so it rests. Only a golden question or a repeated miss
-    (answered since or not: the order is ask, save, record), which bounds the table. A
+    (answered since or not: the order is ask, save, record) gets a row, which bounds the table. A
     repeat inside the rest is the same ask and is not counted again."""
     key = _question(question)
     with db.transaction() as conn:
         _policy_in(conn, brain_id, by)
         _join_in(conn, brain_id, by, write=True)
-        golden, misses = _tickle_pool(conn, brain_id)
-        if key not in {k for k, _, _ in golden} | {g["query"] for g in misses}:
-            raise ValidationError("That is not a question brain_start hands out. Nothing was recorded.")
-        tz = conn.execute("SELECT tz FROM lists WHERE id = ?", (_list_of(conn, brain_id),)).fetchone()["tz"]
         row = conn.execute(
             "SELECT last_at, count FROM brain_tickles WHERE brain_id = ? AND question = ?", (brain_id, key)
         ).fetchone()
+        golden, misses = _tickle_pool(conn, brain_id)
+        # One asked before stays recordable after its golden line is gone or its misses have aged out.
+        if not row and key not in {k for k, _, _ in golden} | {g["query"] for g in misses}:
+            raise ValidationError("That is not a question brain_start hands out. Nothing was recorded.")
+        tz = conn.execute("SELECT tz FROM lists WHERE id = ?", (_list_of(conn, brain_id),)).fetchone()["tz"]
         count = row["count"] if row else 0
         if not row or row["last_at"] < common.tickle_cutoff(tz):
             count += 1

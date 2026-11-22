@@ -190,8 +190,7 @@ def brain_start() -> dict:
         if tickle and not any("tickle" in r for r in results) and (_key.get() or {}).get("access") != "read":
             tickle["do"] = _prose(b, tickle["do"])  # the question itself is data
             if len(carried) > 1:
-                tickle["save_to"] = [f"{b['folder']}/{p}" for p in tickle.get("save_to", [])]
-                tickle["do"] += f" Pass brain={b['folder']}."
+                tickle["do"] += f" Pass brain={b['folder']}; its pages' paths start with {b['folder']}/."
             part["tickle"] = tickle
         results.append(part)
     shown, left = store._core(mems)

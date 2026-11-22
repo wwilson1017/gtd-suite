@@ -34,7 +34,7 @@ def test_a_golden_question_the_brain_cannot_answer_comes_first_then_rests(B, fre
     )
     miss(B, "wifi password")
     got = tickle(B)
-    assert (got["question"], got["from"], got["save_to"]) == ("Sam  Birthday", "golden", ["people/sam"])
+    assert (got["question"], got["from"], got["expects"]) == ("Sam  Birthday", "golden", ["people/sam"])
     assert got["times_asked"] == 0 and got["stale"] is False and "brain_tickle_record" in got["do"]
     # Handing it out records nothing: an unattended run must not use up the day's question.
     assert tickle(B, "Cron")["question"] == "Sam  Birthday"
@@ -64,7 +64,7 @@ def test_a_repeated_miss_is_asked_until_it_is_answered(B, freeze):
     miss(B, "invoice OR bill", times=3)
     got = tickle(B)
     assert (got["question"], got["from"], got["searched"]) == ("invoice or bill", "miss", 3)
-    assert "save_to" not in got
+    assert "expects" not in got
     brain.remember(B, ["The bill goes to accounts@example.com"], by="Claude")
     assert tickle(B)["question"] == "dentist phone"  # OR stayed an OR: one side answers it
     # A curator page that only quotes the question does not answer it.
@@ -102,6 +102,10 @@ def test_rest_counts_the_accounts_calendar_days_and_three_asks_is_stale(B, L, fr
     got = tickle(B)
     assert (got["question"], got["times_asked"], got["stale"]) == ("alpha", 3, True)
     assert "asked 3 times" in got["do"]
+    # Dropped from the golden page, the stale question still records, and so nothing else is asked today.
+    brain.write_page(B, "curator/golden", "- b: beta => people/b")
+    assert brain.tickle_record(B, "alpha", "Claude")["times_asked"] == 4
+    assert tickle(B) is None
 
 
 def test_no_tickle_where_the_ai_cannot_save_or_record(B, L, freeze):
@@ -172,19 +176,19 @@ async def test_the_agent_link_hands_out_one_tickle_and_records_it(connect, acct,
         started = await call(c, "brain_start")
         assert len(started["brains"]) == 2
         tickles = [g["tickle"] for g in started["guidance"] if "tickle" in g]
-        assert tickles[0]["save_to"] == ["brain/people/a"] and "brain=brain" in tickles[0]["do"]
+        assert tickles[0]["expects"] == ["people/a"] and "brain=brain; its pages' paths start" in tickles[0]["do"]
         assert len(tickles) == 1 and tickles[0]["question"] == "alpha"
         recorded = await call(c, "brain_tickle_record", question="alpha")
         assert recorded["times_asked"] == 1
         with pytest.raises(Exception, match="not a question"):
             await call(c, "brain_tickle_record", question="made up")
-        # Answered where save_to said, the question passes for the tickle and for brain_eval.
+        # Answered on that page, the question passes for the tickle and for brain_eval.
         await call(c, "brain_page_write", path="brain/people/a", body="alpha is answered")
         assert (await call(c, "brain_eval", brain="brain"))["score"] == 1
     freeze("2026-11-03T15:00:00")
     async with connect(link(acct), name="Claude") as c:
         guidance = (await call(c, "brain_start"))["guidance"]
-        assert "tickle" not in guidance[0] and guidance[1]["tickle"]["save_to"] == ["work/people/a"]
+        assert "tickle" not in guidance[0] and guidance[1]["tickle"]["expects"] == ["people/a"]
     # A read-only key is handed nothing: it could not record the ask.
     freeze("2026-11-03T15:00:00")
     async with by_key(connect, new_key(L, access="read")) as c:
