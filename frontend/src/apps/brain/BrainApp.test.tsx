@@ -203,6 +203,30 @@ describe('Root on Common Brain', () => {
     });
   }, 30_000);
 
+  it('saves a review date when the box is left, not while it is typed', async () => {
+    const { default: Root } = await import('../../Root');
+    root = createRoot(host);
+    await act(async () => {
+      root!.render(<Root />);
+    });
+    await settle('Training for a half marathon');
+    const box = host.querySelector('input[aria-label="Review by"]') as HTMLInputElement;
+    const puts = () => fetchMock.mock.calls.filter(([, init]) => (init as RequestInit | undefined)?.method === 'PUT');
+    await act(async () => {
+      box.value = '0002-04-15'; // what the browser reports mid-typing
+      box.dispatchEvent(new Event('input', { bubbles: true }));
+      box.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    expect(puts()).toHaveLength(0);
+    fetchMock.mockImplementationOnce(async () => new Response('{}', { status: 200 }));
+    await act(async () => {
+      box.value = '2028-04-15';
+      box.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+    });
+    expect(puts()).toHaveLength(1);
+    expect(JSON.parse((puts()[0][1] as RequestInit).body as string)).toMatchObject({ review_on: '2028-04-15' });
+  }, 30_000);
+
   it("shows a page's properties and resolves its [[links]] in one batch", async () => {
     window.history.replaceState({}, '', '/app/p/3');
     const { default: Root } = await import('../../Root');
