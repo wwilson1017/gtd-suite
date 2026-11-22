@@ -125,7 +125,7 @@ backend/
   files.py       Common Brain's files: reserve, done (claim, copy, commit), links, Forget, the sweeper
   storage.py     the shared account pool: Brain files and Sites blobs, reservations and tombstones included
   objectstore.py hand-signed SigV4 (no SDK) for the S3-compatible file store: presigned PUT/GET, HEAD, copy, DELETE, streamed GET and paged inventory
-  backup.py      snapshots and pruning
+  backup.py      snapshots (encrypted with `age` when SNAPSHOT_AGE_RECIPIENT is set) and pruning
   cleanup.py     deletes never-used lists (the only hard delete), with their sessions, sign-in links, keys
   logscrub.py    replaces token path segments with *** in every log record
   tests/         pytest, real temp SQLite file per test
