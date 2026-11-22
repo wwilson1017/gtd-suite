@@ -520,7 +520,8 @@ def brain_onboard(
         out["script"] = [_prose(b, step, "imports") for step in out["script"]]
         if len(_scope()) > 1:
             out["script"][0] = (
-                f"This import is for {b['folder']}: use brain={b['folder']} on path-less tools. " + out["script"][0]
+                f"This import is for {b['folder']}: pass brain={b['folder']} to brain_remember. brain_search takes "
+                f"no brain and searches them all: count only results marked brain {b['folder']}. " + out["script"][0]
             )
         return _place(b, out)
     if guide:

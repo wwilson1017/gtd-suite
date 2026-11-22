@@ -828,7 +828,8 @@ async def test_blended_round_trip_search_defaults_and_moves(connect, multi, mult
         assert "brain=personal" in onboard["script"][0]
         chats = await call(c, "brain_onboard", guide="chats", brain="personal")
         assert chats["script"][0].startswith(
-            "This import is for personal: use brain=personal on path-less tools. "
+            "This import is for personal: pass brain=personal to brain_remember. brain_search takes "
+            "no brain and searches them all: count only results marked brain personal. "
         ) and "personal/imports/" in " ".join(chats["script"])
         root = await call(c, "brain_page_list")
         assert [f["folder"] for f in root["folders"]] == ["work", "personal"]
