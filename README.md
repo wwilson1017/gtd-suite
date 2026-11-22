@@ -182,7 +182,7 @@ and keys, renames clashing keys, and disables the source. Existing key values ke
 ### REST API
 
 A program (a script, a server, a nightly job) reaches an account with a **program key**
-instead of the agent link. Make one under Connect → **For programs** in Common Brain: give it
+instead of the agent link. Make one in Common Brain under Settings → **Keys & access**: give it
 a name, what it reaches (Common Brain only, or every app on the account), its access (read
 only, or read and write) and, for a Brain key, optionally the folders it may write in. The key
 (`cb_…`) is shown once and stored only as a hash; the list shows each key's last use, and
@@ -255,7 +255,7 @@ case and characters (no `..`, `\` or control characters). An AI lists files with
 
 ### Import Markdown
 
-In Common Brain's **Connect**, choose **Import Markdown**, select a zip and preview it,
+In Common Brain's **Settings → Import & export**, choose **Import Markdown**, select a zip and preview it,
 then Import. Markdown and HTML become pages; root `MEMORY.md` or `memories.md` bullets
 become memories. A Locked heading or 🔒 locks a memory only in the browser import.
 Bullets over 500 characters become lines on `inbox/long-memories` (or a file if that
