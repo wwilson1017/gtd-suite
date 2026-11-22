@@ -2123,7 +2123,9 @@ def _answered(conn, brain_id: int, query: str) -> bool:
     return bool(
         conn.execute(find.format("brain_memories", ""), (match, brain_id)).fetchone()
         or conn.execute(
-            find.format("brain_pages", " AND brain_pages.path NOT LIKE 'curator/%' AND brain_pages.path NOT LIKE 'archive/%'"),
+            find.format(
+                "brain_pages", " AND brain_pages.path NOT LIKE 'curator/%' AND brain_pages.path NOT LIKE 'archive/%'"
+            ),
             (match, brain_id),
         ).fetchone()
     )
@@ -2175,19 +2177,28 @@ def _tickle(brain_id: int, by: str) -> dict | None:
         return None
     cutoff = common.tickle_cutoff(tz)
     golden, misses = _tickle_pool(conn, brain_id)
-    pick: dict | None = None
-    for key, query, expected in golden:
-        if (key not in asked or asked[key]["last_at"] < cutoff) and not _probe(brain_id, query, expected, by):
-            pick = {"question": query, "from": "golden", "save_to": expected}
-            break
-    else:
-        for g in misses:
-            key = g["query"]
-            if (key not in asked or asked[key]["last_at"] < cutoff) and not _answered(conn, brain_id, g["raw"]):
-                pick = {"question": key, "from": "miss", "searched": g["asked"]}
-                break
+
+    def due(key: str) -> bool:
+        return key not in asked or asked[key]["last_at"] < cutoff
+
+    pick = next(
+        (
+            {"key": key, "question": query, "from": "golden", "save_to": expected}
+            for key, query, expected in golden
+            if due(key) and not _probe(brain_id, query, expected, by)
+        ),
+        None,
+    ) or next(
+        (
+            {"key": g["query"], "question": g["query"], "from": "miss", "searched": g["asked"]}
+            for g in misses
+            if due(g["query"]) and not _answered(conn, brain_id, g["raw"])
+        ),
+        None,
+    )
     if pick is None:
         return None
+    key = pick.pop("key")
     count = asked[key]["count"] if key in asked else 0
     stale = count >= common.TICKLE_STALE_COUNT
     return {
