@@ -155,9 +155,9 @@ function AiStrip({ data }: { data: Overview }) {
         <span key={ai.name} className="cb-panel flex items-center gap-1.5 rounded-full px-3 py-1">
           <span className="h-2 w-2 rounded-full bg-[#22d3ee]" aria-hidden="true" />
           <b className="font-heading text-white">{ai.name}</b>
-          <span className="text-xs text-muted">
-            {ai.onboarded_at ? 'set up' : 'not set up yet'} · {ago(ai.last_seen_at)}
-          </span>
+          {/* Only when it last called: whether it ran the set-up interview is the AI's
+              own business (brain_start keeps offering it), and automated jobs never do. */}
+          <span className="text-xs text-muted">last used {ago(ai.last_seen_at)}</span>
         </span>
       ))}
       {data.caps.ais !== null && data.ais.length >= data.caps.ais && (
