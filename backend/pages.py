@@ -22,6 +22,7 @@ and only one path segment deep, so it can never shadow the API or the MCP routes
 
 import asyncio
 import json
+import re
 from pathlib import Path
 from urllib.parse import parse_qs
 
@@ -29,6 +30,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 
 from backend import apps, lists, ratelimit, sessions, settings, sites
+from backend.paid import settings as paid_settings
 from backend.router import _same_origin
 
 PAGE_HEADERS = {
@@ -528,6 +530,14 @@ async def site_unlock(name: str, request: Request):
     return res
 
 
+# The policy pages hold both wordings: the paid parts between <!-- paid --> marks and the
+# free ones between <!-- free --> marks. The server leaves out the one that does not apply.
+_POLICY_PART = {
+    free: re.compile(rf"<!--\s*{part}\s*-->.*?<!--\s*/{part}\s*-->", re.S)
+    for free, part in ((True, "paid"), (False, "free"))
+}
+
+
 @router.api_route("/{name}", methods=["GET", "HEAD"])
 def root_file(name: str, request: Request):
     """The catch-all, ONE segment deep on purpose: a Simple Sites address on the
@@ -547,9 +557,12 @@ def root_file(name: str, request: Request):
                 sites.count_view(short["id"])
             return RedirectResponse(short["target"], status_code=302, headers=PAGE_HEADERS)
     if name in {"terms.html", "privacy.html", "refunds.html", "support.html", "legal.css"}:
-        if not settings.open_signup():
-            return _shell(request)
+        free = paid_settings.free_max()
+        if not settings.open_signup() or (free and name == "refunds.html"):
+            return _shell(request)  # nothing is sold while the suite is free, so nothing is refunded
         candidate = STATIC_DIR / "paid" / name
+        if name.endswith(".html") and candidate.is_file():
+            return HTMLResponse(_POLICY_PART[free].sub("", candidate.read_text()))
     else:
         candidate = STATIC_DIR / name
     if name != "index.html" and candidate.is_file():

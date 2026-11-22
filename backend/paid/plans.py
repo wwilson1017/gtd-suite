@@ -1,7 +1,8 @@
 """Plan derivation and feature gates."""
 
 import datetime
-from backend import common
+from backend import common, settings
+from backend.paid import settings as paid_settings
 
 # Pro (billing.py) is derived from the subscription's Stripe status as last synced,
 # and lapses this long after the period it last heard about, so a missed renewal
@@ -29,7 +30,11 @@ def pro_source(row) -> str | None:
 
 
 def of(row) -> str | None:
-    """The list's plan now (a row with PLAN_COLUMNS): "max", "pro" or None."""
+    """The list's plan now (a row with PLAN_COLUMNS): "max", "pro" or None. While the suite
+    is free (paid_settings.free_max), a hosted account with a confirmed email is on Max,
+    derived here like every plan and never stored."""
+    if paid_settings.free_max() and settings.open_signup() and row["email_verified_at"]:
+        return "max"
     source = pro_source(row)
     if source is None:
         return None
@@ -51,9 +56,21 @@ def unlimited(hosted: bool, plan: str | None) -> bool:
 SHORT_NAME_REFUSAL = "Short names need Pro or Max"
 
 
+def _needs_email(what: str) -> str:
+    from backend import apps
+
+    return f"{what} come with a confirmed email: confirm one in {apps.settings_page()}. Nothing was changed."
+
+
+def short_name_refusal() -> str:
+    return _needs_email("Short names") if paid_settings.free_max() else SHORT_NAME_REFUSAL
+
+
 def password_refusal() -> str:
     from backend.paid import billing
 
+    if paid_settings.free_max():
+        return _needs_email("Password-protected pages")
     return f"Password-protected pages come with Pro.{billing.upsell(True)} Nothing was changed."
 
 

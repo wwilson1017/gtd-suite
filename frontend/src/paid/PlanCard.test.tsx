@@ -55,6 +55,11 @@ async function show(plan: Partial<Plan>, { billing = true, verified = true } = {
 const button = (label: string) =>
   [...host.querySelectorAll('button')].find((b) => b.textContent === label) as HTMLButtonElement | undefined;
 
+it('shows nothing while the suite is free, whatever the plan', async () => {
+  await show({ pro: true, tier: 'max', free: true, manageable: true });
+  expect(host.textContent).toBe('');
+});
+
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   vi.clearAllMocks();

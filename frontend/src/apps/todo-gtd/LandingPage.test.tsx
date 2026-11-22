@@ -92,6 +92,19 @@ describe('LandingPage', () => {
     expect(hrefs).toEqual(['/terms.html', '/privacy.html', '/refunds.html', '/support.html']);
   });
 
+  it('leaves the Refunds page out while the suite is free', async () => {
+    await mount({ ...OPEN, free: true });
+    const hrefs = [...host.querySelectorAll('nav[aria-label="Policies"] a')].map((a) => a.getAttribute('href'));
+    expect(hrefs).toEqual(['/terms.html', '/privacy.html', '/support.html']);
+  });
+
+  it('offers sign-in only, and no way to create, while sign-up is closed', async () => {
+    await mount({ ...OPEN, mail: true, signup_closed: true });
+    expect(host.textContent).toContain('Sign-up is closed');
+    expect(host.querySelector('details')?.open).toBe(true);
+    expect([...host.querySelectorAll('button')].map((b) => b.textContent)).toEqual(['Email me a link']);
+  });
+
   it('links no policy page on a one-list server', async () => {
     await mount({ ...OPEN, open_signup: false });
     expect(button('Start your list').disabled).toBe(false);

@@ -6,6 +6,7 @@ import { useAutoSave } from '../../shared/autosave/useAutoSave';
 import { InlineTitle } from '../../shared/inline-edit/InlineTitle';
 import { brainName, brainGeneration, refreshBrains, selectBrain, useBrainSelection } from '../todo-gtd/brainSelection';
 import { PlanCard } from '../../paid/PlanCard';
+import { useSession } from '../todo-gtd/session';
 import { getBrains, saveBrain, setBrainStatus, type Brain, type BrainSettings, type BrainsView } from './api';
 import { BrainShell } from './BrainShell';
 
@@ -18,6 +19,7 @@ const PRESETS: [string, string][] = [
 export const brainField = 'block w-full min-w-0 rounded-lg border border-line bg-sand px-3 py-2 text-sm text-charcoal';
 export function BrainSettingsPage({ creating = false }: { creating?: boolean }) {
   const { id } = useBrainSelection();
+  const session = useSession().session;
   const [data, setData] = useState<BrainsView | null>(null);
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -51,7 +53,7 @@ export function BrainSettingsPage({ creating = false }: { creating?: boolean }) 
           <p>Loading…</p>
         ) : creating && full ? (
           <>
-            <p>{brainLimitSentence(data.caps.upsell)}</p>
+            <p>{brainLimitSentence(data.caps.upsell, session)}</p>
             <PlanCard />
           </>
         ) : (

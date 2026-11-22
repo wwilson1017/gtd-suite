@@ -1,3 +1,4 @@
+import { allFree, emailPerk } from '../../paid/features';
 import { BASE } from '../../core/app';
 // The suite's account cards, shown in Settings (settings/SettingsPage.tsx) and on Common
 // Brain's Connect page: the email, the account number, signing in on another device and
@@ -158,7 +159,7 @@ export function EmailSection() {
   const limits = hosted && caps && (
     <p className="mt-3 text-xs text-muted">
       {verified ? 'It holds' : 'Until then it holds'} up to {count(caps.todos)} todos, {count(caps.projects)} projects
-      and {count(caps.areas)} areas.
+      and {count(caps.areas)} areas.{!verified && allFree(session) && ' Confirm it and every app is unlocked.'}
     </p>
   );
   const form = (label: string, primary: boolean, shown: string) => (
@@ -249,7 +250,7 @@ export function EmailSection() {
               ? [
                   'Everything kept for good: lists, notes, projects, pages',
                   'Sign in on your phone, laptop, anywhere',
-                  'Higher limits, free',
+                  emailPerk(session),
                 ]
               : ['Sign in on your phone, laptop, anywhere', 'A way back in if this browser signs out']
             ).map((perk) => (

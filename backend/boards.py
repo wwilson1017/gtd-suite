@@ -114,9 +114,7 @@ def _check_cap(conn, list_id: int, table: str, adding: int = 1) -> None:
     """Refuse `adding` more boards or cards past the list's cap (common.board_caps_for).
     Archived rows count: nothing is ever deleted. The sample projects (samples.py) do not.
     # simplification: their dozen cards and items do count (of 200 cards, 2,000 items); exclude them too if the samples grow"""
-    row = conn.execute(
-        f"SELECT email_verified_at, {paid_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (list_id,)
-    ).fetchone()
+    row = conn.execute(f"SELECT {paid_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (list_id,)).fetchone()
     verified, hosted = bool(row and row["email_verified_at"]), settings.open_signup()
     plan = plans.of(row) if row else None
     cap = common.board_caps_for(verified, hosted, plan)[("boards", "cards").index(table)]

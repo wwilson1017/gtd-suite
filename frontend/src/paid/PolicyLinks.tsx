@@ -18,9 +18,11 @@ export function PolicyLinks({ className = '' }: { className?: string }) {
 /** The same links for a page that already holds the server's answer, so it asks once. */
 export function PolicyNav({ config, className = '' }: { config: AppConfig | null; className?: string }) {
   if (!answered(config) || !config.open_signup) return null; // fail closed: a guess shows nothing
+  // Nothing is sold while the suite is free, so there is no Refunds page (backend pages.py).
+  const links = config.free ? LINKS.filter(([href]) => href !== '/refunds.html') : LINKS;
   return (
     <nav aria-label="Policies" className={className}>
-      {LINKS.map(([href, label], i) => (
+      {links.map(([href, label], i) => (
         <span key={href}>
           {i > 0 && ' · '}
           <a href={BASE + href} className="underline-offset-2 hover:underline">

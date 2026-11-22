@@ -8,6 +8,7 @@ import collections
 import datetime
 from backend.paid import billing, plans
 from backend.paid import caps as paid_caps
+from backend.paid import settings as paid_settings
 from backend import common, db
 
 
@@ -164,8 +165,11 @@ def register(command, day) -> None:
 
 
 def stats(conn) -> dict:
+    # While the suite is free a confirmed email is Max too (plans.of), so those rows count.
+    free = " OR email_verified_at IS NOT NULL" if paid_settings.free_max() else ""
     rows = conn.execute(
-        f"SELECT {paid_caps.PLAN_COLUMNS}, comp_source FROM lists WHERE plan_status != '' OR pro_comp_until IS NOT NULL"
+        f"SELECT {paid_caps.PLAN_COLUMNS}, comp_source FROM lists "
+        f"WHERE plan_status != '' OR pro_comp_until IS NOT NULL{free}"
     ).fetchall()
     return {
         # Accounts entitled to Pro or better right now (plans.active), those on Max, and

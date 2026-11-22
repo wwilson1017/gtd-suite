@@ -16,12 +16,23 @@ export function showsViews(site: { views?: number }) {
   return site.views !== undefined;
 }
 
-export function shortNameLabel() {
-  return 'Short name (Pro or Max, no random code)';
+/** The suite is free (backend paid_settings.free_max): no plan is shown or sold. */
+export function allFree(session: Session | null) {
+  return session?.plan?.free === true;
 }
 
-export function brainLimitSentence(upsell: boolean | undefined) {
+export function shortNameLabel(session: Session | null) {
+  return allFree(session) ? 'Short name (no random code)' : 'Short name (Pro or Max, no random code)';
+}
+
+export function brainLimitSentence(upsell: boolean | undefined, session: Session | null) {
+  if (upsell && allFree(session)) return 'Confirm your email in Connect to make more brains.';
   return upsell ? 'More than one brain is part of Pro' : 'Your account has reached its brain limit.';
+}
+
+/** Settings' email step: what confirming an email gives a hosted account. */
+export function emailPerk(session: Session | null) {
+  return allFree(session) ? 'Everything unlocked, free' : 'Higher limits, free';
 }
 
 /** A plan from the operator's free grant (admin comp) rather than a live subscription:
@@ -34,5 +45,6 @@ export function granted(plan: Plan): boolean {
  *  where sales are off. */
 export function planShown(config: PaidConfig | null, session: Session | null): boolean {
   const plan = session?.plan;
+  if (allFree(session)) return false;
   return !!plan && !!(config?.billing || plan.manageable || granted(plan));
 }

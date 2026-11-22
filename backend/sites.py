@@ -131,9 +131,7 @@ def _view(row, views: bool, content: bool = False) -> dict:
 
 
 def _caps(conn, list_id: int) -> tuple[tuple[int, int], bool, bool, str | None]:
-    row = conn.execute(
-        f"SELECT email_verified_at, {paid_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (list_id,)
-    ).fetchone()
+    row = conn.execute(f"SELECT {paid_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (list_id,)).fetchone()
     verified, hosted = bool(row and row["email_verified_at"]), settings.open_signup()
     plan = plans.of(row) if row else None
     return common.site_caps_for(verified, hosted, plan), verified, hosted, plan
@@ -301,9 +299,7 @@ def _insert(conn, list_id: int, **fields) -> int:
     now = common.now_iso()
     if fields["kind"] == "page" and settings.open_signup():
         # A paid account that changed its email keeps its pages (its plan outranks "unconfirmed").
-        row = conn.execute(
-            f"SELECT email_verified_at, {paid_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (list_id,)
-        ).fetchone()
+        row = conn.execute(f"SELECT {paid_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (list_id,)).fetchone()
         if row and not row["email_verified_at"] and plans.of(row) is None:
             fields["expires_at"] = common.to_iso(common.utcnow() + timedelta(days=7))
     for attempt in range(5):
@@ -549,9 +545,7 @@ def caps(list_id: int) -> dict:
     """How many pages and links the list may hold now, for the web app."""
     conn = db.get_db()
     (pages, links), _, _, _ = _caps(conn, list_id)
-    row = conn.execute(
-        f"SELECT email_verified_at, {paid_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (list_id,)
-    ).fetchone()
+    row = conn.execute(f"SELECT {paid_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (list_id,)).fetchone()
     site_bytes, quota = _file_limits(row)
     return {
         "pages": pages,
@@ -653,7 +647,7 @@ def _short_name_in(conn, list_id: int, name) -> str | None:
     hosted, plan = settings.open_signup(), plans.of(row)
     cap = common.short_name_cap_for(hosted, plan)
     if not plans.features(hosted, plan):
-        raise ValidationError(plans.SHORT_NAME_REFUSAL)
+        raise ValidationError(plans.short_name_refusal())
     held = conn.execute(
         "SELECT COUNT(*) FROM sites WHERE list_id = ? AND short_name IS NOT NULL", (list_id,)
     ).fetchone()[0]
@@ -728,9 +722,7 @@ class DataTooLarge(ValidationError):
 
 
 def _data_caps(conn, list_id: int) -> tuple[int, int]:
-    row = conn.execute(
-        f"SELECT email_verified_at, {paid_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (list_id,)
-    ).fetchone()
+    row = conn.execute(f"SELECT {paid_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (list_id,)).fetchone()
     return common.site_data_caps_for(
         bool(row and row["email_verified_at"]), settings.open_signup(), plans.of(row) if row else None
     )
@@ -1214,7 +1206,7 @@ def _manifest(manifest) -> list[dict]:
 def _live_list_in(conn, list_id: int):
     live, params = lists.live_where()
     row = conn.execute(
-        f"SELECT email_verified_at, {paid_caps.PLAN_COLUMNS} FROM lists WHERE id = ? AND {live}", (list_id, *params)
+        f"SELECT {paid_caps.PLAN_COLUMNS} FROM lists WHERE id = ? AND {live}", (list_id, *params)
     ).fetchone()
     if row is None:
         raise NotFoundError("Account not found")

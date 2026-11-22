@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { apiErrorMessage } from '../../core/api/client';
-import { SPRINGFORM_EMAIL, SPRINGFORM_OFFER } from '../../paid/springform';
+import { springformEmail, springformOffer } from '../../paid/springform';
 import { createList, getConfig, requestSignIn, setEmail, todoFetch } from '../todo-gtd/api';
 import { PageFrame } from '../todo-gtd/components/PageFrame';
 import { bootstrap, pinnedListId, useSession } from '../todo-gtd/session';
@@ -17,6 +17,7 @@ export function SitesConnectFlow() {
   const [mail, setMail] = useState(false);
   const [canCreate, setCanCreate] = useState(false);
   const [hosted, setHosted] = useState(false);
+  const [free, setFree] = useState(false);
   const [created, setCreated] = useState(false);
   const [email, setEmailInput] = useState('');
   const [typed, setTyped] = useState('');
@@ -37,7 +38,8 @@ export function SitesConnectFlow() {
         if (active) {
           setMail(config.mail);
           setHosted(config.open_signup);
-          setCanCreate(config.open_signup || !config.claimed);
+          setFree(config.free === true);
+          setCanCreate((config.open_signup || !config.claimed) && !config.signup_closed);
           setReady(true);
         }
       })
@@ -121,7 +123,7 @@ export function SitesConnectFlow() {
               >
                 {springform ? (
                   <p className="mt-3">
-                    {SPRINGFORM_OFFER} Approving gives it your account’s agent link and turns every app on.
+                    {springformOffer(free)} Approving gives it your account’s agent link and turns every app on.
                     {hosted && ' Your email must be confirmed first.'}
                   </p>
                 ) : (
@@ -134,7 +136,7 @@ export function SitesConnectFlow() {
                   // Still unconfirmed (no email yet, or a mistyped one): send the confirmation from here.
                   <div className="mt-3">
                     <label className="block">
-                      {SPRINGFORM_EMAIL}
+                      {springformEmail(free)}
                       <input
                         className={input}
                         type="email"
@@ -173,11 +175,12 @@ export function SitesConnectFlow() {
             ) : (
               <div>
                 <p className="mt-3">
-                  Create an account or sign in, then approve this connection. The code expires after 15 minutes.
+                  {canCreate ? 'Create an account or sign in' : 'Sign in'}, then approve this connection. The code
+                  expires after 15 minutes.
                 </p>
                 {mail && (
                   <label className="mt-3 block">
-                    {springform && hosted ? SPRINGFORM_EMAIL : 'Email (optional for a new account)'}
+                    {springform && hosted ? springformEmail(free) : 'Email (optional for a new account)'}
                     <input
                       className={input}
                       type="email"

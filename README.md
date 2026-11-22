@@ -72,6 +72,8 @@ work in either mode.
 | `DATA_DIR` | `data` (`/data` in the image) | Where `todo.db` and `backups/` live. Must be a persistent, writable directory; the app refuses to start if it cannot write there. |
 | `PUBLIC_BASE_URL` | Railway's public domain if there is one, else the request's own address | The address every generated link starts with (agent, capture, sign-in), e.g. `https://todogtd.com`. Set it whenever you use your own domain. When it starts with `https://` the session cookie is `Secure`. |
 | `OPEN_SIGNUP` | `false` | `true` lets anyone create a list. Leave unset to run one list. |
+| `SIGNUP_CLOSED` | `false` | With `OPEN_SIGNUP` on, `true` stops new accounts: every front page offers sign-in only and creating one is refused (403). Existing accounts, sign-in, agent and capture links keep working. No effect on a one-list server. |
+| `FREE_MAX` | `true` | The suite is free: with `OPEN_SIGNUP` on, an account with a confirmed email gets Max, and nothing is sold (no plan card, prices, billing routes, or the policy pages' paid parts; no Refunds page). `false` brings Pro back as it was, with the Stripe settings below. |
 | `RESET_CODE` | unset | One-list servers only. While set, the home page offers "Reset access" to whoever types this code. Remove it afterwards. |
 | `TRUST_PROXY` | `false` | `1` when the app is behind a proxy that sets the client-address header itself (Railway does; for Cloudflare see `TRUSTED_IP_HEADER`). Rate limits then key on the address in `TRUSTED_IP_HEADER` instead of the proxy's own. Never set it on a server reached directly: clients could then pick their own address. |
 | `TRUSTED_IP_HEADER` | `X-Real-IP` | The header the proxy puts the client address in. Railway sets `X-Real-IP` itself and ignores what the client sent. Behind Cloudflare set `CF-Connecting-IP`, and only if the server cannot be reached except through Cloudflare (otherwise clients send that header themselves). With Cloudflare in front of Railway the default `X-Real-IP` is Cloudflare's address, shared by many visitors. For a list-valued header such as `X-Forwarded-For` the first entry is used. |
@@ -563,7 +565,7 @@ Setting it up, in the Stripe account the suite bills from:
    `2026-04-22.dahlia`, for `checkout.session.completed`, `customer.subscription.created`,
    `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid` and
    `invoice.payment_failed`.
-5. With `OPEN_SIGNUP=true`, set `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` (this turns on
+5. With `OPEN_SIGNUP=true` and `FREE_MAX=false`, set `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` (this turns on
    syncing), then `STRIPE_PRICE_MONTH` and `STRIPE_PRICE_YEAR` (this opens sales).
 
 How it stays right: Pro is never set by one event. Every webhook makes the app re-read the

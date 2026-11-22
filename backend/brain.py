@@ -305,9 +305,7 @@ def set_link_brains(list_id: int, ids) -> list[int]:
 
 def account_caps(list_id: int, conn=None) -> dict:
     conn = conn or db.get_db()
-    row = conn.execute(
-        f"SELECT email_verified_at, {paid_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (list_id,)
-    ).fetchone()
+    row = conn.execute(f"SELECT {paid_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (list_id,)).fetchone()
     if row is None:
         raise NotFoundError("Account not found")
     verified, hosted, tier = bool(row["email_verified_at"]), settings.open_signup(), plans.of(row)
@@ -489,7 +487,7 @@ def _list_of(conn, brain_id: int) -> int:
 
 def _plan(conn, brain_id: int) -> dict:
     row = conn.execute(
-        f"SELECT email_verified_at, {paid_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (_list_of(conn, brain_id),)
+        f"SELECT {paid_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (_list_of(conn, brain_id),)
     ).fetchone()
     verified, hosted = row["email_verified_at"] is not None, settings.open_signup()
     tier = plans.of(row)

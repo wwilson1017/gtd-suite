@@ -315,6 +315,8 @@ export interface AppConfig extends PaidConfig {
   moved?: string;
   /** The host Simple Sites hands its addresses out on, when not its own ("" then). */
   sites_short_host?: string;
+  /** The hosted service takes no new accounts (SIGNUP_CLOSED): the front pages offer sign-in only. */
+  signup_closed?: boolean;
 }
 
 export function getConfig(): Promise<AppConfig> {

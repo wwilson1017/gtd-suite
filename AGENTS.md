@@ -68,7 +68,7 @@ backend/
   paid/caps.py   paid limits and plan column names/DDL; no app imports
   paid/plans.py  plan derivation, feature gates and plan wording
   paid/routes.py billing routes and the session plan block
-  paid/settings.py payment service environment variables
+  paid/settings.py payment service environment variables, and FREE_MAX (free_max: the suite is free)
   paid/admin.py  comp, billing-sync, billing checks and admin plan reports
   paid/smoke.sh  checks the hosted service's addresses after a deploy, without credentials
   site_host.py   isolated content hosts: body pages, file manifests, text cache, password passes and takedowns
@@ -134,7 +134,8 @@ frontend/        Vite + React 19 + Tailwind 4; builds into backend/static. One b
                  index.css sets that app's brand-* and band-* tokens under [data-app="…"]
                  src/paid/ holds everything about paid plans (the plan card, prices, billing
                  calls, policy links); nothing outside it names a plan (paidBoundary.test.ts).
-                 public/paid/ holds the policy pages, served at /terms.html … only with open signup
+                 public/paid/ holds the policy pages, served at /terms.html … only with open signup;
+                 pages.py leaves out their <!-- paid --> parts while free, or <!-- free --> ones
 docs/agent-commands.md   the generic Agent Commands spec the guide links to
 Dockerfile       frontend build, then Python 3.12 + uv, one uvicorn worker
 ```
@@ -235,7 +236,13 @@ the call budget charged; every other request goes to FastMCP untouched.
   Common Brain's Forget is the other: `POST /api/app/brain/…/forget`
   removes a memory or page with its whole history, for the person in the browser only.
   An agent archives, or hands over `brain_forget_link`, a link to the app that grants nothing.
-- **Pro is derived, never set.** `paid/plans.of` reads `lists.plan_status` + `plan_until`,
+- **Pro is derived, never set.** While the suite is free (`paid_settings.free_max()`, the
+  default; `FREE_MAX=false` turns paid plans back on exactly as they were), `paid/plans.of`
+  answers Max for a hosted account with a confirmed email (`lists.email_verified_at`, one of
+  `PLAN_COLUMNS`), never stored; an unconfirmed one keeps the trial caps, a self-host its own.
+  Free also turns `billing.syncing()` off, so nothing is sold or synced, and the app shows no
+  plan, price or upsell (`plan.free`, `config.free`). The paid code stays, behind that switch.
+  Otherwise `paid/plans.of` reads `lists.plan_status` + `plan_until`,
   which only `paid/billing.sync` writes, from Stripe's current subscriptions of the account's own
   customer. Never set Pro from a single webhook event (order and duplicates vary), never
   from metadata, and never by hand outside `scripts/admin.py billing-sync`. The one other

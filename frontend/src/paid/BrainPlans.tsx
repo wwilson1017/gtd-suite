@@ -4,9 +4,9 @@ import { answered } from '../apps/todo-gtd/useConfig';
 import './brain.css';
 
 /** The prices are the hosted service's: a self-hosted (one-list) server shows none,
- *  nor does a server whose config failed to load. */
+ *  nor does a free suite (nothing is sold), nor a server whose config failed to load. */
 function offered(config: AppConfig | null) {
-  return answered(config) && config.open_signup;
+  return answered(config) && config.open_signup && !config.free;
 }
 
 export function BrainPlans({ config }: { config: AppConfig | null }) {

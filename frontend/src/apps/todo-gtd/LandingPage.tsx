@@ -39,7 +39,7 @@ function openApp(welcome = false) {
 }
 
 /** `account`: call what the person has an account, not a list (Notes). */
-function SignIn({ account = false }: { account?: boolean }) {
+function SignIn({ account = false, open = false }: { account?: boolean; open?: boolean }) {
   const aList = account ? 'an account' : 'a list';
   const emailId = useId();
   const [email, setEmail] = useState('');
@@ -57,7 +57,7 @@ function SignIn({ account = false }: { account?: boolean }) {
   };
 
   return (
-    <details className="mt-8 rounded-xl border border-line-faint bg-cream p-4">
+    <details open={open} className="mt-8 rounded-xl border border-line-faint bg-cream p-4">
       <summary className="cursor-pointer text-sm font-heading font-semibold text-charcoal">
         Already have {aList}? Sign in
       </summary>
@@ -289,6 +289,20 @@ export function LandingPage() {
     );
   }
 
+  // The hosted service takes no new accounts (SIGNUP_CLOSED): every front page is sign-in only.
+  if (config?.signup_closed) {
+    return (
+      <PageFrame>
+        <h1 className="font-heading text-3xl font-bold text-charcoal">Sign-up is closed</h1>
+        <p className="mt-3 text-charcoal">
+          We are not taking new accounts right now. Already have one? Sign in with the email on it.
+        </p>
+        {config.signed_in && <OpenMyList />}
+        {mail && <SignIn account open />}
+      </PageFrame>
+    );
+  }
+
   if (APP === 'brain') {
     return (
       <Suspense fallback={null}>
@@ -405,8 +419,10 @@ export function LandingPage() {
         eyebrow={offersPlans(config) ? 'Free to start \u00b7 one click \u00b7 nothing to install' : undefined}
         footnote={
           <>
-            {!offersPlans(config) &&
-              'Free to start: one site to try for 7 days, then 500 pages and 500 short links once you confirm an email. '}
+            {config?.free
+              ? 'Free: one site to try for 7 days, then everything unlocked once you confirm an email. '
+              : !offersPlans(config) &&
+                'Free to start: one site to try for 7 days, then 500 pages and 500 short links once you confirm an email. '}
             Already use Todo GTD, Notes GTD or Projects GTD? It is the same account and the same agent link: open Sites
             from there.
           </>

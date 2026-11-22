@@ -1,6 +1,6 @@
 """Paid limits and schema; no app imports."""
 
-PLAN_COLUMNS = "plan_status, plan_until, pro_comp_until, comp_plan"
+PLAN_COLUMNS = "email_verified_at, plan_status, plan_until, pro_comp_until, comp_plan"
 ACCOUNT_COLUMNS = "stripe_customer, plan_cancels, " + PLAN_COLUMNS
 # Current subscriptions are synced by billing.sync; grants are written by admin.comp.
 # Customer/email fields retain billing identity and the last confirmed receipts address.

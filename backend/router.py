@@ -48,6 +48,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, R
 from backend.paid import routes as paid_routes
 from backend.paid import plans
 from backend.paid import billing
+from backend.paid import settings as paid_settings
 from backend import (
     apps,
     brain,
@@ -700,6 +701,8 @@ def get_config(request: Request, response: Response):
         "reset": claimed and bool(settings.reset_code()),
         "signed_in": sessions.resolve(request.cookies.get(sessions.COOKIE)) is not None,
         "billing": billing.selling(),
+        "free": paid_settings.free_max(),  # a confirmed hosted account gets everything (paid/plans.of)
+        "signup_closed": settings.signup_closed(),
         # This page's app, and every app's reachable address: the menus offer the way across.
         "app": settings.app_for(request),
         "apps": {
@@ -767,6 +770,12 @@ def create_list(request: Request, response: Response, body: ListCreate | None = 
                 "This browser is already signed in to a list. Sign out in "
                 f"{apps.settings_page(settings.app_for(request))} to make another."
             ),
+        )
+    if settings.signup_closed():
+        raise HTTPException(
+            status_code=403,
+            detail="Sign-up is closed. Already have an account? Sign in with its email.",
+            headers=_NO_STORE,
         )
     if not create_limiter.allow(client_ip(request)):
         raise _too_many()
