@@ -136,6 +136,8 @@ mv todo.db.restore todo.db && rm -f todo.db-wal todo.db-shm
 ```
 
 Restart straight away (`docker compose restart`, or **Deployments → Restart** on Railway).
+The running app still has the old file open, so anything written between the `mv` and the
+restart is lost. Where you can, stop the app first, run the commands, then start it.
 
 **One account.** Puts one account's todos, projects and areas back as a snapshot had them,
 keeping its links, sign-ins and everything else. Safe while the app runs, and it takes a
