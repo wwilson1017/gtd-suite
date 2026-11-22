@@ -89,7 +89,7 @@ describe('LandingPage', () => {
   it('links the policy pages on a hosted server', async () => {
     await mount(OPEN);
     const hrefs = [...host.querySelectorAll('nav[aria-label="Policies"] a')].map((a) => a.getAttribute('href'));
-    expect(hrefs).toEqual(['/terms.html', '/privacy.html', '/refunds.html', '/support.html']);
+    expect(hrefs).toEqual(['/terms.html', '/privacy.html', '/support.html']);
   });
 
   it('leaves the Refunds page out while the suite is free', async () => {

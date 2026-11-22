@@ -15,7 +15,7 @@ import sqlite3
 import threading
 from contextlib import contextmanager
 from pathlib import Path
-from backend.paid import caps
+from backend.plans import caps
 
 
 logger = logging.getLogger(__name__)

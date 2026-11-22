@@ -21,7 +21,7 @@ export interface Plan {
 }
 
 export interface PaidConfig {
-  /** Pro can be bought here (backend/paid/billing.py selling()). */
+  /** Pro can be bought here (backend/plans/billing.py selling()). */
   billing?: boolean;
   /** The suite is free: confirming an email unlocks everything (paid_settings.free_max). */
   free?: boolean;

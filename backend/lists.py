@@ -26,7 +26,7 @@ import secrets
 import sqlite3
 import string
 
-from backend.paid import caps as paid_caps
+from backend.plans import caps as paid_caps
 from backend import apps, common, db, lifecycle, sessions, settings
 
 # 43 letters and digits: 62**43 > 2**256, not enumerable. No - or _, which a chat's

@@ -4,7 +4,7 @@ Everything you need to run your own copy. Short version: one container, one work
 persistent `/data` volume.
 
 - [Docker](#docker) · [Railway](#railway) · [Locked out](#locked-out) · [Settings](#settings)
-- [Files](#files) · [Backups](#backups) · [Restore](#restore) · [Admin tool](#admin-tool) · [Paid plans](#paid-plans)
+- [Files](#files) · [Backups](#backups) · [Restore](#restore) · [Admin tool](#admin-tool)
 
 ## Docker
 
@@ -53,7 +53,7 @@ Only two matter for most people: a persistent `DATA_DIR`, and `PUBLIC_BASE_URL`.
 | `PUBLIC_BASE_URL` | Railway's domain, else the request's address | The start of every link the app makes. Set it for your own domain. `https://` makes the session cookie `Secure`. |
 | `OPEN_SIGNUP` | `false` | `true` lets anyone create an account. Unset runs a single account. |
 | `SIGNUP_CLOSED` | `false` | With open signup, `true` stops new accounts (403). Everyone else carries on as normal. |
-| `FREE_MAX` | `true` | With open signup, a confirmed email gets Max and nothing is sold. `false` brings back paid plans (see [Paid plans](#paid-plans)). |
+| `FREE_MAX` | `true` | With open signup, a confirmed email gets the biggest limits. `false` keeps confirmed accounts on the smaller ones (`backend/plans/caps.py`). |
 | `RESET_CODE` | unset | Single-account servers only: turns on **Reset access**. Remove it afterwards. |
 | `TRUST_PROXY` | `false` | `1` behind a proxy that sets the client-address header itself (Railway does). Never on a server reached directly. |
 | `TRUSTED_IP_HEADER` | `X-Real-IP` | The proxy's client-address header. Behind Cloudflare use `CF-Connecting-IP`, and only if the server can't be reached around it. For `X-Forwarded-For` the first entry is used. |
@@ -67,7 +67,6 @@ Only two matter for most people: a persistent `DATA_DIR`, and `PUBLIC_BASE_URL`.
 | `FILES_S3_ENDPOINT`, `FILES_S3_BUCKET`, `FILES_S3_KEY_ID`, `FILES_S3_SECRET` | unset | An S3-compatible store (R2, MinIO, S3, B2), path-style, for Common Brain's files and Sites' file sites. Unset, Files is off. See [Files](#files). |
 | `FILES_S3_REGION` | `auto` | `auto` for R2; MinIO and S3 need a real region. |
 | `SITES_FILES_PREFIX` | `sites` | Each deployment sharing a bucket needs its own: a daily pass deletes objects under it that its database doesn't know. |
-| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_MONTH`, `STRIPE_PRICE_YEAR` | unset | Paid plans only. See [Paid plans](#paid-plans). |
 | `PORT` | `8000` | Railway sets it. |
 
 Keep open and click tracking **off** on the Resend domain (the default), so sign-in links
@@ -175,36 +174,7 @@ Anywhere else, run it from the app directory with the app's `DATA_DIR`.
 | `snapshots` | The snapshot files |
 | `restore <id> --from <snapshot>` | The one-account restore above |
 | `merge-brain FROM TO --name … --folder …` | Folds a Brain-only account into another as a new brain; `--yes` applies |
-| `comp <email or id>` | Free Pro (`--plan max` for Max, `--until YYYY-MM-DD`, `--off` to remove) |
-| `billing-sync <id>` | Re-reads one account's subscription from Stripe |
 
 Read commands take `--json`. An id can also be the account number shown in Settings. The
 tool never prints agent or capture links, hides emails unless asked, and logs every change
 (not content) to the `admin_log` table.
-
-## Paid plans
-
-`backend/paid/` and `frontend/src/paid/` hold the plans and billing for a hosted server.
-They're MIT like everything else, and stay off unless a server has open signup, `FREE_MAX=false`
-and its own Stripe keys. A self-hosted server has no plans and the big limits already.
-
-Pro is one plan for the whole account, sold through Simple Sites, with Stripe as merchant
-of record (Managed Payments). It lifts every app's limits and adds Sites view counts and
-page passwords. It needs a confirmed email.
-
-To set it up in Stripe:
-
-1. **Settings → Managed Payments:** activate it.
-2. Create the product with a Managed Payments tax code (software as a service) and two
-   prices, monthly and yearly.
-3. Turn on the Customer Portal: cancel at period end, and switch between the two prices.
-4. Add a webhook to `https://<your-sites-host>/api/stripe/webhook` on API version
-   `2026-04-22.dahlia`, for `checkout.session.completed`, `customer.subscription.created`,
-   `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid` and
-   `invoice.payment_failed`.
-5. Set `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` (turns on syncing), then
-   `STRIPE_PRICE_MONTH` and `STRIPE_PRICE_YEAR` (opens sales).
-
-The plan is never set from one webhook. Every event re-reads the account's subscriptions
-from Stripe, so order and duplicates don't matter, and hourly and daily passes catch
-anything missed. Pro lapses three days after the last paid period the app knows about.

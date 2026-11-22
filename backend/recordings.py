@@ -21,9 +21,9 @@ import json
 import re
 from typing import NamedTuple, cast
 
-from backend.paid import caps as paid_caps
-from backend.paid import plans
-from backend.paid import billing
+from backend.plans import caps as paid_caps
+from backend.plans import plans
+from backend.plans import billing
 from backend import apps, common, db, people, settings
 from backend.common import ConflictError, NotFoundError, ValidationError
 

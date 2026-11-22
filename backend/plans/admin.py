@@ -1,20 +1,19 @@
-"""Paid commands, reports and checks for the operator CLI.
+"""Plan commands, reports and checks for the operator CLI.
 
-python -m scripts.admin billing-sync <list_id>
 python -m scripts.admin comp <list_id or email> [--plan pro|max] [--until YYYY-MM-DD] [--off]
 """
 
 import collections
 import datetime
-from backend.paid import billing, plans
-from backend.paid import caps as paid_caps
-from backend.paid import settings as paid_settings
+from backend.plans import billing, plans
+from backend.plans import caps as paid_caps
+from backend.plans import settings as paid_settings
 from backend import common, db
 
 
 def _undo_on_failure(list_id: int, check) -> None:
-    """Run ``check`` on a list this command just disabled; if it refuses or Stripe fails,
-    enable the list again (its owner must keep reaching Manage billing) and stop."""
+    """Run ``check`` on a list this command just disabled; if it refuses or billing fails,
+    enable the list again (its owner must keep reaching their billing) and stop."""
     from scripts.admin import _log
 
     try:
@@ -26,74 +25,8 @@ def _undo_on_failure(list_id: int, check) -> None:
         if isinstance(e, SystemExit):
             raise
         raise SystemExit(
-            f"List {list_id}: Stripe could not be checked ({e}); it was left enabled. Nothing changed."
+            f"List {list_id}: billing could not be checked ({e}); it was left enabled. Nothing changed."
         ) from e
-
-
-def _refuse_while_subscribed(list_id: int) -> None:
-    """A disabled list's browsers are signed out, so its owner can no longer reach
-    Manage billing: never disable one whose subscription can still charge."""
-    customer = (
-        db.get_db().execute("SELECT stripe_customer FROM lists WHERE id = ?", (list_id,)).fetchone()["stripe_customer"]
-    )
-    if not customer:
-        return
-    if not billing.syncing():
-        raise SystemExit(
-            f"List {list_id} is a Stripe customer ({customer}); run this with the "
-            "app's STRIPE_* variables set so Stripe can be checked. Nothing changed."
-        )
-    pending = billing.payment_paths(list_id)  # also closes any open checkout
-    if pending:
-        raise SystemExit(
-            f"List {list_id} has {pending} (Stripe customer {customer}): settle it "
-            "in Stripe (cancel, refund or void), then disable. Nothing changed."
-        )
-
-
-def _refuse_while_billable(list_id: int) -> None:
-    """The list row is the only tie between Stripe and the account: deleting it while
-    Stripe could still take money would charge someone nobody can find. So a Stripe
-    customer's list is deleted only once that customer is deleted in Stripe (which
-    cancels its subscriptions and stops any new checkout) and no invoice is left open."""
-    customer = (
-        db.get_db().execute("SELECT stripe_customer FROM lists WHERE id = ?", (list_id,)).fetchone()["stripe_customer"]
-    )
-    if not customer:
-        return
-    if not billing.syncing():
-        raise SystemExit(
-            f"List {list_id} is a Stripe customer ({customer}); run this with the "
-            "app's STRIPE_* variables set so Stripe can be checked. Nothing was deleted."
-        )
-    if not billing.customer_gone(list_id):
-        raise SystemExit(
-            f"List {list_id} is Stripe customer {customer}. In Stripe, void or settle "
-            "its open invoices and delete the customer (that cancels its "
-            "subscriptions), then delete here. Nothing was deleted."
-        )
-
-
-def cmd_billing_sync(args) -> None:
-    """Read the list's subscriptions from Stripe now and store the best one, as the
-    webhook does (billing.sync). Needs the app's STRIPE_* variables. A second process:
-    if Stripe also calls the app's webhook this second, whichever writes last wins,
-    and both read the same Stripe state."""
-    from scripts.admin import _require, _log
-
-    _require(args.list_id)
-    if not billing.syncing():
-        raise SystemExit(
-            "Billing is off here: STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET are not both set (or OPEN_SIGNUP is off)."
-        )
-    billing.sync(args.list_id)
-    with db.transaction() as tx:
-        _log(tx, "billing-sync", args.list_id)
-    row = db.get_db().execute(f"SELECT {paid_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (args.list_id,)).fetchone()
-    print(
-        f"List {args.list_id}: Stripe status {row['plan_status'] or '-'}, until "
-        f"{row['plan_until'] or '-'}; Pro {'yes' if plans.active(row) else 'no'}"
-    )
 
 
 def cmd_comp(args) -> int:
@@ -156,7 +89,7 @@ def springform_comp_in(conn, list_id: int) -> None:
 
 
 def register(command, day) -> None:
-    command("billing-sync", cmd_billing_sync, "re-read the list's Pro subscription from Stripe")
+    billing.admin_commands(command)
     p = command("comp", cmd_comp, "give a list Pro or Max for free (or take it back with --off)", list_id=False)
     p.add_argument("who", help="the list's id or account number, or the email on it")
     p.add_argument("--plan", choices=("pro", "max"), default="pro", help="what to grant (pro)")
@@ -198,7 +131,7 @@ def details(conn, list_id: int) -> dict:
         (list_id,),
     ).fetchone()
     return {
-        # Pro (billing.py); the Stripe ids are for finding the account in Stripe (refunds).
+        # The plan; the payment service's ids are for finding the account there.
         "pro": plans.active(plan),
         "tier": plans.of(plan),
         "plan": dict(plan),

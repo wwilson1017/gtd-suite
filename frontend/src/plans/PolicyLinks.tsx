@@ -1,13 +1,13 @@
 import { BASE } from '../core/app';
 import type { AppConfig } from '../apps/todo-gtd/api';
 import { answered, useConfig } from '../apps/todo-gtd/useConfig';
+import { SOLD_POLICIES } from '@billing';
 
 /** The suite's policy pages (static files in public/, served on every app's address).
  *  They describe the hosted service, so a self-hosted (one-list) server shows no links. */
 const LINKS: [string, string][] = [
   ['/terms.html', 'Terms'],
   ['/privacy.html', 'Privacy'],
-  ['/refunds.html', 'Refunds'],
   ['/support.html', 'Support'],
 ];
 
@@ -18,8 +18,8 @@ export function PolicyLinks({ className = '' }: { className?: string }) {
 /** The same links for a page that already holds the server's answer, so it asks once. */
 export function PolicyNav({ config, className = '' }: { config: AppConfig | null; className?: string }) {
   if (!answered(config) || !config.open_signup) return null; // fail closed: a guess shows nothing
-  // Nothing is sold while the suite is free, so there is no Refunds page (backend pages.py).
-  const links = config.free ? LINKS.filter(([href]) => href !== '/refunds.html') : LINKS;
+  // A server that sells adds its own (a Refunds page); nothing is sold while the suite is free.
+  const links = config.free ? LINKS : [...LINKS, ...SOLD_POLICIES];
   return (
     <nav aria-label="Policies" className={className}>
       {links.map(([href, label], i) => (

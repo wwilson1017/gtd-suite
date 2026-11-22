@@ -7,8 +7,8 @@ import json
 import pytest
 
 from backend import apps, connect, db, lists
-from backend.paid import admin as paid_admin, plans
-from backend.paid import caps as paid_caps
+from backend.plans import admin as paid_admin, plans
+from backend.plans import caps as paid_caps
 from backend.tests.conftest import confirm_list
 from backend.tests.test_connect import create, poll, start
 from scripts import admin

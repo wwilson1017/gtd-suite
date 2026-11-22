@@ -1,4 +1,4 @@
-import { offersPlans } from '../../paid/features';
+import { offersPlans } from '../../plans/features';
 // The landing page (/): make a list, or sign in to one you have. Todo GTD's own is
 // front/TodoFront; the other apps share FrontDoor below.
 import { lazy, Suspense, useId, useState, type ReactNode } from 'react';
@@ -12,7 +12,7 @@ import { useConfig } from './useConfig';
 
 const ProjectsDemo = lazy(() => import('../projects-gtd/ProjectsDemo').then((m) => ({ default: m.ProjectsDemo })));
 const NotesDemo = lazy(() => import('../notes-gtd/NotesDemo').then((m) => ({ default: m.NotesDemo })));
-const SitesPlans = lazy(() => import('../../paid/SitesPlans').then((m) => ({ default: m.SitesPlans })));
+const SitesPlans = lazy(() => import('../../plans/offers').then((m) => ({ default: m.SitesPlans })));
 const BrainLanding = lazy(() => import('../brain/BrainLanding').then((m) => ({ default: m.BrainLanding })));
 const SitesDemo = lazy(() => import('../sites/SitesDemo').then((m) => ({ default: m.SitesDemo })));
 const TodoFront = lazy(() => import('./front/TodoFront').then((m) => ({ default: m.TodoFront })));

@@ -2,14 +2,14 @@
 
 A code is for a client: "sites" (an AI tool connecting to Simple Sites) or "springform" (a
 Springform install linking the account: every app on and, on the hosted service, the free grant
-for an account with a confirmed email; paid/admin.springform_comp_in)."""
+for an account with a confirmed email; plans/admin.springform_comp_in)."""
 
 import re
 import secrets
 from datetime import timedelta
 
 from backend import apps, common, db, lists, settings
-from backend.paid import admin as paid_admin
+from backend.plans import admin as paid_admin
 from backend.common import NotFoundError, ValidationError
 
 _ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"

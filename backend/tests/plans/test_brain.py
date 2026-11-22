@@ -1,6 +1,6 @@
 """Plan cases moved from test_brain.py."""
 
-from backend.paid import caps as paid_caps
+from backend.plans import caps as paid_caps
 from backend import brain, common, db
 from backend.tests.conftest import confirm_list as confirm_list, turn_on as turn_on
 from backend.tests.test_mcp import (

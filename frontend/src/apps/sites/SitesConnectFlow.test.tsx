@@ -3,7 +3,7 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../../core/api/client';
-import { springformEmail } from '../../paid/springform';
+import { springformEmail } from '../../plans/springform';
 import { resetSession } from '../todo-gtd/session';
 import { SitesConnectFlow } from './SitesConnectFlow';
 

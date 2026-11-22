@@ -39,7 +39,7 @@ import logging
 import re
 import secrets
 
-from backend.paid import billing
+from backend.plans import billing
 from backend import brain, common, db, keys, objectstore, settings, storage, sites
 from backend.common import ConflictError, NotFoundError, ValidationError
 

@@ -9,7 +9,7 @@ import { Fragment } from 'react';
 import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
 import { APP } from '../../../core/app';
 import { useMediaQuery } from '../../../core/theme/menuLayout';
-import { usePlanSection } from '../../../paid/planSection';
+import { usePlanSection } from '../../../plans/offers';
 import { reachOf } from '../clients';
 import { AccountNumber, EmailSection, SignInElsewhere, ThisDevice } from '../ConnectPage';
 import { ConnectAI } from '../components/ConnectAI';

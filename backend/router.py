@@ -45,10 +45,10 @@ from urllib.parse import urlsplit
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, Response
 
-from backend.paid import routes as paid_routes
-from backend.paid import plans
-from backend.paid import billing
-from backend.paid import settings as paid_settings
+from backend.plans import routes as paid_routes
+from backend.plans import plans
+from backend.plans import billing
+from backend.plans import settings as paid_settings
 from backend import (
     apps,
     brain,
@@ -646,7 +646,7 @@ def sign_out_everywhere(owner: int = Depends(session_owner)):
     return {"ok": True}
 
 
-paid_routes.mount(router, account_router, session_owner, _base_url)
+billing.mount(router, account_router, session_owner, _base_url)
 router.include_router(account_router)
 
 
@@ -702,7 +702,7 @@ def get_config(request: Request, response: Response):
         "reset": claimed and bool(settings.reset_code()),
         "signed_in": sessions.resolve(request.cookies.get(sessions.COOKIE)) is not None,
         "billing": billing.selling(),
-        "free": paid_settings.free_max(),  # a confirmed hosted account gets everything (paid/plans.of)
+        "free": paid_settings.free_max(),  # a confirmed hosted account gets everything (plans/plans.py of)
         "signup_closed": settings.signup_closed(),
         # This page's app, and every app's reachable address: the menus offer the way across.
         "app": settings.app_for(request),

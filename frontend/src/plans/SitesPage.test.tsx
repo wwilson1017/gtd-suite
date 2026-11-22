@@ -10,15 +10,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Session } from '../apps/todo-gtd/types';
 import type { Site, SiteCaps } from '../apps/sites/types';
 
-// The plan card (PlanCard) asks what the server offers; Pro is not on sale here.
+// Pro is not on sale here.
 const todoApi = vi.hoisted(() => ({
   getSession: vi.fn(),
   getConfig: vi.fn(async () => ({ billing: false })),
-  startCheckout: vi.fn(),
-  manageBilling: vi.fn(),
 }));
 vi.mock('../apps/todo-gtd/api', () => todoApi);
-vi.mock('./api', () => todoApi);
 const api = vi.hoisted(() => ({
   readSiteData: vi.fn(),
   clearSiteData: vi.fn(),

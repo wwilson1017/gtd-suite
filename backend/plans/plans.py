@@ -2,7 +2,7 @@
 
 import datetime
 from backend import common, settings
-from backend.paid import settings as paid_settings
+from backend.plans import settings as paid_settings
 
 # Pro (billing.py) is derived from the subscription's Stripe status as last synced,
 # and lapses this long after the period it last heard about, so a missed renewal
@@ -67,26 +67,15 @@ def short_name_refusal() -> str:
 
 
 def password_refusal() -> str:
-    from backend.paid import billing
+    from backend.plans import billing
 
     if paid_settings.free_max():
         return _needs_email("Password-protected pages")
     return f"Password-protected pages come with Pro.{billing.upsell(True)} Nothing was changed."
 
 
-def guide_upsell() -> str:
-    from backend import apps
-    from backend.paid import billing
-
-    return (
-        f"Pro raises them, for {billing.PRICE}: the person upgrades in {apps.settings_page()}"
-        if billing.selling()
-        else ""
-    )
-
-
 def short_name_guide() -> list[str]:
-    from backend.paid import billing
+    from backend.plans import billing
 
     return (
         ["Short names: Pro 10, Max 100; a lapsed plan has 30 days of grace before names are freed."]
@@ -96,6 +85,6 @@ def short_name_guide() -> list[str]:
 
 
 def site_upsell(eligible: bool, kind: str) -> str:
-    from backend.paid import billing, caps
+    from backend.plans import billing, caps
 
     return billing.upsell(eligible, caps.SITE_PRO_CAPS[0 if kind == "page" else 1])

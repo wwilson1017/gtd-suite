@@ -1,13 +1,13 @@
-"""Paid vocabulary and schema stay inside the paid package and its tests."""
+"""Plan vocabulary and schema stay inside the plans folder and its tests."""
 
 import re
 from pathlib import Path
-from backend.paid import caps
+from backend.plans import caps
 
 
-def test_paid_code_stays_in_its_folder():
+def test_plan_code_stays_in_its_folder():
     root = Path(__file__).resolve().parents[2]
-    excluded = [root / path for path in ("backend/paid", "backend/tests/paid", "backend/static")]
+    excluded = [root / path for path in ("backend/plans", "backend/tests/plans", "backend/static")]
     # The HTTP cache header is not a plan name. Bare title-case names
     # and either quote style for the lower-case plan literals are forbidden.
     pattern = re.compile(
@@ -28,4 +28,4 @@ def test_paid_code_stays_in_its_folder():
             for number, line in enumerate(content.splitlines(), 1):
                 if pattern.search(line):
                     hits.append(f"{path.relative_to(root)}:{number}")
-    assert not hits, "Paid code outside its folder: " + ", ".join(hits)
+    assert not hits, "Plan code outside its folder: " + ", ".join(hits)

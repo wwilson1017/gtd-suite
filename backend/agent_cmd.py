@@ -38,8 +38,8 @@ import pydantic
 from starlette.requests import Request
 from starlette.responses import HTMLResponse, JSONResponse, Response
 
-from backend.paid import plans
-from backend.paid import billing
+from backend.plans import plans
+from backend.plans import billing
 from backend import apps, boards, common, lists, pages, recordings, service, settings
 from backend.common import NotFoundError, ValidationError
 from backend.models import TodoBulkUpdate, TodoCreate, TodoUpdate
@@ -1021,7 +1021,7 @@ def _guide(ctx: _Ctx) -> dict:
         if hosted and not verified:
             raising = f"confirming an email in {apps.settings_page()} raises the caps"
         elif hosted and not plans.active(row) and billing.selling():
-            raising = plans.guide_upsell()
+            raising = billing.guide_upsell()
         else:
             raising = "these are the list's final caps"
         part["limits"] = {**part["limits"], "raising_them": raising}

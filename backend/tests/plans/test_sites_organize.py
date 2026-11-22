@@ -1,7 +1,7 @@
 """Plan cases moved from test_sites_organize.py."""
 
 import json
-from backend.paid import plans
+from backend.plans import plans
 from backend import db, sites
 from backend.tests.conftest import confirm_list as confirm_list
 from backend.tests.test_admin import run as run

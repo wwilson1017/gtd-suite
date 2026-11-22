@@ -9,7 +9,7 @@ import datetime
 import re
 from zoneinfo import ZoneInfo
 
-from backend.paid import caps
+from backend.plans import caps
 
 TODO_STATUSES = (
     "inbox",

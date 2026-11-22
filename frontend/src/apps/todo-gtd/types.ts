@@ -1,4 +1,4 @@
-import type { Plan } from '../../paid/types';
+import type { Plan } from '../../plans/types';
 
 // Todo GTD — shared types (mirrors backend/common.py)
 

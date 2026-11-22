@@ -1,5 +1,5 @@
 import { BASE } from '../../core/app';
-import type { PaidConfig } from '../../paid/types';
+import type { PaidConfig } from '../../plans/types';
 // Todo GTD — typed API calls.
 //
 // Everything is RAW fetch. The web app's calls go to /api/app, where the browser's

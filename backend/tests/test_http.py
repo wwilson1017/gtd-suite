@@ -148,9 +148,6 @@ APP_ROUTES = [
     ("POST", "signout"),
     ("POST", "signout-all"),
     ("POST", "restore"),
-    ("POST", "billing/checkout"),
-    ("POST", "billing/manage"),
-    ("POST", "billing/sync"),
 ]
 
 

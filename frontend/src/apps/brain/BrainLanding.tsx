@@ -1,5 +1,5 @@
 import { BASE } from '../../core/app';
-import { BrainPlans, BrainPlansLink } from '../../paid/BrainPlans';
+import { BrainPlans, BrainPlansLink } from '../../plans/offers';
 // Common Brain — the front door, the main page of the whole suite: the
 // pitch, the live demo (ChatGPT saves, the brain keeps it, Claude uses it), how to connect,
 // what every AI hears first, the suite's other apps, account options, and the one
@@ -7,7 +7,7 @@ import { BrainPlans, BrainPlansLink } from '../../paid/BrainPlans';
 import { useEffect, useRef, type ReactNode } from 'react';
 import type { AppConfig } from '../todo-gtd/api';
 import { Mark } from './Mark';
-import { PolicyLinks } from '../../paid/PolicyLinks';
+import { PolicyLinks } from '../../plans/PolicyLinks';
 import './brain.css';
 
 /** The suite's other apps, in the order they're shown. Each links to its own address

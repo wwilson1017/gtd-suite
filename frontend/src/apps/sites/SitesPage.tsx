@@ -1,5 +1,5 @@
 import { BASE } from '../../core/app';
-import { mayLockPage, showsViews, shortNameLabel } from '../../paid/features';
+import { mayLockPage, showsViews, shortNameLabel } from '../../plans/features';
 // Simple Sites — the home page: the account's pages and short links, a box to
 // publish a page (pasted, or from a file) and one to make a short link. Agents do
 // most publishing through the agent link; this is where the person sees it all,
@@ -8,7 +8,7 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { SITE_MAX_BYTES } from './types';
 import { apiErrorMessage } from '../../core/api/client';
 import { CopyButton } from '../todo-gtd/components/CopyButton';
-import { PlanCard } from '../../paid/PlanCard';
+import { PlanCard } from '../../plans/offers';
 import { useSession } from '../todo-gtd/session';
 import { createLink, createPage, deleteSite, downloadZip, listSites, updateSite } from './api';
 import { SitesData } from './SitesData';

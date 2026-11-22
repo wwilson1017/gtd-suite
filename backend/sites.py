@@ -33,8 +33,8 @@ import unicodedata
 from datetime import timedelta
 from urllib.parse import unquote, urlsplit
 
-from backend.paid import caps as paid_caps
-from backend.paid import plans
+from backend.plans import caps as paid_caps
+from backend.plans import plans
 from backend import apps, common, db, lists, settings, objectstore, storage
 from backend.common import NotFoundError, ValidationError
 

@@ -13,7 +13,7 @@ the person can, in the browser.
 
 from pathlib import Path
 
-from backend.paid import plans
+from backend.plans import plans
 from backend import agent_cmd, apps, common, db, mcp_server, settings, sites
 from backend.agent_cmd import Arg, Command
 from backend.mcp_server import _arg, _client_name, _list_id, _tool

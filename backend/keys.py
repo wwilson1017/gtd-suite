@@ -24,7 +24,7 @@ import datetime
 import json
 import re
 
-from backend.paid import billing
+from backend.plans import billing
 from backend import brain, common, db, lists
 
 PREFIX = "cb_"

@@ -43,7 +43,7 @@ import sys
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from backend.paid import admin as paid_admin
+from backend.plans import admin as paid_admin, billing
 from backend import (
     apps,
     backup,
@@ -460,10 +460,10 @@ def _set_disabled(args, disabled: bool) -> None:
         if changed:
             _log(conn, command, args.list_id)
     if changed and disabled:
-        # Disabled first, so a checkout already in flight sees it and closes its session
-        # (billing._handed_out); then billing is checked. Anything payable, or a service that
+        # Disabled first, so a checkout already in flight sees it and closes its session;
+        # then billing is checked (plans/billing.py). Anything payable, or a service that
         # cannot be asked, undoes it.
-        paid_admin._undo_on_failure(args.list_id, paid_admin._refuse_while_subscribed)
+        paid_admin._undo_on_failure(args.list_id, billing.refuse_while_subscribed)
     if not changed:
         print(f"List {args.list_id}: nothing changed (it was already {command}d).")
     elif disabled:
@@ -516,16 +516,16 @@ def cmd_delete(args) -> int:
             )
         print(f"Snapshot taken first: {before.name}")
     # Marked disabled first (as disable does), so a first checkout already in flight can
-    # neither store its new customer nor hand out a session (billing._customer_in,
-    # _handed_out); then billing is checked, and a refusal or a service failure undoes it.
+    # neither store its new customer nor hand out a session; then billing is checked
+    # (plans/billing.py), and a refusal or a service failure undoes it.
     with db.transaction() as tx:
         marked = tx.execute(
             "UPDATE lists SET disabled_at = ? WHERE id = ? AND disabled_at IS NULL", (common.now_iso(), args.list_id)
         ).rowcount
     if marked:
-        paid_admin._undo_on_failure(args.list_id, paid_admin._refuse_while_billable)
+        paid_admin._undo_on_failure(args.list_id, billing.refuse_while_billable)
     else:
-        paid_admin._refuse_while_billable(args.list_id)
+        billing.refuse_while_billable(args.list_id)
     # The files' bytes before their rows, which are the only record of where they are.
     try:
         files.delete_objects(args.list_id)

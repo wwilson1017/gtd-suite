@@ -4,7 +4,7 @@
 // new-page form (pasted or from a file), taking one down, deleting after a confirm,
 // and short links held back while their cap is 0.
 import { act } from 'react';
-import { NO_PAID_OFFERS } from '../../paid/features';
+import { NO_PAID_OFFERS } from '../../plans/features';
 import { createRoot } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';

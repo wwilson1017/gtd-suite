@@ -2,7 +2,7 @@
 
 The ONLY hard delete in the app, and it cannot reach anyone's data: a list
 qualifies only with no row in any app's content tables (apps.py; archived rows
-count), no email and no billing customer (paid/billing.py: the row is billing's only tie to
+count), no email and no billing customer (plans/billing.py: the row is billing's only tie to
 the account), more than 30 days after it was made. That is a "Create my list" click
 that nobody came back to. An emailless trial account whose one site expired and was
 deleted (sites.expire_sites, day 37) then holds nothing and qualifies too: that is the
@@ -11,7 +11,7 @@ end of a trial nobody kept, and a tool holding its link connects again.
 
 import datetime
 
-from backend.paid import billing
+from backend.plans import billing
 from backend import apps, common, db
 
 

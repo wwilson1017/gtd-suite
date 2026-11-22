@@ -14,7 +14,7 @@ from fastapi.responses import PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.datastructures import MutableHeaders
 
-from backend.paid import billing
+from backend.plans import billing
 from backend import (
     api_v1,
     apps,

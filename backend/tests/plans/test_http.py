@@ -60,10 +60,6 @@ def test_route_table_is_exactly_the_planned_surface(client):
         ("POST", f"{a}/signout"),
         ("POST", f"{a}/signout-all"),
         ("POST", f"{a}/restore"),
-        ("POST", f"{a}/billing/checkout"),
-        ("POST", f"{a}/billing/manage"),
-        ("POST", f"{a}/billing/sync"),
-        ("POST", "/api/stripe/webhook"),
         ("GET", "/api/zip/{token}"),  # a one-use Sites zip ticket (site_routes.zip_link)
         ("POST", "/api/c/{token}"),
         ("POST", "/api/lists"),

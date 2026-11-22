@@ -1,4 +1,4 @@
-import { NO_PAID_OFFERS } from '../../paid/features';
+import { NO_PAID_OFFERS } from '../../plans/features';
 import { useEffect, useState } from 'react';
 import { getConfig, type AppConfig } from './api';
 

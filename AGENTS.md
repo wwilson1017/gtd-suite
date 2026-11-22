@@ -64,14 +64,15 @@ backend/
                  counts (count_view in memory, flush_views each minute; shown with Pro only); page data
                  (visitor/owner records, indexed fields, quota counters, read cursors and browser Clear)
   sites_agent.py Simple Sites on the agent link: site_*/link_create tools, SITES … REPUBLISH and SITE_SYNC commands
-  paid/billing.py Pro, the paid plan (sold through Sites, covers the account): Stripe Checkout
-                 (Managed Payments), the Customer Portal, sync(), catch_up() and the hourly loop
-  paid/caps.py   paid limits and plan column names/DDL; no app imports
-  paid/plans.py  plan derivation, feature gates and plan wording
-  paid/routes.py billing routes and the session plan block
-  paid/settings.py payment service environment variables, and FREE_MAX (free_max: the suite is free)
-  paid/admin.py  comp, billing-sync, billing checks and admin plan reports
-  paid/smoke.sh  checks the hosted service's addresses after a deploy, without credentials
+  plans/billing.py the billing seam: off (no sales, no billing routes, no-ops) unless a separate
+                 package, gtd_billing, imports; then every name hands over to it. Nothing else
+                 checks for the package
+  plans/caps.py  plan limits and plan column names/DDL; no app imports
+  plans/plans.py plan derivation, feature gates and plan wording
+  plans/routes.py the session plan block and the email guard
+  plans/settings.py FREE_MAX (free_max: the suite is free)
+  plans/admin.py comp, the disable/delete billing check's undo, and admin plan reports
+  plans/smoke.sh checks the hosted service's addresses after a deploy, without credentials
   site_host.py   isolated content hosts: body pages, file manifests, text cache, password passes and takedowns
   site_routes.py the Sites API under /api/app, with the own-address setting and browser-only deletion of pages and their records
   notes.py       Notes GTD: notes (markdown body, #hashtag tags derived from it, colour, pin); a
@@ -104,7 +105,7 @@ backend/
                  at 60 idle days / removed at 180), derived from the last use, never stored
   connect.py     device connection codes: hashed poll token, browser approval and one-use agent link delivery;
                  a code's client: sites, or springform (every app on; hosted, a confirmed email gets Max once,
-                 comp_source 'springform', springform_at stamped for good; paid/admin.springform_comp_in)
+                 comp_source 'springform', springform_at stamped for good; plans/admin.springform_comp_in)
   signin.py      sign-in links: one hour, single use, hashed; mailed (httpx to Resend) to confirm an email or
                  to a confirmed one, or shown as a QR; redeem (a mailed link confirms the address)
   router.py      /api: session_owner/active_owner (cookie, X-List, same-origin; A refuses a put-away list),
@@ -133,10 +134,12 @@ frontend/        Vite + React 19 + Tailwind 4; builds into backend/static. One b
                  gtd-app meta (core/app.ts) makes /app the todo app, apps/projects-gtd or
                  apps/notes-gtd. Each app's colours: pages._shell stamps <html data-app>, and
                  index.css sets that app's brand-* and band-* tokens under [data-app="…"]
-                 src/paid/ holds everything about paid plans (the plan card, prices, billing
-                 calls, policy links); nothing outside it names a plan (paidBoundary.test.ts).
-                 public/paid/ holds the policy pages, served at /terms.html … only with open signup;
-                 pages.py leaves out their <!-- paid --> parts while free, or <!-- free --> ones
+                 src/plans/ holds everything about plans (limit wording, policy links); nothing
+                 outside it names a plan (plansBoundary.test.ts). What sells comes through the
+                 @billing alias: src/plans/billing-off.tsx (nothing), or a billing package's UI
+                 copied into src/plans/billing/ (git-ignored)
+                 public/policy/ holds the policy pages, served at /terms.html … only with open
+                 signup; a billing package may serve its own (billing.policy_page)
 docs/agent-commands.md   the generic Agent Commands spec the guide links to
 Dockerfile       frontend build, then Python 3.12 + uv, one uvicorn worker
 ```
@@ -237,22 +240,19 @@ the call budget charged; every other request goes to FastMCP untouched.
   Common Brain's Forget is the other: `POST /api/app/brain/…/forget`
   removes a memory or page with its whole history, for the person in the browser only.
   An agent archives, or hands over `brain_forget_link`, a link to the app that grants nothing.
-- **Pro is derived, never set.** While the suite is free (`paid_settings.free_max()`, the
-  default; `FREE_MAX=false` turns paid plans back on exactly as they were), `paid/plans.of`
-  answers Max for a hosted account with a confirmed email (`lists.email_verified_at`, one of
-  `PLAN_COLUMNS`), never stored; an unconfirmed one keeps the trial caps, a self-host its own.
-  Free also turns `billing.syncing()` off, so nothing is sold or synced, and the app shows no
-  plan, price or upsell (`plan.free`, `config.free`). The paid code stays, behind that switch.
-  Otherwise `paid/plans.of` reads `lists.plan_status` + `plan_until`,
-  which only `paid/billing.sync` writes, from Stripe's current subscriptions of the account's own
-  customer. Never set Pro from a single webhook event (order and duplicates vary), never
-  from metadata, and never by hand outside `scripts/admin.py billing-sync`. The one other
-  way in is the free grant, `lists.pro_comp_until` + `comp_plan` (+ `comp_source`), set only by
-  `paid/admin.py`: the operator's `comp`, and Max for an approved Springform connect. Max
-  exists only as that grant (`paid/plans.of`), and outranks a subscription. Every SELECT that feeds `paid/plans.of` names
-  `paid/caps.PLAN_COLUMNS`. Every cap function takes `plan`; a new cap check passes
-  `paid/plans.of(row)` like the others.
-  Stripe answers and webhook bodies carry the customer's email: never log them.
+- **Pro is derived, never set.** While the suite is free (`plans/settings.free_max()`, the
+  default), `plans/plans.of` answers Max for a hosted account with a confirmed email
+  (`lists.email_verified_at`, one of `PLAN_COLUMNS`), never stored; an unconfirmed one keeps
+  the trial caps, a self-host its own. The app shows no plan, price or upsell then
+  (`plan.free`, `config.free`). Otherwise `plans/plans.of` reads `lists.plan_status` +
+  `plan_until`, which only the billing package writes (through `plans/billing.py`, the one
+  seam); without it they never change. The one other way in is the free grant,
+  `lists.pro_comp_until` + `comp_plan` (+ `comp_source`), set only by `plans/admin.py`: the
+  operator's `comp`, and Max for an approved Springform connect. Max exists only as that grant
+  (`plans/plans.of`), and outranks a subscription. Every SELECT that feeds `plans/plans.of`
+  names `plans/caps.PLAN_COLUMNS`. Every cap function takes `plan`; a new cap check passes
+  `plans/plans.of(row)` like the others. `admin.py disable` and `delete` refuse a list with a
+  billing customer unless the package is there to check it.
 - **Simple Sites pages on the app and short hosts are always served sandboxed.**
   `pages._site` answers on those hosts, or at the main host's top level when Sites has no
   configured address; visitor pages, short names, data and unlock never answer under an app prefix,
@@ -378,7 +378,7 @@ the call budget charged; every other request goes to FastMCP untouched.
 - Worktrees go in `.claude/worktrees/`, one branch per worktree, branched from `master`.
 - `scripts/check.sh` runs every CI check locally (ruff, pyright, pytest, ESLint, Prettier, the
   frontend tests and build); run it before a PR. One suite: `uv run pytest backend/tests`, or
-  `npm test` in `frontend/`. `backend/paid/smoke.sh` checks the hosted service after a deploy.
+  `npm test` in `frontend/`. `backend/plans/smoke.sh` checks the hosted service after a deploy.
 - Formatting is ruff format and Prettier. Claude Code's hook formats each file it saves; CI
   refuses anything unformatted.
 - Tests default to `OPEN_SIGNUP=true` (see `conftest.py`); one-list behaviour is in `test_hosting.py`.

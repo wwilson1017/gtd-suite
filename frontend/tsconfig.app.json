@@ -22,7 +22,10 @@
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true
+    "noUncheckedSideEffectImports": true,
+
+    /* The selling UI: a billing package copied into src/plans/billing/, else the off stub (vite.config.ts) */
+    "paths": { "@billing": ["./src/plans/billing/index.ts", "./src/plans/billing-off.tsx"] }
   },
   "include": ["src"]
 }

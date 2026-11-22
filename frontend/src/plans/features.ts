@@ -1,5 +1,5 @@
 import type { Session } from '../apps/todo-gtd/types';
-import type { PaidConfig, Plan } from './types';
+import type { PaidConfig } from './types';
 
 export const NO_PAID_OFFERS: PaidConfig = { billing: false };
 
@@ -33,18 +33,4 @@ export function brainLimitSentence(upsell: boolean | undefined, session: Session
 /** Settings' email step: what confirming an email gives a hosted account. */
 export function emailPerk(session: Session | null) {
   return allFree(session) ? 'Everything unlocked, free' : 'Higher limits, free';
-}
-
-/** A plan from the operator's free grant (admin comp) rather than a live subscription:
- *  the server says which (plans.pro_source). */
-export function granted(plan: Plan): boolean {
-  return plan.source === 'comp' && !!plan.comp_until;
-}
-
-/** Whether the card has anything to show. A free grant needs no Stripe, so it shows even
- *  where sales are off. */
-export function planShown(config: PaidConfig | null, session: Session | null): boolean {
-  const plan = session?.plan;
-  if (allFree(session)) return false;
-  return !!plan && !!(config?.billing || plan.manageable || granted(plan));
 }

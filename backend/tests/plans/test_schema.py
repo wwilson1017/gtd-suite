@@ -1,7 +1,7 @@
 """Fresh databases and pre-billing databases get identical plan columns."""
 
 from backend import db, lists
-from backend.paid import caps
+from backend.plans import caps
 
 
 def test_paid_columns_migrate_with_original_types_defaults_and_names(todo_db):

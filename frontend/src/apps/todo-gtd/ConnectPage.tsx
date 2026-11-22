@@ -1,4 +1,4 @@
-import { allFree, emailPerk } from '../../paid/features';
+import { allFree, emailPerk } from '../../plans/features';
 import { BASE } from '../../core/app';
 // The suite's account cards, shown in Settings (settings/SettingsPage.tsx) and on Common
 // Brain's Connect page: the email, the account number, signing in on another device and

@@ -3,7 +3,7 @@ import { BASE } from '../../../core/app';
 // scripted "your AI adds it" exchange, the sibling apps, and the way in.
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import type { AppConfig } from '../api';
-import { PolicyNav } from '../../../paid/PolicyLinks';
+import { PolicyNav } from '../../../plans/PolicyLinks';
 import appPoster from './app-poster.webp';
 import appVideo from './app.mp4';
 import boardShot from './board.webp';

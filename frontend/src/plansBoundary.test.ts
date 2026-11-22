@@ -11,12 +11,12 @@ const forbidden = /\b(?:Pro|Max|pricing|Pricing|Upgrade|upgrade|billing|Billing|
 function files(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const path = join(directory, entry.name);
-    if (path === join(source, 'paid') || path === self) return [];
+    if (path === join(source, 'plans') || path === self) return [];
     return entry.isDirectory() ? files(path) : [path];
   });
 }
 
-it('keeps paid-plan vocabulary inside the paid folder', () => {
+it('keeps plan vocabulary inside the plans folder', () => {
   const hits = files(source).flatMap((path) =>
     readFileSync(path, 'utf8')
       .split('\n')

@@ -1,4 +1,4 @@
-"""The free suite (paid_settings.free_max, the default): a confirmed hosted account is on
+"""The free suite (plans/settings.free_max, the default): a confirmed hosted account is on
 Max, an unconfirmed one keeps the trial caps, a self-host is unchanged, nothing is sold,
 and SIGNUP_CLOSED stops new accounts on the hosted service only."""
 
@@ -8,7 +8,7 @@ from urllib.parse import urlsplit
 import pytest
 
 from backend import boards, common, db, lists, notes, recordings, service, settings
-from backend.paid import admin as paid_admin, billing, plans
+from backend.plans import admin as paid_admin, billing, plans
 from backend.tests.conftest import confirm_list
 from backend.tests.test_pages import FRONTEND_INDEX, built as built
 
@@ -85,28 +85,20 @@ def test_switched_off_the_old_plan_logic_returns(todo_db, L):
     assert _plan(L) == "pro"
 
 
-def test_nothing_is_sold_while_free_even_with_stripe_set(free, client, new_list, monkeypatch):
-    for name, value in (
-        ("STRIPE_SECRET_KEY", "sk_test"),
-        ("STRIPE_WEBHOOK_SECRET", "whsec"),
-        ("STRIPE_PRICE_MONTH", "price_m"),
-        ("STRIPE_PRICE_YEAR", "price_y"),
-    ):
-        monkeypatch.setenv(name, value)
-    assert not billing.syncing() and not billing.selling()
+def test_nothing_is_sold_without_the_billing_package(client, new_list):
+    # The paid-plan tests (FREE_MAX=false, payment keys set) live with the billing package.
+    assert not billing.syncing() and not billing.selling() and billing.upsell(True) == ""
     config = client.get("/api/config").json()
-    assert config["billing"] is False and config["free"] is True
+    assert config["billing"] is False and config["free"] is False
     made = new_list()
     assert made["client"].post("/api/app/billing/checkout", json={"interval": "year"}).status_code == 404
     assert client.post("/api/stripe/webhook", content=b"{}").status_code == 404
-    monkeypatch.setenv("FREE_MAX", "false")
-    assert billing.selling()
 
 
 def test_the_policy_pages_read_free(free, client, built):
-    (built / "paid").mkdir()
-    for name in ("terms.html", "privacy.html", "support.html", "refunds.html"):
-        (built / "paid" / name).write_text((FRONTEND_INDEX.parent / "public" / "paid" / name).read_text())
+    (built / "policy").mkdir()
+    for name in ("terms.html", "privacy.html", "support.html"):
+        (built / "policy" / name).write_text((FRONTEND_INDEX.parent / "public" / "policy" / name).read_text())
     assert "the apps are free" in client.get("/terms.html").text
     for name in ("terms.html", "privacy.html", "support.html"):
         text = client.get(f"/{name}").text
