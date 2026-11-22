@@ -507,6 +507,7 @@ class KeyCreate(BaseModel):
     folders: list[str] = Field(default_factory=list, max_length=50)
     brains: list[int] | None = Field(default=None, max_length=100)
     kind: Literal["key", "link"] = "key"
+    days: Literal[30, 90, 365] | None = None
 
 
 class BrainSettings(BaseModel):

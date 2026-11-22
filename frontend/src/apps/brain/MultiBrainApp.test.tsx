@@ -247,7 +247,9 @@ it('keeps the old addresses landing in Settings, with the Common Brain group in 
   const menu = [...host.querySelectorAll('nav[aria-label="Settings"] a')].map((a) => a.getAttribute('href'));
   // mail: false, so no email step; no level is shown while the suite is free.
   expect(menu).toEqual(
-    ['ai', 'devices', 'install', 'brains', 'every', 'curator', 'export', 'keys'].map((k) => `/app/connect/${k}`),
+    ['ai', 'devices', 'security', 'install', 'brains', 'every', 'curator', 'export', 'keys'].map(
+      (k) => `/app/connect/${k}`,
+    ),
   );
   expect(host.querySelector('a[aria-label="Settings"][aria-current="page"]')).not.toBeNull();
   expect([...host.querySelectorAll('header nav a')].map((a) => a.textContent)).toEqual([

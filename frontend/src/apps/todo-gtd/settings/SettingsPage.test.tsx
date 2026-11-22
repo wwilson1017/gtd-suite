@@ -24,6 +24,7 @@ const api = vi.hoisted(() => ({
   signOut: vi.fn(),
   signOutEverywhere: vi.fn(),
   getConfig: vi.fn(async () => ({ app: 'todo', apps: {} })),
+  todoFetch: vi.fn(),
 }));
 // A full mock: the real api.ts imports session.ts, which would bind to the real getSession.
 vi.mock('../api', () => api);
@@ -114,6 +115,7 @@ describe('Settings', () => {
       ['/connect/ai', '✦Connect your AIStep 1'],
       ['/connect/email', '✉Add your emailStep 2'],
       ['/connect/devices', '⌁Devices & sign-in'],
+      ['/connect/security', '⚿Security'],
       ['/connect/install', '⌂Install on your phone'],
       ['/connect/look', '◐Appearance'],
       ['/connect/list', '☰List name & time zone'],
@@ -129,6 +131,28 @@ describe('Settings', () => {
     expect(host.querySelector('[aria-current="page"][href="/connect/devices"]')).not.toBeNull();
     expect(host.textContent).toContain('Account number1234-5678');
     expect(host.textContent).not.toMatch(/web link/i);
+  });
+
+  it('has the Enhanced security switch under Security, with what it does not do', async () => {
+    await open('/connect/security');
+    expect(heading()).toBe('Security');
+    const text = host.querySelector('section[aria-labelledby="settings-section"]')!.textContent!;
+    expect(text).toContain('The ones you already have keep working, with no end date.');
+    expect(text).toContain('copies the name of a tool you already use raises no email');
+    expect(text).toContain('after 50 names nothing new is recorded or emailed');
+    expect(link('Add your email')!.getAttribute('href')).toBe('/connect/email');
+    const box = host.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
+    expect(box.checked).toBe(false);
+    api.todoFetch.mockResolvedValue({ enhanced_security: true, agent_link_expired: false });
+    await act(async () => box.click());
+    expect(api.todoFetch).toHaveBeenCalledWith('/security', { method: 'PUT', body: '{"on":true}' });
+    expect(box.checked).toBe(true);
+
+    await open('/connect/security', { email: 'me@example.com', verified: true, enhanced_security: true });
+    expect(host.querySelector<HTMLInputElement>('input[type="checkbox"]')!.checked).toBe(true);
+    expect(link('Add your email')).toBeUndefined();
+    await open('/connect/security', { mail: false });
+    expect(host.textContent).toContain('This server cannot send email, so it sends no alerts.');
   });
 
   it('opens the first step still to do at /connect, else Connect your AI', async () => {
