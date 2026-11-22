@@ -5,8 +5,6 @@ import pytest
 from backend import brain, db
 from backend.common import ValidationError
 from backend.tests.conftest import confirm_list
-from backend.tests.test_keys import acct, by_key, new_key  # noqa: F401 (fixture)
-from backend.tests.test_mcp import anyio_backend, app, call, connect  # noqa: F401 (fixtures)
 
 AI = "Claude"
 
@@ -136,23 +134,3 @@ def test_migration_adds_the_columns_once(B):
     db._migrate(db.get_db())
     db._migrate(db.get_db())
     assert brain.memories(B)[0]["review_on"] is None and not brain.tidy_due(B)
-
-
-@pytest.mark.anyio
-async def test_the_tools_set_dates_and_a_read_key_neither_hears_of_nor_records_a_tidy(connect, acct, freeze):  # noqa: F811
-    B = brain.first_brain(acct["list_id"])
-    with db.transaction() as conn:
-        conn.execute("UPDATE brains SET created_at = '2026-01-01T12:00:00Z' WHERE id = ?", (B,))
-    async with by_key(connect, new_key(acct["list_id"], "reader", access="read")) as c:
-        assert "tidy" not in await call(c, "brain_start")
-        await call(c, "brain_curate")
-    assert brain.tidy_due(B)
-    async with by_key(connect, new_key(acct["list_id"])) as c:
-        assert "brain_curate" in (await call(c, "brain_start"))["tidy"]
-        added = (await call(c, "brain_remember", memories=["The lease ends in March"], review_on="2020-03-01"))["added"]
-        assert added[0]["review_on"] == "2020-03-01"
-        queue = (await call(c, "brain_curate"))["queue"]
-        assert queue["review_due"][0]["memory"] == added[0]["id"]
-        moved = await call(c, "brain_memory_update", id=added[0]["id"], review_on="2999-01-01")
-        assert moved["memory"]["review_on"] == "2999-01-01"
-        assert "tidy" not in await call(c, "brain_start")

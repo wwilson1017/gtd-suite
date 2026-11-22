@@ -343,8 +343,12 @@ function MemoryRow({
           Review by{' '}
           <input
             type="date"
-            value={m.review_on ?? ''}
-            onChange={(e) => void save({ review_on: e.target.value })}
+            // Saved on leaving the box, not per keystroke: a half-typed date is a date too.
+            key={m.review_on ?? ''}
+            defaultValue={m.review_on ?? ''}
+            onBlur={(e) => {
+              if (e.target.value !== (m.review_on ?? '')) void save({ review_on: e.target.value });
+            }}
             aria-label="Review by"
             className="bg-transparent text-xs text-muted"
           />
