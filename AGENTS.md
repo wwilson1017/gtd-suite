@@ -75,7 +75,6 @@ backend/
   plans/routes.py the session's level block and the email guard
   plans/settings.py FREE_MAX (free_max: the suite is free)
   plans/admin.py comp (grants), the disable/delete check's undo, and admin level reports
-  plans/smoke.sh checks the hosted service's addresses after a deploy, without credentials
   site_host.py   isolated content hosts: body pages, file manifests, text cache, password passes and takedowns
   site_routes.py the Sites API under /api/app, with the own-address setting and browser-only deletion of pages and their records
   notes.py       Notes GTD: notes (markdown body, #hashtag tags derived from it, colour, pin); a
@@ -132,6 +131,7 @@ backend/
   tests/         pytest, real temp SQLite file per test
 scripts/sites_sync_check.py  stdlib large-deck sync check: agent link from a file or env, never printed
 scripts/restore_list.py   one-list repair from a snapshot
+scripts/smoke.sh          the hosted service's addresses after a deploy, without credentials
 scripts/admin.py          the operator's command line (stats, find, disable, delete, …); docs/self-hosting.md "Admin tool"
 frontend/        Vite + React 19 + Tailwind 4; builds into backend/static. One bundle; the
                  gtd-app meta (core/app.ts) makes /app the todo app, apps/projects-gtd or
@@ -382,7 +382,7 @@ the call budget charged; every other request goes to FastMCP untouched.
 - Worktrees go in `.claude/worktrees/`, one branch per worktree, branched from `master`.
 - `scripts/check.sh` runs every CI check locally (ruff, pyright, pytest, ESLint, Prettier, the
   frontend tests and build); run it before a PR. One suite: `uv run pytest backend/tests`, or
-  `npm test` in `frontend/`. `backend/plans/smoke.sh` checks the hosted service after a deploy.
+  `npm test` in `frontend/`. `scripts/smoke.sh` checks the hosted service after a deploy.
 - Formatting is ruff format and Prettier. Claude Code's hook formats each file it saves; CI
   refuses anything unformatted.
 - Tests default to `OPEN_SIGNUP=true` (see `conftest.py`); one-list behaviour is in `test_hosting.py`.
