@@ -8,7 +8,7 @@ from urllib.parse import urlsplit
 import pytest
 
 from backend import boards, common, db, lists, notes, recordings, service, settings
-from backend.paid import billing, plans
+from backend.paid import admin as paid_admin, billing, plans
 from backend.tests.conftest import confirm_list
 from backend.tests.test_pages import FRONTEND_INDEX, built as built
 
@@ -60,6 +60,14 @@ def test_confirmed_gets_max_caps_and_short_names_and_unconfirmed_keeps_the_trial
     assert (sites_caps["pages"], sites_caps["short_names"]) == (10_000, 100)
     made_link = c.post("/api/app/sites/links", json={"url": "https://example.com", "short_name": "freebie"})
     assert made_link.status_code == 200, made_link.text
+
+
+def test_the_operators_stats_count_free_max_and_not_when_paid(free, L, monkeypatch):
+    confirm_list(L)
+    conn = db.get_db()
+    assert paid_admin.stats(conn)["max_now"] == 1
+    monkeypatch.setenv("FREE_MAX", "false")
+    assert paid_admin.stats(conn)["max_now"] == 0
 
 
 def test_self_host_is_unchanged(free, L, monkeypatch):

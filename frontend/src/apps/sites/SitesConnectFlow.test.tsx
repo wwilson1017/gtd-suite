@@ -3,6 +3,7 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../../core/api/client';
+import { springformEmail } from '../../paid/springform';
 import { resetSession } from '../todo-gtd/session';
 import { SitesConnectFlow } from './SitesConnectFlow';
 
@@ -34,8 +35,8 @@ async function fill(selector: string, value: string) {
     input.dispatchEvent(new Event('input', { bubbles: true }));
   });
 }
-async function mount(signedIn = false) {
-  api.getConfig.mockResolvedValue({ signed_in: signedIn, mail: true, open_signup: true });
+async function mount(signedIn = false, free = false) {
+  api.getConfig.mockResolvedValue({ signed_in: signedIn, mail: true, open_signup: true, free });
   await act(async () => {
     root.render(<SitesConnectFlow />);
   });
@@ -129,6 +130,18 @@ describe('SitesConnectFlow', () => {
       body: JSON.stringify({ client: 'springform' }),
     });
     expect(host.textContent).toContain('Return to Springform');
+  });
+  it('words a Springform connection for the free suite and for paid plans', async () => {
+    window.history.replaceState({}, '', `/connect?code=${code}&client=springform`);
+    await mount(false, true);
+    expect(host.textContent).toContain(springformEmail(true));
+    expect(host.textContent).not.toContain(springformEmail(false));
+    await act(async () => {
+      root.unmount();
+    });
+    root = createRoot(host);
+    await mount();
+    expect(host.textContent).toContain(springformEmail(false));
   });
   it('lets a signed-in Springform account send its email confirmation before approving', async () => {
     window.history.replaceState({}, '', `/connect?code=${code}&client=springform`);
