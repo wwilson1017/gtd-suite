@@ -1,5 +1,5 @@
 import { BASE } from '../../core/app';
-import type { PaidConfig } from '../../paid/types';
+import type { OffersConfig } from '../../plans/types';
 // Todo GTD — typed API calls.
 //
 // Everything is RAW fetch. The web app's calls go to /api/app, where the browser's
@@ -300,7 +300,7 @@ export function signOutEverywhere(): Promise<void> {
 
 // ── Public ──────────────────────────────────────────────────────────────────
 
-export interface AppConfig extends PaidConfig {
+export interface AppConfig extends OffersConfig {
   /** False when the server cannot send mail — the email sign-in hides itself. */
   mail: boolean;
   /** True on a hosted server (anyone may create a list); false on a one-list server. */

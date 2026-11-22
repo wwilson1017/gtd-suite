@@ -18,3 +18,6 @@ data/
 
 # Frontend build output (served by backend/pages.py)
 backend/static/
+
+# An installed extension's screens, copied in by a build that has one (frontend/vite.config.ts)
+frontend/src/plans/extension/

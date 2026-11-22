@@ -1,5 +1,5 @@
 import { ThemeToggle } from '../../../core/theme/ThemeToggle';
-import { PolicyLinks } from '../../../paid/PolicyLinks';
+import { PolicyLinks } from '../../../plans/PolicyLinks';
 import { AppName, Logo } from './Logo';
 
 /** The plain page chrome for everything outside a list's shell: landing, sign-in,

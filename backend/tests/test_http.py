@@ -148,9 +148,6 @@ APP_ROUTES = [
     ("POST", "signout"),
     ("POST", "signout-all"),
     ("POST", "restore"),
-    ("POST", "billing/checkout"),
-    ("POST", "billing/manage"),
-    ("POST", "billing/sync"),
 ]
 
 
@@ -251,7 +248,7 @@ def test_the_session_reports_the_confirmed_email_and_the_caps_it_brings(new_list
         "links": 3,
         "brains_label": "1",
         "links_label": "3",
-        "upsell": True,
+        "raisable": True,
         "storage": 500_000_000,
         "storage_used": 0,
     }
@@ -265,7 +262,7 @@ def test_the_session_reports_the_confirmed_email_and_the_caps_it_brings(new_list
         "links": 1000,
         "brains_label": "Unlimited",
         "links_label": "Unlimited",
-        "upsell": False,
+        "raisable": False,
         "storage": 100_000_000_000,
         "storage_used": 0,
     }
@@ -1013,7 +1010,7 @@ def test_config_is_public_and_says_whether_this_browser_is_signed_in(client):
         "claimed": False,
         "reset": False,
         "signed_in": False,
-        "billing": False,
+        "offers": False,
         "free": False,
         "signup_closed": False,
         "app": "todo",
