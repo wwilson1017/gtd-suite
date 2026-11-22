@@ -626,6 +626,12 @@ def gate_arguments(multi):
         "brain_eval": {},
         "brain_export_link": {},
         "brain_setup": {"name": "Work", "description": "Work only", "rules": ["Work only"]},
+        "brain_contradiction_flag": {
+            "a": f"memory:{multi['memory']['id']}",
+            "b": "inbox/public",
+            "note": "They disagree",
+        },
+        "brain_contradiction_settle": {"id": 1, "keep": "both"},
     }
 
 

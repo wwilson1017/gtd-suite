@@ -160,6 +160,10 @@ logs no misses. Eval reads `- id: query => expected; expected` lines from `<fold
 and appends the score to `<folder>/scorecard`. Write tools take `pass_label` and `reason`
 for the history.
 
+`brain_contradiction_flag` parks two disagreeing entries for the person to answer;
+`brain_contradiction_settle` records their answer and archives the entry it replaces.
+Folder-limited keys cannot call either tool.
+
 ## Site sync
 
 With a file store and a content domain, and "Own address for each page" on in Sites

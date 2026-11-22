@@ -574,6 +574,26 @@ CREATE TABLE IF NOT EXISTS brain_misses (
     at          TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_brain_misses_list ON brain_misses(list_id, at);
+-- Pairs of entries an AI flagged as disagreeing, for the person to settle (brain.flag_contradiction).
+-- ON DELETE CASCADE: after a rollback, a version that does not know the table can still delete a list or a brain.
+CREATE TABLE IF NOT EXISTS brain_contradictions (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    list_id     INTEGER NOT NULL REFERENCES lists(id) ON DELETE CASCADE,
+    brain_id    INTEGER NOT NULL REFERENCES brains(id) ON DELETE CASCADE,
+    a_kind      TEXT NOT NULL CHECK(a_kind IN ('memory','page')),
+    a_id        INTEGER NOT NULL,
+    b_kind      TEXT NOT NULL CHECK(b_kind IN ('memory','page')),
+    b_id        INTEGER NOT NULL,
+    note        TEXT NOT NULL,
+    flagged_by  TEXT NOT NULL,
+    flagged_at  TEXT NOT NULL,
+    settled_at  TEXT,
+    settled_by  TEXT,
+    kept        TEXT,           -- 'a', 'b', 'both', or 'forgotten' (a side was forgotten)
+    answer      TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_brain_contradictions_brain ON brain_contradictions(brain_id, settled_at);
+CREATE INDEX IF NOT EXISTS idx_brain_contradictions_list ON brain_contradictions(list_id);
 -- Brain search's full-text index over pages and memories: _migrate step 22 (_BRAIN_FTS).
 
 -- Common Brain's files (files.py), one row per version; the bytes are in the object store
