@@ -4,7 +4,7 @@ Each run takes an SQLite online backup (consistent while the app keeps writing)
 into a temp file, then renames it into ``DATA_DIR/backups/``, so a half-written
 snapshot is never mistaken for a good one. Every snapshot of the last 6 hours
 is kept, then the newest of each day for 7 days: longer history belongs off the volume
-(README "Copies off the volume"), and each copy kept here is the whole database again.
+(docs/self-hosting.md "Backups"), and each copy kept here is the whole database again.
 After each run the snapshots are dropped from the page cache (_uncache).
 
 A snapshot that fails is logged and skipped; the next run tries again. Snapshots

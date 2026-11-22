@@ -1,8 +1,9 @@
 # todo-gtd
 
 A no-login GTD todo list that AI tools read and write. Open source (MIT). Hosted at
-todogtd.com with open signup; self-hosters run the same image with one list. See `README.md`
-for settings, deploy, backups and restore.
+todogtd.com with open signup; self-hosters run the same image with one list. See
+`docs/self-hosting.md` for settings, deploy, backups and restore, and `docs/api.md` for the
+agent link, keys and the REST API.
 
 ## Layout
 
@@ -127,7 +128,7 @@ backend/
   tests/         pytest, real temp SQLite file per test
 scripts/sites_sync_check.py  stdlib large-deck sync check: agent link from a file or env, never printed
 scripts/restore_list.py   one-list repair from a snapshot
-scripts/admin.py          the operator's command line (stats, find, disable, delete, …); README "Administration"
+scripts/admin.py          the operator's command line (stats, find, disable, delete, …); docs/self-hosting.md "Admin tool"
 frontend/        Vite + React 19 + Tailwind 4; builds into backend/static. One bundle; the
                  gtd-app meta (core/app.ts) makes /app the todo app, apps/projects-gtd or
                  apps/notes-gtd. Each app's colours: pages._shell stamps <html data-app>, and
