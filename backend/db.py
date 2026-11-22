@@ -816,6 +816,8 @@ def _migrate(conn: sqlite3.Connection) -> None:
     33. `connect_codes.client`, the grant source and the Springform stamp (in plans/caps.COLUMNS): plain added
         columns; every existing code is a Sites code and every existing grant the operator's.
     34. `lists.sites_own_host`: opt-in own addresses, enabled once for existing folder sites.
+    35. `brain_tickles` (brain.tickle_record): a new table (in _SCHEMA); nothing here, and no
+        question has been asked yet.
     """
     from backend import brain, lists, sites  # here, not at the top: lists imports this module
 

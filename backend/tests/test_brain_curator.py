@@ -349,6 +349,17 @@ def test_tickle_rows_go_with_their_brain(T, L):
     assert db.get_db().execute("SELECT COUNT(*) FROM brain_tickles").fetchone()[0] == 0
 
 
+def test_an_older_database_gets_the_tickle_table_at_startup(T):
+    with db.transaction() as conn:
+        conn.execute("DROP TABLE brain_tickles")
+    conn = db._connect()
+    conn.executescript(db._SCHEMA)  # what db.init runs before _migrate
+    db._migrate(conn)
+    conn.close()
+    brain.write_page(T, "curator/golden", "- a: alpha => people/a")
+    assert brain.tickle_record(T, "alpha", "Claude")["times_asked"] == 1
+
+
 @pytest.mark.anyio
 async def test_the_tools_hand_out_one_tickle_across_brains_and_record_it(http, acct, freeze):
     freeze("2026-11-02T15:00:00")
