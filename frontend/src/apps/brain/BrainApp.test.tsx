@@ -156,6 +156,11 @@ describe('Root on Common Brain', () => {
     expect(host.textContent).toContain('2 of 50');
     expect(host.textContent).toContain('Add your email to keep growing');
     expect(host.textContent).toContain('Sam');
+    // The connected AIs show when each last opened the brain, never a set-up state.
+    const strip = host.querySelector('[aria-label="Connected AIs"]')!.textContent;
+    expect(strip).toContain('ChatGPT');
+    expect(strip).toContain('opened');
+    expect(strip).not.toContain('set up');
     expect(host.querySelector('button[aria-label^="Unlock"]')).not.toBeNull();
     expect(host.querySelectorAll('button[aria-label^="Lock"]')).toHaveLength(1);
     const brainCalls = fetchMock.mock.calls
