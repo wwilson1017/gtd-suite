@@ -491,6 +491,10 @@ def update(
             if status not in STATUSES:
                 raise ValidationError("status must be 'published' or 'unpublished'")
             fields["status"] = status
+            if status == "published" and row["layout"] == "files" and content is None:
+                own = conn.execute("SELECT sites_own_host FROM lists WHERE id = ?", (list_id,)).fetchone()
+                if not own[0]:
+                    raise ValidationError(_needs_own_host())
         if fields:
             if set(fields) - {"note", "folder"}:  # filing and noting are not a change of the page
                 fields["updated_at"] = common.now_iso()
@@ -1218,15 +1222,19 @@ def _file_limits(row) -> tuple[int, int]:
     return common.site_bytes_for(*args), common.storage_quota_for(*args)
 
 
+def _needs_own_host() -> str:
+    return (
+        "A folder site needs its own address. Ask the person to turn on 'Own address for each page' "
+        f"in {apps.settings_page()} ({settings.app_url('sites')}/app/connect/addresses); an AI cannot turn it on."
+    )
+
+
 def _sync_ready_in(conn, list_id: int, size: int) -> int:
     row = _live_list_in(conn, list_id)
     if not settings.sites_content_domain() or not settings.files_s3():
         raise ValidationError("File sync needs a content domain and a file store")
     if not row["sites_own_host"]:
-        raise ValidationError(
-            "A folder site needs its own address. Ask the person to turn on 'Own address for each page' "
-            f"in {apps.settings_page()} ({settings.app_url('sites')}/app/connect/addresses); an AI cannot turn it on."
-        )
+        raise ValidationError(_needs_own_host())
     limit, quota = _file_limits(row)
     _fits(size, limit)
     return quota

@@ -119,3 +119,20 @@ def test_command_update_without_content_has_no_note(L, monkeypatch):
     ctx = SimpleNamespace(list_id=L, client="test")
     page = sites_agent._publish(ctx, {}, {"content": "plain"})["page"]
     assert "note" not in sites_agent._publish(ctx, {"id": page["id"]}, {"title": "Renamed"})
+
+
+def test_folder_site_cannot_be_republished_while_off(client, monkeypatch):
+    monkeypatch.setenv("SITES_BASE_URL", "http://testserver")
+    client.post("/api/lists", json={})
+    lid = client.get("/api/app/session").json()["list_id"]
+    client.headers["X-List"] = str(lid)
+    page = sites.publish(lid, "Folder")
+    with db.transaction() as conn:
+        conn.execute("UPDATE sites SET layout = 'files', status = 'unpublished' WHERE id = ?", (page["id"],))
+    assert client.put("/api/app/sites/own-host", json={"on": False}).status_code == 200
+    with pytest.raises(sites.ValidationError, match="needs its own address"):
+        sites.update(lid, page["id"], status="published")
+    refused = client.put(f"/api/app/sites/{page['id']}", json={"status": "published"})
+    assert refused.status_code == 400 and "own address" in refused.text
+    assert client.put("/api/app/sites/own-host", json={"on": True}).status_code == 200
+    assert sites.update(lid, page["id"], status="published")["status"] == "published"
