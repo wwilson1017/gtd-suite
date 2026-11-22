@@ -130,6 +130,11 @@ def _by() -> str:
     return store.UNKNOWN_AI if name.strip().lower() == store.YOU else name
 
 
+def _read_key() -> bool:
+    key = _key.get()
+    return bool(key and key["access"] == "read")
+
+
 def _folders() -> list[str]:
     """The folders a program key is limited to; empty for every other caller."""
     key = _key.get()
@@ -173,6 +178,8 @@ def brain_start() -> dict:
     results, mems = [], []
     for b in carried:
         part = _place(b, store.start(b["id"], _by(), _apps_on.get(), restricted=bool(_folders())))
+        if _read_key():
+            part.pop("tidy", None)  # a read-only key cannot tidy
         part["rules"] = [_prose(b, r) for r in store.RULES] + b["rules"]
         mems.extend({**m, "brain": b["folder"]} for m in store.memories(b["id"]))
         part["brain"] = {k: b[k] for k in ("id", "name", "folder", "description", "rules", "ai_access")}
@@ -247,13 +254,16 @@ def brain_remember(
     pass_label: _arg(str, "Label for this curation pass, saved in history") = "",
     reason: _arg(str, "Why this change was made, saved in history") = "",
     brain: _arg(str | None, "Brain folder; defaults to the first brain") = None,
+    review_on: _arg(str, "Recheck these by this date (YYYY-MM-DD); empty means 90 days from now") = "",
 ) -> dict:
     """Save lasting facts, preferences or decisions about the person. One the brain
     already holds is skipped, not saved twice. Passwords, keys and card numbers are
     blanked out ([removed: password]) and the rest is saved; `removed` says what went,
     so tell the person."""
     b = _select(brain)
-    return _place(b, store.remember(b["id"], memories, by=_by(), pass_label=pass_label, reason=reason))
+    return _place(
+        b, store.remember(b["id"], memories, by=_by(), pass_label=pass_label, reason=reason, review_on=review_on)
+    )
 
 
 @_tool("Change a memory", read_only=False, app="brain")
@@ -265,6 +275,9 @@ def brain_memory_update(
     pass_label: _arg(str, "Label for this curation pass, saved in history") = "",
     reason: _arg(str, "Why this change was made, saved in history") = "",
     brain: _arg(str | None, "Brain folder; defaults to the first brain") = None,
+    review_on: _arg(
+        str | None, "Recheck it by this date (YYYY-MM-DD): set one after checking it is still true; '' clears it"
+    ) = None,
 ) -> dict:
     """Correct a memory, or archive one that is no longer true (nothing is deleted:
     say what replaced it). A locked memory cannot be changed: ask the person."""
@@ -282,6 +295,7 @@ def brain_memory_update(
             by=_by(),
             pass_label=pass_label,
             reason=reason,
+            review_on=review_on,
         )
         if dest["id"] != b["id"]:
             item = store.move_to_brain_in(
@@ -342,7 +356,8 @@ def brain_page_write(
 ) -> dict:
     """Make a page, or replace one's whole body, retitle, move or archive it. The
     history keeps every version. For a small change use brain_page_edit; to add a
-    line, brain_page_append."""
+    line, brain_page_append. A `review_on: YYYY-MM-DD` line in the frontmatter says when
+    to recheck the page; without one it comes due 90 days after its last write."""
     b, path = _split(path)
     dest, target = _split(move_to) if move_to is not None else (b, None)
     _may_write(path, target)
@@ -533,13 +548,14 @@ def brain_curate(
     folder: _arg(str, "Working pages folder; rules always live at curator/rules") = "curator",
     brain: _arg(str | None, "Brain folder; defaults to the first brain") = None,
 ) -> dict:
-    """The curator's rules and today's queue: questions the brain could not answer,
-    near-copies, long memories, the inbox and this week's journal. Run it when the
-    person asks to tidy the brain, or when brain_start says it is nearly full.
+    """The curator's rules and today's queue: entries past their review date, questions
+    the brain could not answer, near-copies, long memories, the inbox and this week's
+    journal. Run it when the person asks to tidy the brain, or when brain_start says it
+    is nearly full or a tidy is due.
     Run it too when they hand you a meeting transcript to work into the brain: the
     steps say how to quote who said what, and when, as the source."""
     b, folder = _working(folder, brain)
-    out = store.curate(b["id"], misses_since or None, unattended, folder, _by())
+    out = store.curate(b["id"], misses_since or None, unattended, folder, _by(), stamp=not _read_key())
     out["steps"] = [_prose(b, step, folder) for step in out["steps"]]
     return _place(b, out)
 

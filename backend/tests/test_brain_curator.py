@@ -90,6 +90,25 @@ def test_each_gap_is_capped_at_twenty(B):
     assert len(queue["suspect_injection"]) == len(queue["secret_like"]) == 20
 
 
+@pytest.mark.anyio
+async def test_tools_set_review_dates_and_a_read_key_neither_hears_of_nor_records_a_tidy(http, acct):
+    b = brain.first_brain(acct["list_id"])
+    with db.transaction() as conn:
+        conn.execute("UPDATE brains SET created_at = '2026-01-01T12:00:00Z' WHERE id = ?", (b,))
+    read, write = new_key(acct["list_id"], "reader", access="read"), new_key(acct["list_id"])
+    assert "tidy" not in (await rest(http, read, "brain_start")).json()
+    assert (await rest(http, read, "brain_curate")).status_code == 200
+    assert brain.tidy_due(b)
+    assert "brain_curate" in (await rest(http, write, "brain_start")).json()["tidy"]
+    added = (await rest(http, write, "brain_remember", memories=["Lease ends in March"], review_on="2020-03-01")).json()
+    mid = added["added"][0]["id"]
+    assert added["added"][0]["review_on"] == "2020-03-01"
+    assert (await rest(http, write, "brain_curate")).json()["queue"]["review_due"][0]["memory"] == mid
+    moved = (await rest(http, write, "brain_memory_update", id=mid, review_on="2999-01-01")).json()
+    assert moved["memory"]["review_on"] == "2999-01-01"
+    assert "tidy" not in (await rest(http, write, "brain_start")).json()
+
+
 def test_curate_streams_bodies_and_keeps_counts_and_bounded_queues(B, freeze):
     freeze("2026-10-31T12:00:00")
     for folder in ("inbox", "daily"):
