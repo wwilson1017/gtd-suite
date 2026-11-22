@@ -39,6 +39,9 @@ Preserve arrow keys, clicker controls and fullscreen.
 `content`, `format: "html"` and `title`. Or POST that JSON to the connected
 agent link with `?cmd=PUBLISH`. Return `page.address`; retain `page.id`.
 
+A deck with video needs "Own address for each page" in Settings. If SITE_SYNC refuses,
+ask the person to turn it on.
+
 **Folder with media:** use `site_sync` or POST `?cmd=SITE_SYNC`:
 
 1. Send the complete `manifest`, including `index.html`: entries are

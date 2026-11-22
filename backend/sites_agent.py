@@ -14,7 +14,7 @@ the person can, in the browser.
 from pathlib import Path
 
 from backend.paid import plans
-from backend import agent_cmd, common, mcp_server, settings, sites
+from backend import agent_cmd, apps, common, db, mcp_server, settings, sites
 from backend.agent_cmd import Arg, Command
 from backend.mcp_server import _arg, _client_name, _list_id, _tool
 
@@ -83,6 +83,35 @@ mcp_server.INSTRUCTIONS["sites"] = (
 _ID = "The page's or link's id"
 
 
+def _page_result(content, result: dict) -> dict:
+    page = result["page"]
+    if (
+        settings.sites_content_domain()
+        and not db.get_db()
+        .execute("SELECT sites_own_host FROM lists WHERE id = (SELECT list_id FROM sites WHERE id = ?)", (page["id"],))
+        .fetchone()[0]
+    ):
+        found = [
+            word
+            for word in (
+                "localStorage",
+                "sessionStorage",
+                "indexedDB",
+                "fetch(",
+                "youtube.com/embed",
+                "youtube-nocookie.com/embed",
+            )
+            if word.lower() in (content or "").lower()
+        ]
+        if found:
+            result["note"] = (
+                f"This page uses {', '.join(found)}, which the shared address blocks. Ask the person to "
+                "turn on 'Own address for each page' "
+                f"in {apps.settings_page()} ({settings.app_url('sites')}/app/connect/addresses); the page then works at its own address."
+            )
+    return result
+
+
 def _publish_limits(fn):
     fn.__doc__ = (fn.__doc__ or "") + " " + _LIMITS
     return fn
@@ -146,21 +175,24 @@ def site_publish(
     Publish a page at a short address, or (with id) replace a page's content in
     place. The answer carries the page's address: give it to the user. Replacing a files
     page switches it to a single body (Markdown unless a format is given)."""
-    return {
-        "page": sites.publish(
-            _list_id.get(),
-            content,
-            format,
-            title,
-            name,
-            id,
-            note=note,
-            folder=folder,
-            data=data,
-            source="agent",
-            source_client=_client_name(),
-        )
-    }
+    return _page_result(
+        content,
+        {
+            "page": sites.publish(
+                _list_id.get(),
+                content,
+                format,
+                title,
+                name,
+                id,
+                note=note,
+                folder=folder,
+                data=data,
+                source="agent",
+                source_client=_client_name(),
+            )
+        },
+    )
 
 
 @_tool("Make a short link", read_only=False, app="sites")
@@ -296,21 +328,24 @@ def _site(ctx, args, body):
 
 def _publish(ctx, args, body):
     agent_cmd._known(body, _PAGE_FIELDS)
-    return {
-        "page": sites.publish(
-            ctx.list_id,
-            body.get("content"),
-            body.get("format"),
-            body.get("title"),
-            body.get("name"),
-            args.get("id"),
-            note=body.get("note"),
-            folder=body.get("folder"),
-            data=body.get("data"),
-            source="agent",
-            source_client=ctx.client,
-        )
-    }
+    return _page_result(
+        body.get("content"),
+        {
+            "page": sites.publish(
+                ctx.list_id,
+                body.get("content"),
+                body.get("format"),
+                body.get("title"),
+                body.get("name"),
+                args.get("id"),
+                note=body.get("note"),
+                folder=body.get("folder"),
+                data=body.get("data"),
+                source="agent",
+                source_client=ctx.client,
+            )
+        },
+    )
 
 
 def _sync(ctx, args, body):

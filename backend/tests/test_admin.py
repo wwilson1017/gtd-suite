@@ -501,6 +501,8 @@ def test_site_down_and_up_by_id_and_host(L, run, monkeypatch):
 
     monkeypatch.setenv("SITES_BASE_URL", "https://sites.example")
     monkeypatch.setenv("SITES_CONTENT_DOMAIN", "content.example")
+    with db.transaction() as conn:
+        conn.execute("UPDATE lists SET sites_own_host = 1 WHERE id = ?", (L,))
     page = sites.publish(L, "Hello")
     host = db.get_db().execute("SELECT host FROM sites WHERE id = ?", (page["id"],)).fetchone()[0]
     code, out = run("site-down", host)

@@ -72,7 +72,7 @@ backend/
   paid/admin.py  comp, billing-sync, billing checks and admin plan reports
   paid/smoke.sh  checks the hosted service's addresses after a deploy, without credentials
   site_host.py   isolated content hosts: body pages, file manifests, text cache, password passes and takedowns
-  site_routes.py the Sites API under /api/app, with browser-only deletion of pages and their records
+  site_routes.py the Sites API under /api/app, with the own-address setting and browser-only deletion of pages and their records
   notes.py       Notes GTD: notes (markdown body, #hashtag tags derived from it, colour, pin); a
                  version refuses a stale rewrite; edit (exact string once) and append need none
   note_routes.py the notes API under /api/app (same rules as board_routes.py)
@@ -265,8 +265,8 @@ the call budget charged; every other request goes to FastMCP untouched.
   and the hash never appears in an answer (`_view` turns it into `locked`).
 - **The isolated Sites content domain never reaches the app.** `site_host.SiteHost` is
   outside `_ShortHost` and answers every path and method under `SITES_CONTENT_DOMAIN`
-  itself: no app, sessions or MCP. `SITES_CONTENT_LISTS`, while set, gates canonical
-  host addresses, old-address redirects and host lookups. Legacy data pages retain their
+  itself: no app, sessions or MCP. Own addresses are per account (`lists.sites_own_host`),
+  set only by the person in the browser or at connect approval; AI tools only suggest it. Legacy data pages retain their
   sandboxed path until content is replaced; switching data on or off never moves them.
   Host pages use `Origin-Agent-Cluster: ?1`, `nosniff`, `noindex, nofollow` and
   `Referrer-Policy: strict-origin-when-cross-origin` (needed by YouTube). No service workers:

@@ -18,7 +18,8 @@ def account(L, monkeypatch):
     monkeypatch.setenv("SITES_BASE_URL", "https://sites.example")
     monkeypatch.setenv("SITES_SHORT_URL", "https://ss.example")
     monkeypatch.setenv("SITES_CONTENT_DOMAIN", "content.example")
-    monkeypatch.delenv("SITES_CONTENT_LISTS", raising=False)
+    with db.transaction() as conn:
+        conn.execute("UPDATE lists SET sites_own_host = 1 WHERE id = ?", (L,))
     return L
 
 

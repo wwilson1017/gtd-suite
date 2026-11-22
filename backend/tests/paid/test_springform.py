@@ -48,7 +48,8 @@ def test_springform_connect_turns_every_app_on_and_grants_max(client):
     refused = approve(client, code, client="springform")
     assert refused.status_code == 400 and "confirm it first" in refused.json()["detail"]
     confirm_list(lid)
-    assert approve(client, code, client="springform").status_code == 200
+    assert approve(client, code, client="springform", own_host=True).status_code == 200
+    assert lists.get_list(lid)["sites_own_host"] == 0
     assert lists.apps_on(lid) == list(apps.APPS)
     row = plan_row(lid)
     assert plans.of(row) == "max" and row["comp_source"] == "springform" and row["pro_comp_until"] == paid_admin.FOREVER

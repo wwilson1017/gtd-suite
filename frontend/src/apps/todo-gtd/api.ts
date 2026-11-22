@@ -57,7 +57,10 @@ async function rawFetch<T>(url: string, options: RequestInit = {}, responseType:
     let message = res.statusText;
     try {
       const body = await res.json();
-      if (body?.detail !== undefined) {
+      if (typeof body?.error === 'string') {
+        detail = body.error;
+        message = body.error;
+      } else if (body?.detail !== undefined) {
         detail = body.detail;
         message = typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail);
       }
@@ -315,6 +318,7 @@ export interface AppConfig extends PaidConfig {
   moved?: string;
   /** The host Simple Sites hands its addresses out on, when not its own ("" then). */
   sites_short_host?: string;
+  sites_content_domain?: string;
   /** The hosted service takes no new accounts (SIGNUP_CLOSED): the front pages offer sign-in only. */
   signup_closed?: boolean;
 }

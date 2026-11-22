@@ -22,6 +22,7 @@ export function SitesConnectFlow() {
   const [email, setEmailInput] = useState('');
   const [typed, setTyped] = useState('');
   const [busy, setBusy] = useState(false);
+  const [ownHost, setOwnHost] = useState(true);
   const [sent, setSent] = useState(false);
   const [mailNote, setMailNote] = useState('');
   const [approved, setApproved] = useState(false);
@@ -86,7 +87,7 @@ export function SitesConnectFlow() {
       method: 'POST',
       body: JSON.stringify({
         ...(created ? {} : { typed_code: typed.trim() }),
-        ...(springform ? { client: 'springform' } : {}),
+        ...(springform ? { client: 'springform' } : { own_host: ownHost }),
       }),
     });
     setApproved(true);
@@ -154,6 +155,17 @@ export function SitesConnectFlow() {
                     </button>
                     {mailNote && <p className="mt-3">{mailNote}</p>}
                   </div>
+                )}
+                {!springform && (
+                  <label className="mt-3 block">
+                    <input
+                      type="checkbox"
+                      checked={ownHost}
+                      onChange={(e) => setOwnHost(e.target.checked)}
+                      disabled={busy}
+                    />{' '}
+                    Give each page its own address (needed for decks with video)
+                  </label>
                 )}
                 {!created && (
                   <label className="mt-3 block">

@@ -78,7 +78,7 @@ def hosted(row) -> bool:
     """Whether this page's canonical address is on its isolated origin."""
     return bool(
         settings.sites_content_domain()
-        and settings.sites_content_allowed(row["list_id"])
+        and db.get_db().execute("SELECT sites_own_host FROM lists WHERE id = ?", (row["list_id"],)).fetchone()[0]
         and row["kind"] == "page"
         and row["host"]
         and not row["legacy_path"]
@@ -1206,7 +1206,7 @@ def _manifest(manifest) -> list[dict]:
 def _live_list_in(conn, list_id: int):
     live, params = lists.live_where()
     row = conn.execute(
-        f"SELECT {paid_caps.PLAN_COLUMNS} FROM lists WHERE id = ? AND {live}", (list_id, *params)
+        f"SELECT sites_own_host, {paid_caps.PLAN_COLUMNS} FROM lists WHERE id = ? AND {live}", (list_id, *params)
     ).fetchone()
     if row is None:
         raise NotFoundError("Account not found")
@@ -1222,8 +1222,11 @@ def _sync_ready_in(conn, list_id: int, size: int) -> int:
     row = _live_list_in(conn, list_id)
     if not settings.sites_content_domain() or not settings.files_s3():
         raise ValidationError("File sync needs a content domain and a file store")
-    if not settings.sites_content_allowed(list_id):
-        raise ValidationError("File sync is not enabled for this account yet")
+    if not row["sites_own_host"]:
+        raise ValidationError(
+            "A folder site needs its own address. Ask the person to turn on 'Own address for each page' "
+            f"in {apps.settings_page()} ({settings.app_url('sites')}/app/connect/addresses); an AI cannot turn it on."
+        )
     limit, quota = _file_limits(row)
     _fits(size, limit)
     return quota

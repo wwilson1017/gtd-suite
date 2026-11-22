@@ -30,7 +30,7 @@ from fastapi.responses import JSONResponse, FileResponse
 from fastapi.routing import APIRoute
 
 from backend import agent_cmd, sites, db, settings, objectstore, ratelimit
-from backend.models import SiteCreate, SiteLinkCreate, SiteUpdate
+from backend.models import AppSwitch, SiteCreate, SiteLinkCreate, SiteUpdate
 from backend.router import _NO_STORE, _call, active_owner
 
 # A whole page as JSON, with room for escaping (as Agent Commands allows).
@@ -100,6 +100,24 @@ def create_link(body: SiteLinkCreate, owner: int = Depends(active_owner)):
         note=body.note,
         folder=body.folder,
     )
+
+
+@router.put("/sites/own-host")
+def own_host(body: AppSwitch, owner: int = Depends(active_owner)):
+    with db.transaction() as conn:
+        if (
+            not body.on
+            and conn.execute(
+                "SELECT 1 FROM sites WHERE list_id = ? AND layout = 'files' AND status = 'published' LIMIT 1", (owner,)
+            ).fetchone()
+        ):
+            return JSONResponse(
+                {"error": "Unpublish your folder sites first: they only work at their own address."},
+                status_code=409,
+                headers=_NO_STORE,
+            )
+        conn.execute("UPDATE lists SET sites_own_host = ? WHERE id = ?", (body.on, owner))
+    return {"sites_own_host": body.on}
 
 
 @router.get("/sites/{site_id}")
