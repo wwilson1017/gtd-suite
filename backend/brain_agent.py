@@ -501,11 +501,30 @@ def brain_changes(
 
 
 @_tool("Set up the brain", read_only=True, app="brain")
-def brain_onboard(brain: _arg(str | None, "Brain folder; defaults to the first brain") = None) -> dict:
+def brain_onboard(
+    guide: _arg(
+        str,
+        "'chats' for the steps to load an export of past conversations (Slack, Cliq, WhatsApp, email, support threads); empty for the set-up",
+    ) = "",
+    brain: _arg(str | None, "Brain folder; defaults to the first brain") = None,
+) -> dict:
     """The set-up script, once per AI: bring over what you know about the person,
     check it against the brain, ask about the gaps, and report. Call it when the
-    person says "set up my brain", or when brain_start says to offer it."""
+    person says "set up my brain", or when brain_start says to offer it.
+    With guide='chats' it returns the steps for turning an export of old chats into
+    sourced memories and pages, any time, and changes nothing."""
     b = _select(brain)
+    guide = guide.strip().lower()
+    if guide == "chats":
+        out = store.chat_import_script(b["id"], _by())
+        out["script"] = [_prose(b, step, "imports") for step in out["script"]]
+        if len(_scope()) > 1:
+            out["script"][0] = (
+                f"This import is for {b['folder']}: use brain={b['folder']} on path-less tools. " + out["script"][0]
+            )
+        return _place(b, out)
+    if guide:
+        raise ValidationError("guide is 'chats', or empty for the set-up")
     out = store.onboard_script(b["id"], _by())
     out["script"] = [_prose(b, step) for step in out["script"]]
     if _key.get() and not b["settled_at"]:

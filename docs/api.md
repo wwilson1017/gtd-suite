@@ -160,6 +160,8 @@ logs no misses. Eval reads `- id: query => expected; expected` lines from `<fold
 and appends the score to `<folder>/scorecard`. Write tools take `pass_label` and `reason`
 for the history.
 
+`brain_onboard(guide="chats")` returns the guide for loading an export of past conversations.
+
 ## Site sync
 
 With a file store and a content domain, and "Own address for each page" on in Sites

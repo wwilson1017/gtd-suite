@@ -826,6 +826,10 @@ async def test_blended_round_trip_search_defaults_and_moves(connect, multi, mult
     async with connect(f"http://testserver/link/{multi['agent_token']}") as c:
         onboard = await call(c, "brain_onboard", brain="personal")
         assert "brain=personal" in onboard["script"][0]
+        chats = await call(c, "brain_onboard", guide="chats", brain="personal")
+        assert chats["script"][0].startswith(
+            "This import is for personal: use brain=personal on path-less tools. "
+        ) and "personal/imports/" in " ".join(chats["script"])
         root = await call(c, "brain_page_list")
         assert [f["folder"] for f in root["folders"]] == ["work", "personal"]
         found = await call(c, "brain_search", query="needle")
