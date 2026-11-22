@@ -223,7 +223,8 @@ def brain_search(
 ) -> dict:
     """Find memories and pages about something, best match first. Words match their
     other forms (invoice finds invoices), and a page holding only some of them still
-    shows, lower down. A search that nothing holds every word of is noted for the next
+    shows, lower down. Among close matches a locked memory, then an entry naming two or
+    more sources, comes before a lone claim; `backing` says how each result is backed. A search that nothing holds every word of is noted for the next
     tidy, so if the results don't answer it, ask the person and save the answer."""
     carried = _scope()
     found = store.search([b["id"] for b in carried], query, by=_by(), restricted=bool(_folders()), probe=probe)
