@@ -64,6 +64,7 @@ Only two matter for most people: a persistent `DATA_DIR`, and `PUBLIC_BASE_URL`.
 | `BRAIN_BASE_URL` | unset | Common Brain's own address. Unset, it's at `/brain`. An account started there gets every app. |
 | `RESEND_API_KEY`, `MAIL_FROM` | unset | Both together turn on email: confirming an address and signing in by email. `MAIL_FROM` must be on a domain verified with [Resend](https://resend.com). Mail also needs `PUBLIC_BASE_URL` (or Railway's domain), since a mailed link is never built from a request's address. Without mail, hosted accounts stay on the small limits and are never put away. |
 | `SNAPSHOT_INTERVAL_SECONDS` | `3600` | How often a backup snapshot is taken. |
+| `SNAPSHOT_AGE_RECIPIENT` | unset | An [age](https://age-encryption.org) public key (`age1…`). Set, every snapshot is encrypted to it and only the encrypted file is kept. Unset, snapshots are plain. See [Backups](#backups). |
 | `FILES_S3_ENDPOINT`, `FILES_S3_BUCKET`, `FILES_S3_KEY_ID`, `FILES_S3_SECRET` | unset | An S3-compatible store (R2, MinIO, S3, B2), path-style, for Common Brain's files and Sites' file sites. Unset, Files is off. See [Files](#files). |
 | `FILES_S3_REGION` | `auto` | `auto` for R2; MinIO and S3 need a real region. |
 | `SITES_FILES_PREFIX` | `sites` | Each deployment sharing a bucket needs its own: a daily pass deletes objects under it that its database doesn't know. |
@@ -101,6 +102,15 @@ publishing end to end against a real server.
 Every hour the app writes a snapshot to `DATA_DIR/backups/todo-<time>.db`. It keeps the last
 6 hours and one a day for 7 days. Snapshots pause, with a warning, when free space runs low.
 
+**Encrypt them.** A snapshot is the whole database, readable by anyone who gets a copy. To
+encrypt them, run `age-keygen -o key.txt` on your own machine, keep `key.txt` somewhere safe
+that is not the server (a password manager, and a printed copy), and set
+`SNAPSHOT_AGE_RECIPIENT` to the public key it prints. Snapshots are then written as
+`todo-<time>.db.age` and can only be opened with `key.txt`: lose it and they are gone. If
+`age` fails, that snapshot fails and is logged; a plain one is never written in its place.
+Snapshots taken before you set it stay plain until they age out. The live database is not
+encrypted, since the app has to read it.
+
 They share the volume with the database, so they protect against mistakes, not against
 losing the volume. Copy them somewhere else:
 
@@ -111,7 +121,7 @@ losing the volume. Copy them somewhere else:
   export RAILWAY_TOKEN=<project token> V=<volume name>
   cd <your backup folder>
   railway volume files --volume "$V" list /backups --json </dev/null | jq -r '.files[].name' |
-    grep -E '^todo-[0-9TZ]+\.db$' | while read -r name; do
+    grep -E '^todo-[0-9TZ]+\.db(\.age)?$' | while read -r name; do
       [ -e "$name" ] || { railway volume files --volume "$V" download "/backups/$name" "$name.part" \
         --overwrite </dev/null && mv "$name.part" "$name"; }
     done
@@ -134,6 +144,14 @@ cp backups/todo-20261004T120000Z.db todo.db.restore
 mv todo.db.restore todo.db && rm -f todo.db-wal todo.db-shm
 ```
 
+An encrypted snapshot is decrypted first, with the private key. Either decrypt it on your own
+machine and copy the plain file to the server, so the key never touches the server, or type
+the key in there (`-i -` reads it from the terminal, and it is not saved):
+
+```bash
+age -d -i - -o todo.db.restore backups/todo-20261004T120000Z.db.age
+```
+
 Restart straight away (`docker compose restart`, or **Deployments → Restart** on Railway).
 The running app still has the old file open, so anything written between the `mv` and the
 restart is lost. Where you can, stop the app first, run the commands, then start it.
@@ -145,6 +163,11 @@ fresh snapshot first:
 ```bash
 python -m scripts.restore_list /data/backups/todo-20261004T120000Z.db --list-id 7
 ```
+
+For an encrypted snapshot add `--identity -` and type the private key when asked, or
+`--identity <key file>`. The snapshot is decrypted into a private folder in `DATA_DIR` that
+is removed when the restore ends, and the key is never saved. Or decrypt it on your own
+machine and pass the plain file, as above.
 
 `python -m scripts.admin find --link=<agent link>` gives the id.
 
@@ -172,7 +195,7 @@ Anywhere else, run it from the app directory with the app's `DATA_DIR`.
 | `disable <id>`, `enable <id>` | Turns an account's links and sign-ins off and back on. Deletes nothing |
 | `delete <id> --yes-delete-list-<id>` | Deletes an account for good, after a snapshot |
 | `snapshots` | The snapshot files |
-| `restore <id> --from <snapshot>` | The one-account restore above |
+| `restore <id> --from <snapshot>` | The one-account restore above; `--identity` for an encrypted snapshot |
 | `merge-brain FROM TO --name … --folder …` | Folds a Brain-only account into another as a new brain; `--yes` applies |
 
 Read commands take `--json`. An id can also be the account number shown in Settings. The

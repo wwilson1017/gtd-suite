@@ -15,6 +15,7 @@ TRUSTED_IP_HEADER   which header that is; default X-Real-IP
 RESEND_API_KEY      with MAIL_FROM and a configured base address, turns sign-in by email on (signin.py)
 MAIL_FROM           the sender, on a domain verified with Resend
 SNAPSHOT_INTERVAL_SECONDS   how often backup.py snapshots; default one hour
+SNAPSHOT_AGE_RECIPIENT      an age public key (age1…): snapshots are encrypted to it; unset, they are plain
 FILES_S3_ENDPOINT   with FILES_S3_BUCKET, FILES_S3_KEY_ID and FILES_S3_SECRET, the S3-compatible
                     store Common Brain's files live in (objectstore.py), e.g.
                     https://<account>.r2.cloudflarestorage.com; unset, Files is off
@@ -143,6 +144,10 @@ def trusted_ip_header() -> str:
 
 def reset_code() -> str:
     return os.environ.get("RESET_CODE", "")
+
+
+def snapshot_recipient() -> str:
+    return os.environ.get("SNAPSHOT_AGE_RECIPIENT", "")
 
 
 def snapshot_interval() -> float:
