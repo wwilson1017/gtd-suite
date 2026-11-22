@@ -166,6 +166,11 @@ logs no misses. Eval reads `- id: query => expected; expected` lines from `<fold
 and appends the score to `<folder>/scorecard`. Write tools take `pass_label` and `reason`
 for the history.
 
+Handed a meeting transcript, the curator follows the transcript step `brain_curate` returns:
+a quote that backs an entry is added to it as a further source (speaker, timestamp, exact
+quote), a clear change updates the entry, and anything unclear becomes a question in
+`<folder>/questions`.
+
 ## Site sync
 
 With a file store and a content domain, and "Own address for each page" on in Sites
