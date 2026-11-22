@@ -6,6 +6,7 @@ from typing import Literal
 from pydantic import BaseModel
 from fastapi import Depends, HTTPException, Request, Response
 from backend.paid import billing, plans
+from backend.paid import settings as paid_settings
 from backend import common, lists
 
 
@@ -131,6 +132,7 @@ def session_plan(row) -> dict:
         "comp_until": row["pro_comp_until"],  # a free plan from the operator (admin comp)
         "source": plans.pro_source(row),  # "stripe", "comp" or None
         "manageable": billing.syncing() and bool(row["stripe_customer"]),
+        "free": paid_settings.free_max(),  # nothing is sold: the app shows no plan
     }
 
 

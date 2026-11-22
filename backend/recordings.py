@@ -175,9 +175,7 @@ def _status(status) -> str:
 
 
 def _check_cap(conn, list_id: int, adding: int = 1) -> None:
-    row = conn.execute(
-        f"SELECT email_verified_at, {paid_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (list_id,)
-    ).fetchone()
+    row = conn.execute(f"SELECT {paid_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (list_id,)).fetchone()
     verified, hosted = bool(row and row["email_verified_at"]), settings.open_signup()
     plan = plans.of(row) if row else None
     cap = common.recording_cap_for(verified, hosted, plan)

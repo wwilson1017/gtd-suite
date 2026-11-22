@@ -197,7 +197,8 @@ def test_policy_files_keep_public_addresses_only_on_hosted_servers(
     if open_signup:
         assert res.headers["content-type"].startswith("text/css" if name.endswith(".css") else "text/html")
         if method == "GET":
-            assert res.text == content
+            # With paid plans on, the server leaves out the free wording (pages._POLICY_PART).
+            assert res.text == pages._POLICY_PART[False].sub("", content)
     else:
         unknown = client.request(method, "/unknown-file.html")
         assert res.text == unknown.text

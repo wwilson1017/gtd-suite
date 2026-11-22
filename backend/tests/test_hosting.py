@@ -48,6 +48,8 @@ def test_one_list_mode_is_the_default_and_the_first_visit_claims_it(single, new_
         "reset": False,
         "signed_in": False,
         "billing": False,
+        "free": False,
+        "signup_closed": False,
         "app": "todo",
         "apps": {
             "todo": {"title": "Todo GTD", "url": "http://testserver"},
@@ -94,6 +96,8 @@ def test_open_signup_makes_many_lists_and_never_reports_claimed(client, create):
         "reset": False,
         "signed_in": True,
         "billing": False,
+        "free": False,
+        "signup_closed": False,
         "app": "todo",
         "apps": {
             "todo": {"title": "Todo GTD", "url": "http://testserver"},

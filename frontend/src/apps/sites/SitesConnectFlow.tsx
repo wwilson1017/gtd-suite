@@ -37,7 +37,7 @@ export function SitesConnectFlow() {
         if (active) {
           setMail(config.mail);
           setHosted(config.open_signup);
-          setCanCreate(config.open_signup || !config.claimed);
+          setCanCreate((config.open_signup || !config.claimed) && !config.signup_closed);
           setReady(true);
         }
       })
@@ -173,7 +173,8 @@ export function SitesConnectFlow() {
             ) : (
               <div>
                 <p className="mt-3">
-                  Create an account or sign in, then approve this connection. The code expires after 15 minutes.
+                  {canCreate ? 'Create an account or sign in' : 'Sign in'}, then approve this connection. The code
+                  expires after 15 minutes.
                 </p>
                 {mail && (
                   <label className="mt-3 block">

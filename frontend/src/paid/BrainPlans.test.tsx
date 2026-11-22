@@ -24,6 +24,7 @@ it('shows the prices on a hosted server and hides them on a self-hosted one', ()
   expect(hosted).toContain('href="#pricing"');
   expect(hosted).toContain('id="pricing"');
   expect(render({ open_signup: false } as AppConfig)).toBe('');
+  expect(render({ open_signup: true, free: true } as AppConfig)).toBe(''); // nothing is sold
   expect(render(null)).toBe('');
 });
 

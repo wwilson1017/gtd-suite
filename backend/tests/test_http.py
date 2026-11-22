@@ -1014,6 +1014,8 @@ def test_config_is_public_and_says_whether_this_browser_is_signed_in(client):
         "reset": False,
         "signed_in": False,
         "billing": False,
+        "free": False,
+        "signup_closed": False,
         "app": "todo",
         "apps": {
             "todo": {"title": "Todo GTD", "url": "http://testserver"},

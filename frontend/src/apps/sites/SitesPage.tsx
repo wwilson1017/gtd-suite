@@ -418,7 +418,8 @@ function NewPage({ maxBytes = SITE_MAX_BYTES, onMade }: { maxBytes?: number; onM
 // The server's cap decides: 0 on a hosted account until its email is confirmed, and
 // never 0 on a one-list self-host. Undefined while the list loads.
 function NewLink({ cap, onMade }: { cap: number | undefined; onMade: (site: Site) => void }) {
-  const mail = useSession().session?.mail === true;
+  const session = useSession().session;
+  const mail = session?.mail === true;
   const ids = { url: useId(), name: useId(), short: useId() };
   const [url, setUrl] = useState('');
   const [name, setName] = useState('');
@@ -491,7 +492,7 @@ function NewLink({ cap, onMade }: { cap: number | undefined; onMade: (site: Site
           className={`${inputCls} mt-1 w-40`}
         />
         <label htmlFor={ids.short} className="mt-2 block text-sm text-charcoal">
-          {shortNameLabel()}
+          {shortNameLabel(session)}
         </label>
         <input
           id={ids.short}

@@ -9,6 +9,7 @@ SITES_SHORT_URL     a shorter address Simple Sites hands its pages and links out
 SITES_CONTENT_DOMAIN  isolated page domain, without a scheme; needs SITES_BASE_URL
 SITES_CONTENT_LISTS   while set, only these comma-separated list ids use content hosts
 OPEN_SIGNUP         true = hosted, anyone may create a list; default false = one list
+SIGNUP_CLOSED       true = hosted, but no new accounts: sign-in and existing accounts work (router.py)
 RESET_CODE          self-host only: the secret POST /api/reset accepts
 TRUST_PROXY         1 = take the client address from the proxy's header (ratelimit.py)
 TRUSTED_IP_HEADER   which header that is; default X-Real-IP
@@ -98,6 +99,12 @@ def _flag(name: str) -> bool:
 
 def open_signup() -> bool:
     return _flag("OPEN_SIGNUP")
+
+
+def signup_closed() -> bool:
+    """The hosted service takes no new accounts (POST /api/lists, the one way one is made).
+    A self-hosted server keeps its one-list claim."""
+    return open_signup() and _flag("SIGNUP_CLOSED")
 
 
 def sites_files_prefix() -> str:

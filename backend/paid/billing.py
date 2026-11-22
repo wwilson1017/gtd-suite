@@ -7,8 +7,8 @@ subscriptions from Stripe and stores the best one (lists.plan_*), and plans.acti
 derives Pro from that. So event order, duplicate deliveries and an old subscription's
 cancellation cannot leave the wrong answer.
 
-Two switches, read at call time: syncing() (the secret key and the webhook secret, on a
-hosted server) turns on the webhook and Manage billing; selling() (plus both prices)
+Two switches, read at call time: syncing() (paid plans back on with FREE_MAX=false, and
+the secret key and the webhook secret, on a hosted server) turns on the webhook and Manage billing; selling() (plus both prices)
 turns on Upgrade. Removing a price stops new sales and nothing else.
 
 Stripe's answers are never logged: they carry the customer's email.
@@ -79,7 +79,8 @@ class BadSignature(Exception):
 
 def syncing() -> bool:
     return (
-        settings.open_signup()
+        not paid_settings.free_max()
+        and settings.open_signup()
         and bool(paid_settings.stripe_secret_key())
         and bool(paid_settings.stripe_webhook_secret())
     )

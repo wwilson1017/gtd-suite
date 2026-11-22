@@ -241,6 +241,7 @@ def test_the_session_names_the_list_and_needs_no_x_list(new_list):
             "until": None,
             "cancels": False,
             "manageable": False,
+            "free": False,
             "comp_until": None,
             "source": None,
         },

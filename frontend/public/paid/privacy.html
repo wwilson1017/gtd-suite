@@ -10,11 +10,17 @@
     <main>
       <nav>
         <a href="/">← Back to the app</a><a href="/terms.html">Terms of Service</a
-        ><a href="/privacy.html" aria-current="page">Privacy</a><a href="/refunds.html">Refunds</a
-        ><a href="/support.html">Support</a>
+        ><a href="/privacy.html" aria-current="page">Privacy</a><!-- paid --><a href="/refunds.html">Refunds</a
+        ><!-- /paid
+        --><a href="/support.html">Support</a>
       </nav>
       <h1>Privacy</h1>
+      <!-- paid -->
       <p class="sub">Last updated November 14, 2026</p>
+      <!-- /paid -->
+      <!-- free -->
+      <p class="sub">Last updated November 22, 2026</p>
+      <!-- /free -->
       <div class="box">
         In short: we keep what you put in the apps so you can use it, and nothing else. No ads, no tracking, no selling
         or sharing your data. We don't run AI on your content; the AI tools you connect do, under their own policies.
@@ -34,14 +40,17 @@
           pages and files, and who wrote each one (you, a person you added, or the name of the AI tool).
         </li>
         <li>
-          <b>Your email</b>, if you add one: to confirm it, send sign-in links, and send receipts and account notices.
-          No newsletters unless you ask for them.
+          <b>Your email</b>, if you add one: to confirm it, send sign-in links, and send
+          <!-- paid -->receipts and
+          <!-- /paid -->account notices. No newsletters unless you ask for them.
         </li>
         <li><b>Your time zone</b>, so "today" means your today.</li>
+        <!-- paid -->
         <li>
           <b>Pro:</b> your Stripe customer number and the state of your subscription. Card details go to Stripe and
           Link, never to us.
         </li>
+        <!-- /paid -->
         <li>
           <b>Technical data:</b> your IP address and the pages you request, in server logs kept for a short time to run
           the service and stop abuse. Those logs can include the addresses you open, so they stay private and are looked
@@ -62,10 +71,12 @@
         <li><b>Railway</b> runs the apps and the database, in Virginia, United States.</li>
         <li><b>Cloudflare</b> stores Common Brain's files (R2) and runs our domain names.</li>
         <li><b>Resend</b> sends sign-in and confirmation emails.</li>
+        <!-- paid -->
         <li>
           <b>Stripe and Link</b> take Pro payments, as merchant of record, under
           <a href="https://stripe.com/privacy">Stripe's privacy policy</a>.
         </li>
+        <!-- /paid -->
         <li>
           <b>AI tools you connect</b> (Claude, ChatGPT and others) read and write what you let them, under their own
           privacy policies. You choose them, and you can cut one off by replacing your agent link.

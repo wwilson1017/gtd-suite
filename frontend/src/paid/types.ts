@@ -15,9 +15,14 @@ export interface Plan {
   comp_until?: string | null;
   /** Where the plan comes from now: a live subscription, the operator's grant, or neither. */
   source?: 'stripe' | 'comp' | null;
+  /** The suite is free (backend paid_settings.free_max): a confirmed hosted account is on
+   *  Max, and nothing about plans is shown. */
+  free?: boolean;
 }
 
 export interface PaidConfig {
   /** Pro can be bought here (backend/paid/billing.py selling()). */
   billing?: boolean;
+  /** The suite is free: confirming an email unlocks everything (paid_settings.free_max). */
+  free?: boolean;
 }
