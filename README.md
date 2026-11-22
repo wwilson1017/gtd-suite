@@ -593,3 +593,6 @@ Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
 The code is licensed under [MIT](LICENSE).
 The names Todo GTD, Notes GTD, Projects GTD, Simple Sites and Common Brain are Will Wilson's
 and are not licensed with the code, so a public fork should pick its own names.
+
+GTD® and Getting Things Done® are registered trademarks of the David Allen Company.
+This project is not affiliated with or endorsed by the David Allen Company.
