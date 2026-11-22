@@ -9,9 +9,10 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
-from backend import brain, brain_import, common, db, files, lists, mcp_server
+from backend import brain, brain_import, common, db, files, keys, lists, mcp_server
 from backend.common import ValidationError
 from backend.tests.conftest import confirm_list, turn_on
+from backend.tests.test_brains import add_brain
 from backend.tests.test_files import store, upload  # noqa: F401 (fixture)
 from backend.tests.test_keys import acct, bearer, new_key, rest  # noqa: F401 (fixture)
 from backend.tests.test_mcp import anyio_backend, app, http  # noqa: F401 (fixtures)
@@ -192,6 +193,190 @@ def test_eval_checks_only_top_ten(B, monkeypatch):
 
     monkeypatch.setattr(brain, "search", probe)
     assert brain.evaluate(brain.first_brain(B))["score"] == 0
+
+
+# ── Tickles: one unanswered question a day (#43) ──────────────────────────────
+
+
+@pytest.fixture()
+def T(B):
+    return brain.first_brain(B)
+
+
+def miss(b, query, times=2, by="Claude"):
+    for _ in range(times):
+        brain.search(b, query, by=by)
+
+
+def tickle(b, by="Claude"):
+    return brain.start(b, by, ["brain"]).get("tickle")
+
+
+def test_a_golden_question_the_brain_cannot_answer_comes_first_then_rests(T, freeze):
+    freeze("2026-11-02T15:00:00")
+    assert tickle(T) is None  # nothing to ask yet, and a missing golden page is no error
+    brain.write_page(T, "people/maya", "Apricot expert", title="Maya")
+    brain.write_page(
+        T, "curator/golden", "# Top\n- q1: apricot => people/maya\n- q2: Sam  Birthday => people/sam\nnot a line\n"
+    )
+    miss(T, "wifi password")
+    got = tickle(T)
+    assert (got["question"], got["from"], got["expects"]) == ("Sam  Birthday", "golden", ["people/sam"])
+    assert got["times_asked"] == 0 and got["stale"] is False and "brain_tickle_record" in got["do"]
+    # Handing it out records nothing: an unattended run must not use up the day's question.
+    assert tickle(T, "Cron")["question"] == "Sam  Birthday"
+    assert db.get_db().execute("SELECT COUNT(*) FROM brain_tickles").fetchone()[0] == 0
+    # Ask, save, record: the record still takes the question, in any case or spacing.
+    brain.write_page(T, "people/sam", "Sam's birthday is 3 May (source: the person, 2026-11-02)")
+    assert brain.tickle_record(T, "sam birthday", "Claude") == {
+        "ok": True,
+        "question": "sam birthday",
+        "times_asked": 1,
+        "rests_days": 5,
+    }
+    assert brain.tickle_record(T, "Sam Birthday", "Grok")["times_asked"] == 1  # a retry is the same ask
+    assert tickle(T) is None  # one a day, whatever else is waiting
+    freeze("2026-11-03T15:00:00")
+    assert tickle(T)["question"] == "wifi password"  # q2 passes now, so the repeated miss is next
+    # Neither the probes nor the hand-outs logged a miss or wrote a scorecard.
+    assert db.get_db().execute("SELECT COUNT(*) FROM brain_misses").fetchone()[0] == 2
+    assert not [p for p in brain.pages(T) if p["path"] == "curator/scorecard"]
+
+
+def test_a_repeated_miss_is_asked_until_it_is_answered(T, freeze):
+    freeze("2026-11-02T15:00:00")
+    miss(T, "dentist phone", times=1)
+    assert tickle(T) is None  # asked once: not yet
+    brain.search(T, "[tag] Dentist  PHONE", by="Grok")
+    miss(T, "invoice OR bill", times=3)
+    got = tickle(T)
+    assert (got["question"], got["from"], got["searched"]) == ("invoice or bill", "miss", 3)
+    assert "expects" not in got
+    brain.remember(T, ["The bill goes to accounts@example.com"], by="Claude")
+    assert tickle(T)["question"] == "dentist phone"  # OR stayed an OR: one side answers it
+    # A curator page that only quotes the question does not answer it.
+    brain.write_page(T, "curator/questions", "- dentist phone?")
+    assert tickle(T)["question"] == "dentist phone"
+    brain.write_page(T, "people/dentist", "Dentist: phone 555-0100")
+    assert tickle(T) is None
+    assert brain.overview(T)["misses"] == []
+    # The record takes a repeated miss answered since, and nothing else.
+    assert brain.tickle_record(T, "dentist phone", "Claude")["times_asked"] == 1
+    with pytest.raises(ValidationError, match="not a question"):
+        brain.tickle_record(T, "something an AI made up", "Claude")
+    freeze("2026-12-03T15:00:00")
+    assert brain._miss_groups(db.get_db(), T) == []  # misses age out after 30 days
+
+
+def test_rest_counts_the_accounts_calendar_days_and_three_asks_is_stale(T, L, freeze):
+    with db.transaction() as conn:
+        conn.execute("UPDATE lists SET tz = 'America/Chicago' WHERE id = ?", (L,))
+    brain.write_page(T, "curator/golden", "- a: alpha => people/a\n- b: beta => people/b")
+    freeze("2026-11-02T04:30:00")  # 1 Nov, 22:30 in Chicago
+    assert tickle(T)["question"] == "alpha"
+    brain.tickle_record(T, "alpha", "Claude")
+    assert tickle(T) is None
+    freeze("2026-11-02T07:00:00")  # 2 Nov, 01:00 in Chicago: a new day, alpha rests
+    assert tickle(T)["question"] == "beta"
+    freeze("2026-11-06T05:30:00")  # still 5 Nov there, the last rest day
+    assert tickle(T)["question"] == "beta"
+    freeze("2026-11-06T07:00:00")
+    assert tickle(T)["question"] == "alpha"
+    for day in ("2026-11-06", "2026-11-12"):
+        freeze(day + "T15:00:00")
+        brain.tickle_record(T, "alpha", "Claude")
+    freeze("2026-11-18T15:00:00")
+    got = tickle(T)
+    assert (got["question"], got["times_asked"], got["stale"]) == ("alpha", 3, True)
+    assert "asked 3 times" in got["do"]
+    # Dropped from the golden page, the stale question still records, and so nothing else is asked today.
+    brain.write_page(T, "curator/golden", "- b: beta => people/b")
+    assert brain.tickle_record(T, "alpha", "Claude")["times_asked"] == 4
+    assert tickle(T) is None
+
+
+def test_no_tickle_where_the_ai_cannot_save_or_record(T, L, freeze):
+    freeze("2026-11-02T15:00:00")
+    brain.write_page(T, "curator/golden", "- a: alpha => people/a")
+    assert tickle(T)
+    assert "tickle" not in brain.start(T, "Claude", ["brain"], restricted=True)
+    for access in ("read", "inbox"):
+        brain.update_brain(L, T, ai_access=access)
+        assert tickle(T) is None
+        with pytest.raises(ValidationError):
+            brain.tickle_record(T, "alpha", "Claude")
+    assert db.get_db().execute("SELECT COUNT(*) FROM brain_tickles").fetchone()[0] == 0
+
+
+def test_only_the_first_twenty_golden_lines_are_probed(T, monkeypatch):
+    brain.write_page(T, "curator/golden", "\n".join(f"- q{i}: word{i} => people/p{i}" for i in range(30)))
+    brain.write_page(T, "people/all", " ".join(f"word{i}" for i in range(30)), title="All")
+    for i in range(20):
+        brain.write_page(T, f"people/p{i}", f"word{i}")
+    probes = []
+    actual = brain.search
+    monkeypatch.setattr(brain, "search", lambda *a, **k: probes.append(a[1]) or actual(*a, **k))
+    assert tickle(T) is None and len(probes) == 20
+
+
+def test_onboarding_asks_for_the_top_questions_and_the_tidy_says_when_they_are_missing(T):
+    script = " ".join(brain.onboard_script(T, "Claude")["script"])
+    assert "Top questions" in script and "curator/golden" in script and "brain_eval" in script
+    assert "top_questions" in brain.onboarded(T, "Claude")
+    assert brain.curate(T)["queue"]["golden"].startswith("missing")
+    brain.write_page(T, "curator/golden", "- q1: sam birthday => people/sam")
+    assert "top_questions" not in brain.onboarded(T, "Claude")
+    assert brain.curate(T)["queue"]["golden"] == "exists"
+    assert brain.evaluate(T, by="Claude") == {"score": 0, "n": 1, "failures": ["q1"]}
+
+
+def test_the_home_lists_what_ais_asked_and_the_brain_cannot_answer(T, freeze):
+    freeze("2026-11-02T15:00:00")
+    for i in range(7):
+        miss(T, f"question{i}", times=i + 1)
+    brain.remember(T, ["question6 is answered"], by="Claude")
+    assert brain.overview(T)["misses"] == [
+        {"query": f"question{i}", "asked": i + 1, "last": "2026-11-02T15:00:00.000Z"} for i in (5, 4, 3, 2, 1)
+    ]
+
+
+def test_tickle_rows_go_with_their_brain(T, L):
+    brain.write_page(T, "curator/golden", "- a: alpha => people/a")
+    brain.tickle_record(T, "alpha", "Claude")
+    with db.transaction() as conn:
+        for table in ("brain_ais", "brain_versions", "brain_pages", "brains"):
+            conn.execute(f"DELETE FROM {table} WHERE list_id = ?", (L,))
+    assert db.get_db().execute("SELECT COUNT(*) FROM brain_tickles").fetchone()[0] == 0
+
+
+@pytest.mark.anyio
+async def test_the_tools_hand_out_one_tickle_across_brains_and_record_it(http, acct, freeze):
+    freeze("2026-11-02T15:00:00")
+    L = acct["list_id"]
+    first = brain.first_brain(L)
+    second = add_brain(L, "work")
+    # Written through a link that carries both brains, a golden line names its page with the brain's folder.
+    brain.write_page(first, "curator/golden", "- a: alpha => brain/people/a")
+    brain.write_page(second, "curator/golden", "- a: alpha => people/a")
+    key = keys.create(L, "Claude", access="write", brains=[first, second])["key"]
+    started = (await rest(http, key, "brain_start")).json()
+    assert len(started["brains"]) == 2
+    tickles = [g["tickle"] for g in started["guidance"] if "tickle" in g]
+    assert len(tickles) == 1 and tickles[0]["question"] == "alpha"
+    assert tickles[0]["expects"] == ["people/a"] and "brain=brain; its pages' paths start" in tickles[0]["do"]
+    assert (await rest(http, key, "brain_tickle_record", question="alpha")).json()["times_asked"] == 1
+    refused = await rest(http, key, "brain_tickle_record", question="made up")
+    assert refused.status_code == 400 and "not a question" in refused.text
+    # Answered on that page, the question passes for the tickle and for brain_eval.
+    await rest(http, key, "brain_page_write", path="brain/people/a", body="alpha is answered")
+    assert (await rest(http, key, "brain_eval", brain="brain")).json()["score"] == 1
+    freeze("2026-11-03T15:00:00")
+    guidance = (await rest(http, key, "brain_start")).json()["guidance"]
+    assert "tickle" not in guidance[0] and guidance[1]["tickle"]["expects"] == ["people/a"]
+    # A read-only key is handed nothing: it could not record the ask.
+    reader = keys.create(L, "Reader", access="read", brains=[second])["key"]
+    assert "tickle" not in (await rest(http, reader, "brain_start")).json()
+    assert (await rest(http, reader, "brain_tickle_record", question="alpha")).status_code == 403
 
 
 @pytest.mark.parametrize(
