@@ -4,7 +4,7 @@
 // new-page form (pasted or from a file), taking one down, deleting after a confirm,
 // and short links held back while their cap is 0.
 import { act } from 'react';
-import { NO_PAID_OFFERS } from '../../paid/features';
+import { NO_OFFERS } from '../../plans/features';
 import { createRoot } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -14,7 +14,7 @@ import type { Site, SiteCaps } from './types';
 // The account card asks what the server offers.
 const todoApi = vi.hoisted(() => ({
   getSession: vi.fn(),
-  getConfig: vi.fn(async () => ({ ...NO_PAID_OFFERS })),
+  getConfig: vi.fn(async () => ({ ...NO_OFFERS })),
 }));
 vi.mock('../todo-gtd/api', () => todoApi);
 const api = vi.hoisted(() => ({

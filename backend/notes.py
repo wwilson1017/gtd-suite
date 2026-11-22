@@ -19,9 +19,9 @@ directly: the body is the one source of truth.
 import json
 import re
 
-from backend.paid import caps as paid_caps
-from backend.paid import plans
-from backend.paid import billing
+from backend.plans import caps as plan_caps
+from backend.plans import plans
+from backend.plans import extension
 from backend import apps, common, db, settings
 from backend.common import ConflictError, NotFoundError, ValidationError
 
@@ -84,7 +84,7 @@ def _status(status) -> str:
 def _check_cap(conn, list_id: int) -> None:
     """Refuse one more note once the list holds its cap (common.note_cap_for).
     Archived notes count: nothing is ever deleted."""
-    row = conn.execute(f"SELECT {paid_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (list_id,)).fetchone()
+    row = conn.execute(f"SELECT {plan_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (list_id,)).fetchone()
     verified, hosted = bool(row and row["email_verified_at"]), settings.open_signup()
     plan = plans.of(row) if row else None
     cap = common.note_cap_for(verified, hosted, plan)
@@ -96,7 +96,7 @@ def _check_cap(conn, list_id: int) -> None:
             f"This list holds {cap} notes until an email is confirmed in {apps.settings_page()}. Nothing was changed."
         )
     raise ValidationError(
-        f"A list holds at most {cap} notes.{billing.upsell(hosted and not plan)} Nothing was changed."
+        f"A list holds at most {cap} notes.{extension.cap_note(hosted and not plan)} Nothing was changed."
     )
 
 

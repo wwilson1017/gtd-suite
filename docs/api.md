@@ -49,8 +49,8 @@ from every grant, and an empty grant never falls back to another brain.
 **Staff links** reach Brain tools only, default to read, and label what they write with
 their name. Give staff a link carrying only the work brain.
 
-Limits: free accounts have 1 brain and 3 staff links, Pro 10 and 100, Max and self-hosted
-100 and 1,000. Keys are capped at 20 separately.
+Limits: an unconfirmed hosted account has 1 brain and 3 staff links; a confirmed or
+self-hosted one 100 and 1,000. Keys are capped at 20 separately.
 
 ## REST API
 
@@ -161,6 +161,11 @@ and appends the score to `<folder>/scorecard`. Write tools take `pass_label` and
 for the history.
 
 `brain_onboard(guide="chats")` returns the guide for loading an export of past conversations.
+
+Handed a meeting transcript, the curator follows the transcript step `brain_curate` returns:
+a quote that backs an entry is added to it as a further source (speaker, timestamp, exact
+quote), a clear change updates the entry, and anything unclear becomes a question in
+`<folder>/questions`.
 
 ## Site sync
 

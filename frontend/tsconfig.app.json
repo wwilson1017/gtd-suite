@@ -22,7 +22,10 @@
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true
+    "noUncheckedSideEffectImports": true,
+
+    /* The optional extension's screens, copied into src/plans/extension/, else the off stub (vite.config.ts) */
+    "paths": { "@extension": ["./src/plans/extension/index.ts", "./src/plans/extension-off.tsx"] }
   },
   "include": ["src"]
 }

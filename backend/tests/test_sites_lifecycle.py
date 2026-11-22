@@ -1,4 +1,4 @@
-"""Expiring first sites and paid short names, including restore and daily races."""
+"""Expiring first sites and short names on a raised level, including restore and daily races."""
 
 from contextlib import contextmanager
 

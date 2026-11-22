@@ -14,7 +14,7 @@ from fastapi.responses import PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.datastructures import MutableHeaders
 
-from backend.paid import billing
+from backend.plans import extension
 from backend import (
     api_v1,
     apps,
@@ -153,7 +153,7 @@ async def lifespan(app: FastAPI):
         )
     task = asyncio.create_task(_maintain())
     tick = asyncio.create_task(_tick())
-    sweep = asyncio.create_task(billing.maintain())
+    sweep = asyncio.create_task(extension.maintain())
     # The MCP app's own lifespan starts its session manager; without it every
     # MCP request is a 500.
     async with mcp_server.mcp_app.lifespan(app):

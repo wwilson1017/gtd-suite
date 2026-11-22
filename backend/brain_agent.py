@@ -554,7 +554,9 @@ def brain_curate(
 ) -> dict:
     """The curator's rules and today's queue: questions the brain could not answer,
     near-copies, long memories, the inbox and this week's journal. Run it when the
-    person asks to tidy the brain, or when brain_start says it is nearly full."""
+    person asks to tidy the brain, or when brain_start says it is nearly full.
+    Run it too when they hand you a meeting transcript to work into the brain: the
+    steps say how to quote who said what, and when, as the source."""
     b, folder = _working(folder, brain)
     out = store.curate(b["id"], misses_since or None, unattended, folder, _by())
     out["steps"] = [_prose(b, step, folder) for step in out["steps"]]
