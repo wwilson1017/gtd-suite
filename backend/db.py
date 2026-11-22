@@ -1017,6 +1017,16 @@ def _migrate(conn: sqlite3.Connection) -> None:
                 conn.execute(
                     "UPDATE lists SET sites_own_host = 1 WHERE id IN (SELECT list_id FROM sites WHERE layout = 'files')"
                 )
+                # Accounts the retired SITES_CONTENT_LISTS gate already served on hosts keep them
+                # (unset meant everyone), so no handed-out host address stops answering.
+                if os.environ.get("SITES_CONTENT_DOMAIN", "").strip():
+                    gate = os.environ.get("SITES_CONTENT_LISTS")
+                    hosted = "SELECT list_id FROM sites WHERE kind = 'page' AND host IS NOT NULL AND legacy_path = 0"
+                    if gate is None:
+                        conn.execute(f"UPDATE lists SET sites_own_host = 1 WHERE id IN ({hosted})")
+                    else:
+                        ids = [int(part) for part in gate.split(",") if part.strip().isdigit()]
+                        conn.executemany("UPDATE lists SET sites_own_host = 1 WHERE id = ?", [(i,) for i in ids])
             # After the rebuild: SQLite refuses to drop a table a trigger names.
             for trigger in _rev_triggers():
                 conn.execute(trigger)

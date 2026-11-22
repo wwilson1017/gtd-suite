@@ -25,6 +25,24 @@ def test_migration_enables_only_existing_folder_accounts(L):
     assert [lists.get_list(lid)["sites_own_host"] for lid in (L, other, empty)] == [0, 1, 0]
 
 
+@pytest.mark.parametrize("gate", [None, "", "{other}"])
+def test_migration_keeps_accounts_the_retired_gate_served(L, monkeypatch, gate):
+    other = lists.create_list("UTC")["list_id"]
+    plain = lists.create_list("UTC")["list_id"]
+    sites.publish(L, "Body")
+    sites.publish(other, "Body")
+    monkeypatch.setenv("SITES_CONTENT_DOMAIN", "content.example")
+    if gate is None:
+        monkeypatch.delenv("SITES_CONTENT_LISTS", raising=False)
+    else:
+        monkeypatch.setenv("SITES_CONTENT_LISTS", gate.format(other=other))
+    with db.transaction() as conn:
+        conn.execute("ALTER TABLE lists DROP COLUMN sites_own_host")
+    db.init_db()
+    on = [lists.get_list(lid)["sites_own_host"] for lid in (L, other, plain)]
+    assert on == {None: [1, 1, 0], "": [0, 0, 0], "{other}": [0, 1, 0]}[gate]
+
+
 def test_browser_setting_guards_and_folder_refusal(client):
     path = "/api/app/sites/own-host"
     assert client.put(path, json={"on": True}).status_code == 401
