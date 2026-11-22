@@ -48,6 +48,16 @@ def test_a_read_only_brain_is_neither_offered_a_tidy_nor_stamped(B, L, freeze):
     assert db.get_db().execute("SELECT tidied_at FROM brains WHERE id = ?", (B,)).fetchone()[0]
 
 
+def test_an_ai_past_the_ai_cap_does_not_record_a_tidy(L, freeze):
+    B = brain.first_brain(L)  # no confirmed email: one AI
+    brain.start(B, "First", ["brain"])
+    assert "read_only" in brain.start(B, "Second", ["brain"])
+    brain.curate(B, by="Second")
+    assert db.get_db().execute("SELECT tidied_at FROM brains WHERE id = ?", (B,)).fetchone()[0] is None
+    brain.curate(B, by="First")
+    assert db.get_db().execute("SELECT tidied_at FROM brains WHERE id = ?", (B,)).fetchone()[0]
+
+
 def test_entries_past_their_review_date_lead_the_queue_most_overdue_first(B, freeze):
     freeze("2026-01-01T12:00:00")
     old = brain.remember(B, ["Maya works nights"], AI)["added"][0]

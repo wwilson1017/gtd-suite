@@ -1931,10 +1931,12 @@ def curate(
     # simplification: stamped when the tidy starts (there is no finish call), as Todo's weekly review is
     if stamp:
         with db.transaction() as conn:
-            conn.execute(
-                "UPDATE brains SET tidied_at = ? WHERE id = ? AND (ai_access = 'write' OR ? = ?)",
-                (until, brain_id, by, YOU),
-            )
+            # Only a caller that can write here tidies: the person, or one of the brain's AIs.
+            if by == YOU or _join_in(conn, brain_id, by, write=False):
+                conn.execute(
+                    "UPDATE brains SET tidied_at = ? WHERE id = ? AND (ai_access = 'write' OR ? = ?)",
+                    (until, brain_id, by, YOU),
+                )
     conn = db.get_db()
     mems = memories(brain_id)
     # simplification: a review date is due on its UTC day; the list's time zone if a day's slack ever matters
