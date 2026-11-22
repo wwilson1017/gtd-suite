@@ -38,7 +38,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastmcp.exceptions import ToolError, ValidationError
 
-from backend import brain, brain_agent, brain_import, common, files, keys, lists, mcp_server, ratelimit
+from backend import brain, brain_agent, brain_import, common, files, keys, lists, mcp_server, ratelimit, readlog
 
 _NO_STORE = {"Cache-Control": "no-store"}
 router = APIRouter(prefix="/api/v1")
@@ -212,6 +212,13 @@ async def _files(fn, *args, **kwargs):
         raise Refused(400, "Number out of range") from None
 
 
+async def _read(key: dict, kind: str, file: dict | None = None, target: str = "") -> None:
+    """The read log (readlog.py) for these routes' own reads, off the event loop. They run
+    outside _as, so the key and its brain are passed, never read from a contextvar."""
+    item = ("file", file["id"], file["path"]) if file else (None, None, target)
+    await asyncio.to_thread(readlog.log, key["list_id"], [_brain_id(key)], key["name"], key, kind, *item)
+
+
 @router.post("/files")
 async def reserve_files(request: Request):
     key = await _authorize(request)
@@ -234,6 +241,7 @@ async def finish_file(file_id: int, request: Request):
 async def download_file(request: Request, path: str = ""):
     key = await _authorize(request, "read", files=[path])
     got = await _files(files.link, _brain_id(key), path=path)
+    await _read(key, "link", got["file"])
     return RedirectResponse(got["url"], 302, headers=_NO_STORE)
 
 
@@ -256,8 +264,10 @@ async def import_markdown(request: Request, dry_run: bool = False, label: str = 
 @router.get("/export")
 async def export(request: Request, since: str = ""):
     key = await _authorize(request, need="read", open_folders=True)
+    body = await _files(brain.export_zip, _brain_id(key), since or None)
+    await _read(key, "export", target=since)
     return Response(
-        await _files(brain.export_zip, _brain_id(key), since or None),
+        body,
         media_type="application/zip",
         headers={**_NO_STORE, "Content-Disposition": 'attachment; filename="common-brain.zip"'},
     )
@@ -269,4 +279,5 @@ async def download_file_version(file_id: int, request: Request):
     item = await _files(files.get, _brain_id(key), file_id)
     _allow(key, "read", files=[item["path"]])
     got = await _files(files.link, _brain_id(key), file_id=file_id)
+    await _read(key, "link", got["file"])
     return RedirectResponse(got["url"], 302, headers=_NO_STORE)

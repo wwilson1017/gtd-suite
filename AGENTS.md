@@ -125,6 +125,8 @@ backend/
   pages.py       SPA shell, /app (signed in) or 303 /, manifests, /signin, retired /w, one-segment catch-all;
                  _site_host keeps visitor routes top-level on the Sites or fallback main host
   ratelimit.py   IPRateLimiter, client_ip(), the wrong-token guard
+  readlog.py     the read log: Common Brain reads by AI tools while Enhanced security is on (log,
+                 recent, expire at 90 days, forget_in); the person's Security page only
   files.py       Common Brain's files: reserve, done (claim, copy, commit), links, Forget, the sweeper
   storage.py     the shared account pool: Brain files and Sites blobs, reservations and tombstones included
   objectstore.py hand-signed SigV4 (no SDK) for the S3-compatible file store: presigned PUT/GET, HEAD, copy, DELETE, streamed GET and paged inventory
@@ -259,6 +261,10 @@ the call budget charged; every other request goes to FastMCP untouched.
   email inside the same transaction; blobs are left for GC.
   Common Brain's Forget is the other: `POST /api/app/brain/…/forget`
   removes a memory or page with its whole history, for the person in the browser only.
+  Forget (`brain.forget`, `files.forget`) also deletes the item's read-log rows in the same
+  transaction (`readlog.forget_in`: by `list_id`, `item_kind` and `item_id`, so a rename or a
+  move to another brain hides none; a file: every version at the path). A search's words
+  are not scrubbed; they age out with their row. `readlog.expire` drops rows past 90 days.
   An agent archives, or hands over `brain_forget_link`, a link to the app that grants nothing.
 - **An account's level is derived, never set.** While the suite is free
   (`plans/settings.free_max()`, the default), `plans/plans.of` answers max for a hosted
@@ -381,6 +387,23 @@ the call budget charged; every other request goes to FastMCP untouched.
   rows cascade with their list, so a version that does not know the table can still delete one.
   A REST call reaches the tools without the HTTP request: `api_v1._as` passes its `Origin` on.
   Messages name the account page through `apps.settings_page` (Settings, in every app).
+- **The read log is written only while Enhanced security is on, and read only by the person.**
+  `readlog.log` writes `brain_reads`: one row per request that returned Brain content, per
+  brain it touched. Its INSERT checks the switch itself, and for a row naming a page, memory
+  or file, that the item is still in the account (a file: not a tombstone), so a read that
+  ends just after a Forget cannot put a forgotten path back. It takes the name, the
+  credential (`key_id` + `key_kind`; both empty is the main link; never a token) and the
+  brains as arguments and reads no contextvar: REST's own reads (`/files`, `/files/{id}`,
+  `/export`) run outside `_as`. It runs after the read, off the event loop, never inside
+  another transaction, and a failure is logged by type and swallowed. A Brain tool whose
+  answer carries an existing item's content calls `brain_agent._read` last: the read tools,
+  and the write tools that hand back what is there (an unchanged `brain_page_write`,
+  append, edit, `brain_memory_update`, `brain_restore`, `brain_eval`); the instructions at
+  initialize and discovery are `connect`. A new Brain tool gets a line in
+  `test_readlog.LEAVES`. Only `GET /api/app/security/reads` reads the log: no tool, command
+  or REST route. The table is bookkeeping like `ai_tools`: in `admin._LIST_TABLES` and
+  `cleanup.py` before `brains` (its rows point at one), out of `apps.content_tables()`,
+  cascading with its list and brain; `admin merge_brain` moves its rows.
 - **Schema changes** go in `db._migrate` as idempotent steps (`CREATE TABLE IF NOT EXISTS`
   does not alter a table that exists, and the live database does).
 - **One place decides the client address:** `ratelimit.client_ip`. Do not read

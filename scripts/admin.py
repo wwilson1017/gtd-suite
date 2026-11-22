@@ -74,7 +74,7 @@ _LIST_ROW = f"""
 """
 # Delete children first (todos point at projects and areas, projects at areas);
 # all of these before the list's own row.
-_LIST_TABLES = (*apps.content_tables(), "sessions", "signin_tokens", "api_keys", "brains", "ai_tools")
+_LIST_TABLES = (*apps.content_tables(), "sessions", "signin_tokens", "api_keys", "brain_reads", "brains", "ai_tools")
 
 
 # ── Output ────────────────────────────────────────────────────────────────────
@@ -615,7 +615,7 @@ def merge_brain(from_id: int, to_id: int, name: str, folder: str, *, yes: bool =
             "UPDATE brains SET settled_at = ?, status = ? WHERE id = ?",
             (original["settled_at"] or target["settled_at"], original["status"], target["id"]),
         )
-        for table in apps.APPS["brain"].tables:
+        for table in (*apps.APPS["brain"].tables, "brain_reads"):
             conn.execute(
                 f"UPDATE {table} SET list_id = ?, brain_id = ? WHERE list_id = ?", (to_id, target["id"], from_id)
             )

@@ -41,7 +41,7 @@ from typing import cast
 from backend.plans import caps as plan_caps
 from backend.plans import plans
 from backend.plans import extension
-from backend import common, db, reports, settings
+from backend import common, db, readlog, reports, settings
 from backend.common import ConflictError, NotFoundError, ValidationError
 
 YOU = "you"  # the person, writing in the app
@@ -1418,6 +1418,8 @@ def forget(brain_id: int, kind: str, item_id: int) -> dict:
         n = conn.execute(
             "DELETE FROM brain_versions WHERE brain_id = ? AND kind = ? AND item_id = ?", (brain_id, kind, item_id)
         ).rowcount
+        # Its rows in the read log too: by item, so a rename or a move to another brain hides none.
+        readlog.forget_in(conn, _list_of(conn, brain_id), kind, [item_id])
     return {"forgotten": kind, "id": item_id, "versions": n}
 
 
