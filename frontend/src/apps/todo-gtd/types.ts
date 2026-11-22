@@ -1,4 +1,4 @@
-import type { Plan } from '../../paid/types';
+import type { Level } from '../../plans/types';
 
 // Todo GTD — shared types (mirrors backend/common.py)
 
@@ -130,7 +130,7 @@ export interface Session {
     areas: number;
     brains?: number;
     links?: number;
-    upsell?: boolean;
+    raisable?: boolean;
     storage?: number;
     storage_used?: number;
   };
@@ -141,7 +141,7 @@ export interface Session {
    *  Connect your AI, and step 1 of the setup). Empty until one has. */
   ai_tools?: AiTool[];
   /** The account’s plan, as last synced from the payment service. */
-  plan?: Plan;
+  plan?: Level;
 }
 
 /** An AI tool that has called the account's agent link. */

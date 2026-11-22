@@ -43,7 +43,7 @@ import sys
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from backend.paid import admin as paid_admin
+from backend.plans import admin as plan_admin, extension
 from backend import (
     apps,
     backup,
@@ -198,7 +198,7 @@ def cmd_stats(args) -> None:
         "projects": one("SELECT COUNT(*) FROM projects"),
         "areas": one("SELECT COUNT(*) FROM areas"),
         "lists_created_by_day": {d: made.get(d, 0) for d in days},  # UTC days
-        **paid_admin.stats(conn),
+        **plan_admin.stats(conn),
         "database_bytes": db.db_path().stat().st_size,
         "snapshots": {
             "count": len(snaps),
@@ -214,7 +214,7 @@ def cmd_stats(args) -> None:
         )
         print(f"Todos: {data['todos']}  " + "  ".join(f"{s} {n}" for s, n in by_status.items()))
         print(f"Projects: {data['projects']}   Areas: {data['areas']}")
-        paid_admin.print_stats(data)
+        plan_admin.print_stats(data)
         print(f"Database file: {_size(data['database_bytes'])}")
         s = data["snapshots"]
         print(f"Snapshots: {s['count']}, {_size(s['bytes'])}, newest {s['newest'] or '-'}")
@@ -326,7 +326,7 @@ def cmd_show(args) -> None:
         "tz": row["tz"],
         "review_started_at": row["review_started_at"],
         "todos_by_status": by_status,
-        **paid_admin.details(conn, args.list_id),
+        **plan_admin.details(conn, args.list_id),
     }
     if args.content:
         # stderr, so --json output stays parseable.
@@ -351,7 +351,7 @@ def cmd_show(args) -> None:
         _print_lists([dict(data)], args.show_email)
         print(f"Time zone: {data['tz']}")
         print(f"Review started: {data['review_started_at'] or '-'}")
-        paid_admin.print_details(data)
+        plan_admin.print_details(data)
         print("Todos by status: " + "  ".join(f"{s} {n}" for s, n in by_status.items()))
         if args.content:
             print("Projects:")
@@ -460,10 +460,10 @@ def _set_disabled(args, disabled: bool) -> None:
         if changed:
             _log(conn, command, args.list_id)
     if changed and disabled:
-        # Disabled first, so a checkout already in flight sees it and closes its session
-        # (billing._handed_out); then billing is checked. Anything payable, or a service that
-        # cannot be asked, undoes it.
-        paid_admin._undo_on_failure(args.list_id, paid_admin._refuse_while_subscribed)
+        # Disabled first, so anything the extension has in flight sees it; then the
+        # extension checks it (plans/extension.py). A refusal, or a service that cannot be
+        # asked, undoes it.
+        plan_admin._undo_on_failure(args.list_id, extension.check_disable)
     if not changed:
         print(f"List {args.list_id}: nothing changed (it was already {command}d).")
     elif disabled:
@@ -515,17 +515,17 @@ def cmd_delete(args) -> int:
                 "Could not snapshot the database first; nothing was deleted (--no-snapshot skips the snapshot)"
             )
         print(f"Snapshot taken first: {before.name}")
-    # Marked disabled first (as disable does), so a first checkout already in flight can
-    # neither store its new customer nor hand out a session (billing._customer_in,
-    # _handed_out); then billing is checked, and a refusal or a service failure undoes it.
+    # Marked disabled first (as disable does), so anything the extension has in flight sees
+    # it; then the extension checks it (plans/extension.py), and a refusal or a service
+    # failure undoes it.
     with db.transaction() as tx:
         marked = tx.execute(
             "UPDATE lists SET disabled_at = ? WHERE id = ? AND disabled_at IS NULL", (common.now_iso(), args.list_id)
         ).rowcount
     if marked:
-        paid_admin._undo_on_failure(args.list_id, paid_admin._refuse_while_billable)
+        plan_admin._undo_on_failure(args.list_id, extension.check_delete)
     else:
-        paid_admin._refuse_while_billable(args.list_id)
+        extension.check_delete(args.list_id)
     # The files' bytes before their rows, which are the only record of where they are.
     try:
         files.delete_objects(args.list_id)
@@ -730,7 +730,7 @@ def _parser() -> argparse.ArgumentParser:
         required=True,
         help="a snapshot's path, or its file name in DATA_DIR/backups",
     )
-    paid_admin.register(command, day)
+    plan_admin.register(command, day)
     return parser
 
 

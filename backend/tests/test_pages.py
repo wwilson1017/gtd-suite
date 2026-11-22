@@ -181,15 +181,15 @@ def test_pages_say_how_to_build_when_there_is_no_build(client, tmp_path, monkeyp
 
 @pytest.mark.parametrize("open_signup", [True, False])
 @pytest.mark.parametrize("method", ["GET", "HEAD"])
-@pytest.mark.parametrize("name", ["terms.html", "privacy.html", "refunds.html", "support.html", "legal.css"])
+@pytest.mark.parametrize("name", ["terms.html", "privacy.html", "support.html", "legal.css"])
 def test_policy_files_keep_public_addresses_only_on_hosted_servers(
     client, built, monkeypatch, open_signup, method, name
 ):
     monkeypatch.setenv("OPEN_SIGNUP", str(open_signup).lower())
-    public = FRONTEND_INDEX.parent / "public" / "paid"
-    (built / "paid").mkdir(exist_ok=True)
+    public = FRONTEND_INDEX.parent / "public" / "policy"
+    (built / "policy").mkdir(exist_ok=True)
     content = (public / name).read_text(encoding="utf-8")
-    (built / "paid" / name).write_text(content, encoding="utf-8")
+    (built / "policy" / name).write_text(content, encoding="utf-8")
     # Even a leftover file from an older build must not expose policies on a self-host.
     (built / name).write_text("old hosted policy", encoding="utf-8")
     res = client.request(method, f"/{name}")
@@ -197,13 +197,12 @@ def test_policy_files_keep_public_addresses_only_on_hosted_servers(
     if open_signup:
         assert res.headers["content-type"].startswith("text/css" if name.endswith(".css") else "text/html")
         if method == "GET":
-            # With paid plans on, the server leaves out the free wording (pages._POLICY_PART).
-            assert res.text == pages._POLICY_PART[False].sub("", content)
+            assert res.text == content
     else:
         unknown = client.request(method, "/unknown-file.html")
         assert res.text == unknown.text
         _assert_page_headers(res)
-    assert client.get(f"/paid/{name}").status_code == 404
+    assert client.get(f"/policy/{name}").status_code == 404
 
 
 def test_policy_links_still_use_public_addresses():
@@ -215,8 +214,8 @@ def test_policy_links_still_use_public_addresses():
         def handle_starttag(self, tag, attrs):
             links.extend(value for key, value in attrs if key == "href" and value and value.startswith("/"))
 
-    names = {"terms.html", "privacy.html", "refunds.html", "support.html", "legal.css"}
-    public = FRONTEND_INDEX.parent / "public" / "paid"
+    names = {"terms.html", "privacy.html", "support.html", "legal.css"}
+    public = FRONTEND_INDEX.parent / "public" / "policy"
     for name in names - {"legal.css"}:
         links.clear()
         Links().feed((public / name).read_text(encoding="utf-8"))
