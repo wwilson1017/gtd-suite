@@ -569,7 +569,7 @@ def _check_room(conn, brain_id: int, kind: str, adding: int = 1, by: str = YOU) 
                 "everything already there still reads."
             )
         raise ValidationError(
-            f"Your brain holds {what} until you add your email under Connect. It's still free. Nothing was saved."
+            f"Your brain holds {what} until you add your email in Settings. It's still free. Nothing was saved."
         )
     raise ValidationError(
         f"The brain holds at most {what}.{billing.upsell(plan['upsell'])} "

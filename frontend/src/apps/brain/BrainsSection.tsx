@@ -1,6 +1,6 @@
 import { brainLimitSentence } from '../../paid/features';
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { apiErrorMessage } from '../../core/api/client';
 import { useAutoSave } from '../../shared/autosave/useAutoSave';
 import { InlineTitle } from '../../shared/inline-edit/InlineTitle';
@@ -8,7 +8,6 @@ import { brainName, brainGeneration, refreshBrains, selectBrain, useBrainSelecti
 import { PlanCard } from '../../paid/PlanCard';
 import { useSession } from '../todo-gtd/session';
 import { getBrains, saveBrain, setBrainStatus, type Brain, type BrainSettings, type BrainsView } from './api';
-import { BrainShell } from './BrainShell';
 
 // The ready-made rules: the chip's label, and the sentence the AI reads.
 const PRESETS: [string, string][] = [
@@ -17,7 +16,12 @@ const PRESETS: [string, string][] = [
 ];
 
 export const brainField = 'block w-full min-w-0 rounded-lg border border-line bg-sand px-3 py-2 text-sm text-charcoal';
-export function BrainSettingsPage({ creating = false }: { creating?: boolean }) {
+const BRAINS = '/connect/brains';
+
+/** Settings › Brains: the open brain's name, rules and AI access, archiving and restoring,
+ *  and at ?new (where the old /brains/new lands) a new brain. */
+export function BrainsSection() {
+  const creating = new URLSearchParams(useLocation().search).has('new');
   const { id } = useBrainSelection();
   const session = useSession().session;
   const [data, setData] = useState<BrainsView | null>(null);
@@ -45,64 +49,73 @@ export function BrainSettingsPage({ creating = false }: { creating?: boolean }) 
     }
   };
   return (
-    <BrainShell title={creating ? 'New brain' : 'Brain settings'}>
-      <div className="mx-auto max-w-2xl space-y-5">
-        <h1 className="font-heading text-2xl font-bold text-white">{creating ? 'New brain' : 'Brain settings'}</h1>
-        {error && <p role="alert">{error}</p>}
-        {!data ? (
-          <p>Loading…</p>
-        ) : creating && full ? (
-          <>
-            <p>{brainLimitSentence(data.caps.upsell, session)}</p>
-            <PlanCard />
-          </>
-        ) : (
-          (creating || current) && (
-            <BrainForm
-              key={creating ? 'new' : current!.id}
-              brain={creating ? undefined : current}
-              onSaved={async (b) => {
-                const d = await getBrains();
-                setData(d);
-                refreshBrains(d.brains);
-                if (creating) {
-                  selectBrain(b.id);
-                  navigate('/brains');
-                }
-              }}
-            />
-          )
-        )}
-        {!creating && current && (
-          <button
-            type="button"
-            className="cb-btn-ghost"
-            disabled={data!.brains.filter((b) => b.status === 'active').length < 2}
-            onClick={() => {
-              if (window.confirm(`Archive ${brainName(current)}? Its links will stop carrying it.`))
-                void status(current);
+    <div className="space-y-5">
+      {creating ? (
+        <h3 className="font-heading text-lg font-bold text-white">New brain</h3>
+      ) : (
+        current && (
+          <p className="text-sm text-muted">
+            Editing <b className="text-charcoal">{brainName(current)}</b>. Pick another brain at the top, or{' '}
+            <Link to={`${BRAINS}?new`} className="text-brand-ink underline underline-offset-2">
+              add a brain
+            </Link>
+            .
+          </p>
+        )
+      )}
+      {error && <p role="alert">{error}</p>}
+      {!data ? (
+        <p>Loading…</p>
+      ) : creating && full ? (
+        <>
+          <p>{brainLimitSentence(data.caps.upsell, session)}</p>
+          <PlanCard />
+        </>
+      ) : (
+        (creating || current) && (
+          <BrainForm
+            key={creating ? 'new' : current!.id}
+            brain={creating ? undefined : current}
+            onSaved={async (b) => {
+              const d = await getBrains();
+              setData(d);
+              refreshBrains(d.brains);
+              if (creating) {
+                selectBrain(b.id);
+                navigate(BRAINS);
+              }
             }}
-          >
-            Archive this brain
-          </button>
-        )}
-        {!creating && data?.brains.some((b) => b.status === 'archived') && (
-          <section className="cb-panel p-4">
-            <h2 className="font-heading font-bold">Archived brains</h2>
-            {data.brains
-              .filter((b) => b.status === 'archived')
-              .map((b) => (
-                <div key={b.id} className="flex items-center gap-3 py-2">
-                  <span className="min-w-0 flex-1 break-words">{brainName(b)}</span>
-                  <button type="button" className="cb-btn-ghost" onClick={() => void status(b)}>
-                    Restore
-                  </button>
-                </div>
-              ))}
-          </section>
-        )}
-      </div>
-    </BrainShell>
+          />
+        )
+      )}
+      {!creating && current && (
+        <button
+          type="button"
+          className="cb-btn-ghost"
+          disabled={data!.brains.filter((b) => b.status === 'active').length < 2}
+          onClick={() => {
+            if (window.confirm(`Archive ${brainName(current)}? Its links will stop carrying it.`)) void status(current);
+          }}
+        >
+          Archive this brain
+        </button>
+      )}
+      {!creating && data?.brains.some((b) => b.status === 'archived') && (
+        <section className="cb-panel p-4">
+          <h2 className="font-heading font-bold">Archived brains</h2>
+          {data.brains
+            .filter((b) => b.status === 'archived')
+            .map((b) => (
+              <div key={b.id} className="flex items-center gap-3 py-2">
+                <span className="min-w-0 flex-1 break-words">{brainName(b)}</span>
+                <button type="button" className="cb-btn-ghost" onClick={() => void status(b)}>
+                  Restore
+                </button>
+              </div>
+            ))}
+        </section>
+      )}
+    </div>
   );
 }
 

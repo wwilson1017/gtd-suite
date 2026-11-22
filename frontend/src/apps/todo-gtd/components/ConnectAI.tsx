@@ -1,4 +1,4 @@
-// Settings › Connect your AI, in every app but Common Brain: whether an AI has connected
+// Settings › Connect your AI, in every app: whether an AI has connected
 // (a line per tool, or waiting), the steps for each AI with the agent link filled in, and
 // the agent link itself with a quiet way to make a new one.
 import { useState } from 'react';

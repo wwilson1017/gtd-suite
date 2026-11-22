@@ -253,9 +253,8 @@ describe('LandingPage', () => {
     expect(host.textContent).toContain('This list is set up');
   });
 
-  it('sends a new Common Brain account Home, where its own set-up runs, until Brain has Settings', () => {
-    expect(firstPage('brain', true)).toBe('/app');
-    expect(firstPage('sites', true)).toBe('/app/connect/ai?welcome');
-    expect(firstPage('todo', false)).toBe('/app');
+  it('sends a new account in every app, Common Brain included, to Connect your AI once', () => {
+    expect(firstPage(true)).toBe('/app/connect/ai?welcome');
+    expect(firstPage(false)).toBe('/app');
   });
 });

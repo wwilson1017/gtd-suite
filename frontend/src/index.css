@@ -144,7 +144,7 @@ html:has(.has-bottom-bar) {
 
 /* Common Brain (apps/brain) is its own brand: Night Network, always dark. On its
    address (<html data-app="brain">, set by the server) the shared tokens take its
-   navy, violet and cyan, so the suite's own pieces (Connect's sections, the app bar)
+   navy, violet and cyan, so the suite's own pieces (Settings, the app bar)
    sit on it without a seam. More specific than .dark, so it wins either way. */
 html[data-app='brain'] {
   color-scheme: dark;
@@ -160,6 +160,12 @@ html[data-app='brain'] {
   --color-brand-mark: #7c5cff;
   --color-brand-ink: #a99bff;
   --color-brain-ink: #22d3ee;
+  /* Settings' set-up box and the header's next-step button: a deep violet lit by lilac. */
+  --color-band: #1d1640;
+  --color-band-glow: rgb(124 92 255 / 0.45);
+  --color-band-text: #ddd6ff;
+  --color-band-accent: #c4b5fd;
+  --color-band-hover: #ece8ff;
   background: #070b1a;
 }
 

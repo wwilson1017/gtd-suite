@@ -406,7 +406,7 @@ async def test_rest_export_permissions_eval_and_labels(http, acct):
     assert (
         (await rest(http, read, "brain_export_link"))
         .json()["link"]
-        .endswith(f"/app/connect?brain={brain.first_brain(acct['list_id'])}#export")
+        .endswith(f"/app/connect/export?brain={brain.first_brain(acct['list_id'])}")
     )
     assert (await rest(http, read, "brain_search", query="absent", probe=True)).status_code == 200
     assert not brain.curate(brain.first_brain(B))["queue"]["misses"]

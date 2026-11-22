@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { apiErrorMessage } from '../../core/api/client';
 import { brainName, useBrainSelection } from '../todo-gtd/brainSelection';
 import { moveToBrain } from './api';
-import { brainField } from './BrainSettingsPage';
+import { brainField } from './BrainsSection';
 
 export function MoveToBrain({
   kind,

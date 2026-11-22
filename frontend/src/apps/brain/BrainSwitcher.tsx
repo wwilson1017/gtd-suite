@@ -64,10 +64,18 @@ export function BrainSwitcher() {
                 {id === b.id ? ' ✓' : ''}
               </button>
             ))}
-          <Link to="/brains/new" onClick={() => setOpen(false)} className="block rounded-lg px-3 py-2 hover:bg-sand">
+          <Link
+            to="/connect/brains?new"
+            onClick={() => setOpen(false)}
+            className="block rounded-lg px-3 py-2 hover:bg-sand"
+          >
             New brain
           </Link>
-          <Link to="/brains" onClick={() => setOpen(false)} className="block rounded-lg px-3 py-2 hover:bg-sand">
+          <Link
+            to="/connect/brains"
+            onClick={() => setOpen(false)}
+            className="block rounded-lg px-3 py-2 hover:bg-sand"
+          >
             Brain settings
           </Link>
         </div>

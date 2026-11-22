@@ -71,13 +71,9 @@ def content_tables() -> tuple[str, ...]:
     return tuple(t for app in APPS.values() for t in app.tables)
 
 
-def settings_page(app: str | None = None) -> str:
-    """What the page with a person's apps, email and sign-out is called: Settings in Todo,
-    Notes, Projects and Simple Sites, and still Connect in Common Brain. Without an app
-    (a message that an account with any of them may get), both."""
-    if app is None:
-        return "Settings (Connect, in Common Brain)"
-    return "Connect" if app == "brain" else "Settings"
+def settings_page() -> str:
+    """What the page with a person's apps, email and sign-out is called, in every app."""
+    return "Settings"
 
 
 def off_message(key: str) -> str:
