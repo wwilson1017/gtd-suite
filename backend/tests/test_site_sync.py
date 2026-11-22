@@ -536,3 +536,14 @@ def test_reconcile_never_touches_another_deployments_prefix(store, monkeypatch):
         monkeypatch.setenv("SITES_FILES_PREFIX", bad)
         with pytest.raises(ValueError):
             app_settings.sites_files_prefix()
+
+
+def test_restore_unpublishes_folder_sites_while_own_addresses_are_off(store, account, capsys):
+    page = publish(store, account)
+    before = backup.snapshot()
+    sites.update(account, page["id"], status="unpublished")
+    with db.transaction() as conn:
+        conn.execute("UPDATE lists SET sites_own_host = 0 WHERE id = ?", (account,))
+    restore_list.restore(before, account, db.db_path())
+    assert sites.get_site(account, page["id"])["status"] == "unpublished"
+    assert "own page addresses are off" in capsys.readouterr().out
