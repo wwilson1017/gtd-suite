@@ -13,6 +13,8 @@ export interface Memory {
   updated_by: string;
   created_at: string;
   updated_at: string;
+  /** The date to recheck it by (YYYY-MM-DD); null means 90 days after the last change. */
+  review_on?: string | null;
   /** On a write's answer only. */
   removed?: Removed[];
 }

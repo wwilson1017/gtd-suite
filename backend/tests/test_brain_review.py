@@ -118,6 +118,16 @@ def test_a_memory_review_date_is_a_checked_versioned_write(B, L):
         brain.update_memory(B, m["id"], review_on="2027-04-01", by=AI)
 
 
+def test_the_person_sets_a_memory_review_date_in_the_app(new_list):
+    c = new_list()["client"]
+    m = c.post("/api/app/brain/memories", json={"text": "Maya works nights"}).json()["memory"]
+    assert c.put(f"/api/app/brain/memories/{m['id']}", json={"review_on": "2027-03-01"}).json()["review_on"] == (
+        "2027-03-01"
+    )
+    assert c.put(f"/api/app/brain/memories/{m['id']}", json={"review_on": "soon"}).status_code == 400
+    assert c.put(f"/api/app/brain/memories/{m['id']}", json={"review_on": ""}).json()["review_on"] is None
+
+
 def test_migration_adds_the_columns_once(B):
     brain.remember(B, ["Kept"], AI)
     with db.transaction() as conn:

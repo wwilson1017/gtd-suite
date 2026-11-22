@@ -70,7 +70,7 @@ export const addMemory = (text: string) =>
 /** With `version`, a memory changed since it was read is refused (409). */
 export const updateMemory = (
   id: number,
-  fields: Partial<Pick<Memory, 'text' | 'locked' | 'status'>> & { version?: number },
+  fields: Partial<Pick<Memory, 'text' | 'locked' | 'status'>> & { version?: number; review_on?: string },
 ) => send<Memory>('PUT', `/memories/${id}`, fields);
 export const createPage = (fields: { path: string; title?: string; body?: string; format?: string }) =>
   send<Page>('POST', '/pages', fields);

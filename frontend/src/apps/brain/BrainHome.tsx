@@ -339,6 +339,16 @@ function MemoryRow({
         <button type="button" onClick={onHistory} className="hover:text-white">
           History
         </button>
+        <label title="When to recheck this memory. Empty: 90 days after its last change">
+          Review by{' '}
+          <input
+            type="date"
+            value={m.review_on ?? ''}
+            onChange={(e) => void save({ review_on: e.target.value })}
+            aria-label="Review by"
+            className="bg-transparent text-xs text-muted"
+          />
+        </label>
         <button type="button" onClick={() => void save({ status: 'archived' })} className="hover:text-white">
           Archive
         </button>
