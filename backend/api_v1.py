@@ -212,11 +212,12 @@ async def _files(fn, *args, **kwargs):
         raise Refused(400, "Number out of range") from None
 
 
-async def _read(key: dict, kind: str, file: dict | None = None, target: str = "") -> None:
+async def _read(key: dict, brain_id: int, kind: str, file: dict | None = None, target: str = "") -> None:
     """The read log (readlog.py) for these routes' own reads, off the event loop. They run
-    outside _as, so the key and its brain are passed, never read from a contextvar."""
+    outside _as, so the key and its brain are passed, never read from a contextvar: the brain
+    the read used, since asking again could refuse (a brain archived meanwhile) a read already done."""
     item = ("file", file["id"], file["path"]) if file else (None, None, target)
-    await asyncio.to_thread(readlog.log, key["list_id"], [_brain_id(key)], key["name"], key, kind, *item)
+    await asyncio.to_thread(readlog.log, key["list_id"], [brain_id], key["name"], key, kind, *item)
 
 
 @router.post("/files")
@@ -240,8 +241,9 @@ async def finish_file(file_id: int, request: Request):
 @router.get("/files")
 async def download_file(request: Request, path: str = ""):
     key = await _authorize(request, "read", files=[path])
-    got = await _files(files.link, _brain_id(key), path=path)
-    await _read(key, "link", got["file"])
+    brain_id = _brain_id(key)
+    got = await _files(files.link, brain_id, path=path)
+    await _read(key, brain_id, "link", got["file"])
     return RedirectResponse(got["url"], 302, headers=_NO_STORE)
 
 
@@ -264,8 +266,9 @@ async def import_markdown(request: Request, dry_run: bool = False, label: str = 
 @router.get("/export")
 async def export(request: Request, since: str = ""):
     key = await _authorize(request, need="read", open_folders=True)
-    body = await _files(brain.export_zip, _brain_id(key), since or None)
-    await _read(key, "export", target=since)
+    brain_id = _brain_id(key)
+    body = await _files(brain.export_zip, brain_id, since or None)
+    await _read(key, brain_id, "export", target=since)
     return Response(
         body,
         media_type="application/zip",
@@ -276,8 +279,9 @@ async def export(request: Request, since: str = ""):
 @router.get("/files/{file_id}")
 async def download_file_version(file_id: int, request: Request):
     key = await _authorize(request)
-    item = await _files(files.get, _brain_id(key), file_id)
+    brain_id = _brain_id(key)
+    item = await _files(files.get, brain_id, file_id)
     _allow(key, "read", files=[item["path"]])
-    got = await _files(files.link, _brain_id(key), file_id=file_id)
-    await _read(key, "link", got["file"])
+    got = await _files(files.link, brain_id, file_id=file_id)
+    await _read(key, brain_id, "link", got["file"])
     return RedirectResponse(got["url"], 302, headers=_NO_STORE)

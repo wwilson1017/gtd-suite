@@ -7,7 +7,7 @@ import logging
 import pytest
 from fastmcp.exceptions import ToolError
 
-from backend import apps, brain, cleanup, common, db, files, keys, lists, mcp_server, readlog
+from backend import api_v1, apps, brain, cleanup, common, db, files, keys, lists, mcp_server, readlog
 from backend.tests import test_keys, test_mcp
 from backend.tests.conftest import turn_on
 from backend.tests.test_files import item
@@ -155,7 +155,7 @@ async def test_a_write_tool_that_hands_back_what_is_there_leaves_a_row(connect, 
 # ── Who read ──────────────────────────────────────────────────────────────────
 
 
-async def test_a_row_names_the_link_or_key_that_read(connect, http, multi, store):
+async def test_a_row_names_the_link_or_key_that_read(connect, http, multi, store, monkeypatch):
     account, first = multi["list_id"], multi["first"]
     put_file(store, first, "inbox/public.pdf")
     file_id = files.listing(first)[0]["id"]
@@ -197,9 +197,23 @@ async def test_a_row_names_the_link_or_key_that_read(connect, http, multi, store
     assert {(r["by"], r["key_id"], r["key_kind"], r["brain_id"]) for r in new} == {
         ("Nightly job", key["id"], "key", first)
     }
+    # The log uses the brain the read used: asking again after the read (the brain archived
+    # meanwhile) would refuse an export already made.
+    asked = []
+
+    def once(k, real=api_v1._brain_id):
+        asked.append(k)
+        if len(asked) > 2:  # _authorize asks once, the route once
+            raise api_v1.Refused(403, "archived meanwhile")
+        return real(k)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(api_v1, "_brain_id", once)
+        assert (await http.get("/api/v1/export", headers=bearer(key["key"]))).status_code == 200
+    assert rows(account)[-1]["kind"] == "export"
     # A refused read is not a read.
     assert (await http.get("/api/v1/files?path=inbox/none.pdf", headers=bearer(key["key"]))).status_code == 404
-    assert len(rows(account)) == start + 3
+    assert len(rows(account)) == start + 4
     # No key or token is kept, only which one.
     assert key["key"] not in json.dumps(rows(account)) and staff["key"] not in json.dumps(rows(account))
     shown = readlog.recent(account)
