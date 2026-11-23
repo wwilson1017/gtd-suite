@@ -2,6 +2,7 @@
 cleanup, snapshots and one-list repair, sign-in mail, and log scrubbing."""
 
 import datetime
+import fcntl
 import io
 import json
 import logging
@@ -11,6 +12,8 @@ import shutil
 import sqlite3
 import subprocess
 import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
@@ -359,7 +362,7 @@ def test_the_maintenance_loop_expires_always_and_cleans_up_only_with_open_signup
 
 
 def _names():
-    return sorted(p.name for p in backup.backups_dir().iterdir())
+    return sorted(p.name for p in backup.backups_dir().iterdir() if p.name != ".lock")
 
 
 def test_snapshot_is_a_complete_database_with_no_temp_file_left(L):
@@ -371,6 +374,11 @@ def test_snapshot_is_a_complete_database_with_no_temp_file_left(L):
     assert snap.execute("SELECT title FROM todos").fetchall() == [("in the snapshot",)]
     assert snap.execute("PRAGMA integrity_check").fetchone() == ("ok",)
     snap.close()
+
+
+def _live_size():
+    wal = db.db_path().with_name(db.db_path().name + "-wal")
+    return db.db_path().stat().st_size + (wal.stat().st_size if wal.exists() else 0)
 
 
 def test_a_failed_snapshot_is_logged_and_skipped(L, monkeypatch, caplog):
@@ -386,8 +394,8 @@ def test_a_failed_snapshot_is_logged_and_skipped(L, monkeypatch, caplog):
 
 
 def test_snapshots_pause_with_a_warning_when_space_is_low(L, monkeypatch, caplog):
-    # The floor is the live database's size plus MIN_FREE_BYTES: one byte short pauses, exact proceeds.
-    need = db.db_path().stat().st_size + backup.MIN_FREE_BYTES
+    # The floor is the live database's size, WAL included, plus MIN_FREE_BYTES: one byte short pauses, exact proceeds.
+    need = _live_size() + backup.MIN_FREE_BYTES
     free = {"n": need - 1}
     monkeypatch.setattr(backup.shutil, "disk_usage", lambda p: type("U", (), {"free": free["n"]})())
     with caplog.at_level(logging.WARNING):
@@ -459,8 +467,8 @@ def test_prune_never_deletes_the_newest_snapshot_however_old(todo_db, freeze):
 @pytest.fixture()
 def age_key(tmp_path_factory, monkeypatch):
     """Snapshots encrypted to a fresh age key; the private key's file."""
-    if not (shutil.which("age") and shutil.which("age-keygen")):
-        pytest.skip("age is not installed")
+    if not (shutil.which("age") and shutil.which("age-keygen") and shutil.which("zstd")):
+        pytest.skip("age or zstd is not installed")
     key = tmp_path_factory.mktemp("age") / "key.txt"
     subprocess.run(["age-keygen", "-o", str(key)], check=True, capture_output=True)
     public = subprocess.run(["age-keygen", "-y", str(key)], check=True, capture_output=True, text=True)
@@ -468,14 +476,65 @@ def age_key(tmp_path_factory, monkeypatch):
     return key
 
 
+def _unsealed(path, key):
+    """An encrypted snapshot opened by hand, the way docs/self-hosting.md says: age, then zstd."""
+    sealed = subprocess.run(["age", "-d", "-i", str(key), str(path)], check=True, capture_output=True).stdout
+    plain = key.with_name("plain.db")  # beside the key: outside the data folder
+    subprocess.run(["zstd", "-d", "--long=27", "-q", "-f", "-o", str(plain)], input=sealed, check=True)
+    return plain
+
+
 def test_an_encrypted_snapshot_is_one_age_file_and_not_a_database(L, age_key):
     service.create_todo(L, "in the snapshot", source="ui")
     path = backup.snapshot()
-    assert path is not None and re.fullmatch(r"todo-\d{8}T\d{6}Z\.db\.age", path.name)
+    assert path is not None and re.fullmatch(r"todo-\d{8}T\d{6}Z\.db\.zst\.age", path.name)
     assert _names() == [path.name]  # no plain copy, no temp file
     data = path.read_bytes()
     assert data.startswith(b"age-encryption.org/v1") and b"SQLite format 3" not in data
     assert b"in the snapshot" not in data
+    assert len(data) < db.db_path().stat().st_size  # compressed before it was encrypted
+    # Round trip: the private key and zstd give back a whole database.
+    snap = sqlite3.connect(f"file:{_unsealed(path, age_key)}?mode=ro", uri=True)
+    assert snap.execute("SELECT title FROM todos").fetchall() == [("in the snapshot",)]
+    assert snap.execute("PRAGMA integrity_check").fetchone() == ("ok",)
+    snap.close()
+
+
+def test_a_database_that_does_not_compress_still_round_trips(L, age_key):
+    noise = os.urandom(2 * 1024 * 1024)
+    live = sqlite3.connect(db.db_path())
+    live.execute("CREATE TABLE noise (b BLOB)")
+    live.execute("INSERT INTO noise VALUES (?)", (noise,))
+    live.commit()
+    live.close()
+    path = backup.snapshot()
+    assert path is not None and path.stat().st_size > len(noise) and _names() == [path.name]
+    snap = sqlite3.connect(_unsealed(path, age_key))
+    assert snap.execute("SELECT b FROM noise").fetchone() == (noise,)
+    assert snap.execute("PRAGMA integrity_check").fetchone() == ("ok",)
+    snap.close()
+
+
+# Stand-ins, so these run where neither tool is installed: a zstd that copies its input file
+# (the last argument) and an age that copies its input, each made to fail in turn.
+_PASS = {"zstd": 'for last; do :; done; cat "$last"', "age": "cat"}
+_FAIL = {"zstd": 'for last; do :; done; head -c 100 "$last"; exit 1', "age": "head -c 100; exit 1"}
+
+
+@pytest.mark.parametrize("failing", ["zstd", "age"])
+def test_a_failing_zstd_or_age_leaves_nothing_behind(L, monkeypatch, caplog, tmp_path, failing):
+    for tool in ("zstd", "age"):
+        script = tmp_path / tool
+        script.write_text("#!/bin/sh\n" + (_FAIL if tool == failing else _PASS)[tool] + "\n")
+        script.chmod(0o755)
+    monkeypatch.setenv("PATH", str(tmp_path) + os.pathsep + os.environ["PATH"])
+    monkeypatch.setenv("SNAPSHOT_AGE_RECIPIENT", "age1example")
+    with caplog.at_level(logging.ERROR):
+        assert backup.snapshot() is None  # the other tool exited 0, and some bytes were written
+    assert "Snapshot failed" in caplog.text and _names() == []
+    (tmp_path / failing).write_text("#!/bin/sh\n" + _PASS[failing] + "\n")
+    path = backup.snapshot()  # the same stand-ins, both passing: the failure above was the exit code
+    assert path is not None and _names() == [path.name] and path.read_bytes().startswith(b"SQLite format 3")
 
 
 def test_a_failed_age_leaves_no_file_of_either_kind(L, age_key, monkeypatch, caplog):
@@ -491,6 +550,68 @@ def test_a_missing_age_fails_the_snapshot_and_never_falls_back_to_plain(L, monke
     with caplog.at_level(logging.ERROR):
         assert backup.snapshot() is None
     assert "Snapshot failed" in caplog.text and _names() == []
+
+
+def test_a_large_wal_counts_toward_the_room_a_snapshot_needs(L, monkeypatch, caplog):
+    # A reader holds the WAL open, so what is written next stays in it and the database file does not grow.
+    reader = sqlite3.connect(db.db_path())
+    reader.execute("BEGIN")
+    reader.execute("SELECT COUNT(*) FROM todos").fetchone()
+    service.create_todo(L, "only in the WAL", notes="x" * 20_000, source="ui")
+    for n in range(40):
+        service.create_todo(L, f"filler {n}", notes="y" * 20_000, source="ui")
+    main, wal = db.db_path().stat().st_size, db.db_path().with_name(db.db_path().name + "-wal").stat().st_size
+    assert wal > 500_000
+    free = {"n": main + wal + backup.MIN_FREE_BYTES - 1}
+    monkeypatch.setattr(backup.shutil, "disk_usage", lambda p: type("U", (), {"free": free["n"]})())
+    with caplog.at_level(logging.WARNING):
+        assert backup.snapshot() is None  # room for the database file alone is not enough
+    assert "Snapshots are paused" in caplog.text and _names() == []
+    free["n"] += 1
+    path = backup.snapshot()
+    reader.close()
+    assert path is not None
+    snap = sqlite3.connect(path)
+    assert snap.execute("SELECT COUNT(*) FROM todos WHERE title = 'only in the WAL'").fetchone() == (1,)
+    snap.close()
+
+
+def test_two_snapshots_at_once_take_turns_and_never_share_a_file(L, freeze):
+    service.create_todo(L, "in both", source="ui")
+    clock = iter(["2026-10-04T12:00:00", "2026-10-04T12:00:01", "2026-10-04T12:00:01"])
+    real, lock = backup._locked_snapshot, threading.Lock()
+
+    def one_at_a_time(out):  # the file lock is what keeps a second caller out
+        assert lock.acquire(blocking=False), "two snapshots ran at the same moment"
+        try:
+            freeze(next(clock))
+            time.sleep(0.05)
+            return real(out)
+        finally:
+            lock.release()
+
+    with pytest.MonkeyPatch.context() as patched, ThreadPoolExecutor(3) as pool:
+        patched.setattr(backup, "_locked_snapshot", one_at_a_time)
+        taken = [f.result() for f in [pool.submit(backup.snapshot) for _ in range(3)]]
+    # Two distinct seconds give two files; the caller that lands in a taken second is refused, cleanly.
+    good = [p for p in taken if p is not None]
+    assert len(good) == 2 and len(set(good)) == 2 and sorted(p.name for p in good) == _names()
+    for path in good:
+        snap = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        assert snap.execute("PRAGMA integrity_check").fetchone() == ("ok",)
+        assert snap.execute("SELECT title FROM todos").fetchall() == [("in both",)]
+        snap.close()
+
+
+def test_a_snapshot_waits_for_another_process_holding_the_lock(L):
+    backup.backups_dir().mkdir()
+    with open(backup.backups_dir() / ".lock", "w") as held, ThreadPoolExecutor(1) as pool:
+        fcntl.flock(held, fcntl.LOCK_EX)  # as scripts/admin.py would, mid-snapshot
+        waiting = pool.submit(backup.snapshot)
+        time.sleep(0.3)
+        assert not waiting.done() and _names() == []  # no temp file, no prune, nothing yet
+        fcntl.flock(held, fcntl.LOCK_UN)
+        assert waiting.result(timeout=30) is not None
 
 
 def test_an_encrypted_snapshot_needs_room_for_both_copies(L, monkeypatch, caplog):
@@ -510,15 +631,18 @@ def test_prune_and_the_admin_list_cover_plain_and_encrypted_snapshots_together(t
     def stamp(**ago):
         return (now - datetime.timedelta(**ago)).strftime(backup._NAME)
 
-    newest, recent = stamp(hours=0) + ".age", stamp(hours=5)
-    day3 = [stamp(days=3, hours=0) + ".age", stamp(days=3, hours=1), stamp(days=3, hours=2) + ".age"]
-    too_old = [stamp(days=8), stamp(days=9) + ".age"]
-    for name in [newest, recent, *day3, *too_old, "left-over.db.age.tmp"]:
+    # .db.zst.age is what is written now; .db.age is what an earlier version wrote.
+    newest, recent = stamp(hours=0) + ".zst.age", stamp(hours=5)
+    day3 = [stamp(days=3, hours=0) + ".age", stamp(days=3, hours=1), stamp(days=3, hours=2) + ".zst.age"]
+    day5 = [stamp(days=5, hours=0) + ".zst.age", stamp(days=5, hours=1) + ".age"]
+    too_old = [stamp(days=8), stamp(days=9) + ".age", stamp(days=10) + ".zst.age"]
+    for name in [newest, recent, *day3, *day5, *too_old, "left-over.db.zst.age.tmp"]:
         (out / name).write_bytes(b"")
     backup.prune(now)
-    assert _names() == sorted([newest, recent, day3[0]])
-    assert [p.name for p in backup.files()] == [day3[0], recent, newest]  # oldest first, whatever the kind
+    assert _names() == sorted([newest, recent, day3[0], day5[0]])
+    assert [p.name for p in backup.files()] == [day5[0], day3[0], recent, newest]  # oldest first, whatever the kind
     assert backup._taken(out / newest) == now
+    assert backup._taken(out / day3[0]) == now - datetime.timedelta(days=3)
 
 
 # ── One-list repair ───────────────────────────────────────────────────────────
@@ -617,7 +741,53 @@ def test_restore_list_decrypts_an_encrypted_snapshot_with_the_key(new_list, age_
     # The decrypted copy is gone with its folder, and the snapshot taken first is encrypted too.
     assert seen and not seen[0].exists()
     assert sorted(p.name for p in data_dir.iterdir()) == before
-    assert len(_names()) == 2 and all(n.endswith(".db.age") for n in _names())
+    assert len(_names()) == 2 and all(n.endswith(".db.zst.age") for n in _names())
+
+
+def test_restore_list_refuses_a_cut_short_snapshot_and_changes_nothing(new_list, age_key):
+    a = new_list()
+    a["client"].post("/api/app/todos", json={"title": "buy paint"})
+    snapshot = backup.snapshot()
+    assert snapshot is not None
+    a["client"].post("/api/app/todos", json={"title": "added later"})
+    data_dir = db.db_path().parent
+    before = sorted(p.name for p in data_dir.iterdir())
+    # Cut short in transit: age refuses it.
+    cut = age_key.with_name(snapshot.name)  # beside the key: outside the data folder
+    cut.write_bytes(snapshot.read_bytes()[: snapshot.stat().st_size // 2])
+    # Whole to age, but what is inside is half a zstd stream: zstd refuses it.
+    inside = subprocess.run(["age", "-d", "-i", str(age_key), str(snapshot)], check=True, capture_output=True).stdout
+    half = age_key.parent / "half" / snapshot.name
+    half.parent.mkdir()
+    subprocess.run(
+        ["age", "-r", os.environ["SNAPSHOT_AGE_RECIPIENT"], "-o", str(half)],
+        input=inside[: len(inside) // 2],
+        check=True,
+    )
+    for broken in (cut, half):
+        with pytest.raises(SystemExit, match="Could not decrypt"):
+            restore_list.main([str(broken), "--list-id", str(a["list_id"]), "--identity", str(age_key)])
+    assert sorted(p.name for p in data_dir.iterdir()) == before and _names() == [snapshot.name]
+    assert len(a["client"].get("/api/app/todos").json()["todos"]) == 2
+
+
+def test_restore_list_still_opens_a_snapshot_an_earlier_version_encrypted(new_list, age_key, monkeypatch, freeze):
+    freeze("2026-10-04T12:00:00")
+    a = new_list()
+    a["client"].post("/api/app/todos", json={"title": "buy paint"})
+    with monkeypatch.context() as plainly:
+        plainly.delenv("SNAPSHOT_AGE_RECIPIENT")
+        plain = backup.snapshot()
+    assert plain is not None and plain.suffix == ".db"
+    old = plain.with_name(plain.name + ".age")  # encrypted, not compressed
+    subprocess.run(["age", "-r", os.environ["SNAPSHOT_AGE_RECIPIENT"], "-o", str(old), str(plain)], check=True)
+    plain.unlink()
+    freeze("2026-10-04T15:00:00")
+    a["client"].post("/api/app/todos", json={"title": "added later"})
+    assert backup.files() == [old]
+    restore_list.main([str(old), "--list-id", str(a["list_id"]), "--identity", str(age_key)])
+    assert [t["title"] for t in a["client"].get("/api/app/todos").json()["todos"]] == ["buy paint"]
+    assert _names()[0] == old.name and _names()[1].endswith(".db.zst.age")
 
 
 # ── Sign-in by email ──────────────────────────────────────────────────────────
