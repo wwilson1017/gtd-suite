@@ -1103,6 +1103,7 @@ def _resolve(token: str, bearer: bool) -> tuple[int | None, list[str], dict | No
     list_id = lists.resolve_agent(token)
     if list_id is not None:
         lists.touch(list_id)
+        lists.touch(list_id, "agent_used_at")  # any use counts, the bare guide included
         return list_id, lists.apps_on(list_id), None, brain.main_brains(list_id)
     key = keys.resolve_link(token) if not bearer else None
     if key:

@@ -31,6 +31,15 @@ Sites turns on Sites, and Brain turns on everything.
   404, never a sign-in prompt. Only wrong links are rate-limited.
 - Program keys and staff links are stored hashed and shown once. Keys go only in a Bearer
   header; staff links only in a path.
+- A key or staff link can be made with an end date: 30, 90 or 365 days. Past it the key is
+  an unknown one (403 on REST, 404 on a staff link's path) and shows as expired until you
+  revoke it. An end date can't be extended: make a new key.
+- **Settings → Security → Enhanced security** is one switch for the account, changed only in
+  the browser. While it is on, the agent link stops answering (404) after 30 days without
+  use until you replace it, every new key or staff link needs an end date, and a confirmed
+  email is told when a new AI tool first connects, once a day at most. Keys made before it
+  went on keep working with no end date. Off, an idle agent link answers again; end dates
+  already set still hold.
 - On a hosted server with mail, an unconfirmed account is archived after 60 idle days and
   removed after 180. Using its agent or capture link brings an archived one back. Confirmed
   and self-hosted accounts are never put away. Unconfirmed Sites pages expire after 7 days.
@@ -77,7 +86,7 @@ REST calls the same tools as MCP, so they never differ.
 |---|---|
 | 200 | The tool's result |
 | 400 | A bad argument, or the tool refused (not found, stale version, a limit) |
-| 403 | No key, an unknown or revoked key, or a tool this key may not call |
+| 403 | No key, an unknown, revoked or expired key, or a tool this key may not call |
 | 404 | No such tool |
 | 413 | Body over 4 MB |
 | 429 | Too many wrong keys from one address (wait ten minutes), or over 600 calls a minute |

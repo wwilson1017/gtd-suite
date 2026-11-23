@@ -64,6 +64,13 @@ _LISTS_DDL = (
     -- Projects' sample projects (samples.py): NULL never made, 'on' shown, 'off' put away.
     projects_sample   TEXT,
     sites_own_host    INTEGER NOT NULL DEFAULT 0,
+    -- Settings › Security's switch (lists.set_enhanced_security): while on, the agent link
+    -- stops answering once agent_used_at (stamped hourly by its use, and when the switch
+    -- goes on or the link is replaced) is lists.AGENT_IDLE old, new keys need an end date,
+    -- and a new AI tool's first call mails the person, once a day at most (ai_alert_at).
+    enhanced_security INTEGER NOT NULL DEFAULT 0,
+    agent_used_at     TEXT,
+    ai_alert_at       TEXT,
 """
     + caps.LISTS_DDL
 )
@@ -618,7 +625,8 @@ CREATE TABLE IF NOT EXISTS api_keys (
     folders      TEXT NOT NULL DEFAULT '[]',
     created_at   TEXT NOT NULL,
     last_used_at TEXT,
-    revoked_at   TEXT
+    revoked_at   TEXT,
+    expires_at   TEXT  -- an end date (keys.create `days`): past it the key is an unknown one
 );
 CREATE INDEX IF NOT EXISTS idx_api_keys_list ON api_keys(list_id);
 
@@ -811,6 +819,9 @@ def _migrate(conn: sqlite3.Connection) -> None:
     34. `lists.sites_own_host`: opt-in own addresses, enabled once for existing folder sites.
     35. `brains.tidied_at` and `brain_memories.review_on`: plain added columns, empty on every
         existing row (a tidy counts from the brain's creation, a review from the last write).
+    36. `lists.enhanced_security`, `agent_used_at` and `ai_alert_at`: plain added columns; the
+        switch is off on every existing account.
+    37. `api_keys.expires_at`: a plain added column; no existing key or staff link has an end date.
     """
     from backend import brain, lists, sites  # here, not at the top: lists imports this module
 
@@ -1035,6 +1046,18 @@ def _migrate(conn: sqlite3.Connection) -> None:
             for table, column in (("brains", "tidied_at"), ("brain_memories", "review_on")):
                 if column not in {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}:
                     conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} TEXT")
+            # Step 36: Enhanced security (lists.set_enhanced_security), off everywhere.
+            have = {r["name"] for r in conn.execute("PRAGMA table_info(lists)")}
+            for name, declaration in (
+                ("enhanced_security", "INTEGER NOT NULL DEFAULT 0"),
+                ("agent_used_at", "TEXT"),
+                ("ai_alert_at", "TEXT"),
+            ):
+                if name not in have:
+                    conn.execute(f"ALTER TABLE lists ADD COLUMN {name} {declaration}")
+            # Step 37: end dates on program keys and staff links (keys.create).
+            if "expires_at" not in {r["name"] for r in conn.execute("PRAGMA table_info(api_keys)")}:
+                conn.execute("ALTER TABLE api_keys ADD COLUMN expires_at TEXT")
             # After the rebuild: SQLite refuses to drop a table a trigger names.
             for trigger in _rev_triggers():
                 conn.execute(trigger)

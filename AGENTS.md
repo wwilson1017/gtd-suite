@@ -96,11 +96,13 @@ backend/
   lists.py       list rows, the account number, the agent and capture tokens, rotate, claim, reset,
                  email (+ confirmed stamp),
                  weekly-review stamp, the apps turned on (apps_on, served, set_app_in), the AI
-                 tools that have called (seen_ai, ai_tools: the Connect your AI status)
+                 tools that have called (seen_ai, ai_tools: the Connect your AI status);
+                 Enhanced security (set_enhanced_security, AGENT_IDLE, agent_link_expired)
   sessions.py    the session cookie: one hashed row per signed-in browser, ≤20 per list, revoke, expire
   keys.py        program keys (kind=key, cb_…, Bearer only) and staff links (kind=link, path only):
                  named, hashed, shown once, revoke; ordered brains, scope (brain | all), access
-                 (read | write), single-brain key write folders; separate key and staff-link caps
+                 (read | write), single-brain key write folders; separate key and staff-link caps;
+                 an optional end date (expires_at), required while Enhanced security is on
   api_v1.py      the REST API for program keys: GET /api/v1, POST /api/v1/tools/{name} through
                  mcp.call_tool; _authorize, the one check for its own Brain routes
   lifecycle.py   the idle lifecycle of a hosted, unconfirmed list: enabled(), state() (active / archived
@@ -109,10 +111,11 @@ backend/
                  a code's client: sites, or springform (every app on; hosted, a confirmed email gets Max once,
                  comp_source 'springform', springform_at stamped for good; plans/admin.springform_comp_in)
   signin.py      sign-in links: one hour, single use, hashed; mailed (httpx to Resend) to confirm an email or
-                 to a confirmed one, or shown as a QR; redeem (a mailed link confirms the address)
+                 to a confirmed one, or shown as a QR; redeem (a mailed link confirms the address);
+                 send_new_ai, Enhanced security's mail when a new AI tool connects
   router.py      /api: session_owner/active_owner (cookie, X-List, same-origin; A refuses a put-away list),
-                 build_router on /api/app, links, account (email, sign-in link, apps on/off, restore,
-                 sign out),
+                 build_router on /api/app, links, the Enhanced security switch (PUT /app/security),
+                 account (email, sign-in link, apps on/off, restore, sign out),
                  capture, create, sign in, reset
   mcp_server.py  the agent link: MCP tools over service.py and boards.py (board_/card_), each tagged
                  with its app and read-only flag; _AppsOn offers only the apps turned on, narrowed by a
@@ -137,6 +140,8 @@ frontend/        Vite + React 19 + Tailwind 4; builds into backend/static. One b
                  gtd-app meta (core/app.ts) makes /app the todo app, apps/projects-gtd or
                  apps/notes-gtd. Each app's colours: pages._shell stamps <html data-app>, and
                  index.css sets that app's brand-* and band-* tokens under [data-app="…"]
+                 apps/todo-gtd/settings/SecuritySection.tsx is Settings › Security in every
+                 app: the Enhanced security switch and its stated limits
                  src/plans/ holds everything about levels (limit wording, policy links); nothing
                  outside it names a level (plansBoundary.test.ts). The optional extension's
                  screens come through the @extension alias: src/plans/extension-off.tsx
@@ -185,6 +190,17 @@ the call budget charged; every other request goes to FastMCP untouched.
 - **A valid token is always served.** Only a MISS is charged to the per-address wrong-token
   bucket, and only misses get 429 when it is empty (`ratelimit.wrong_token_status`). Never
   check that bucket before resolving the token. Program keys follow the same rule.
+  What makes a token valid is its resolver's own WHERE, and two things there end one by
+  date: a key or staff link past its end date (`api_keys.expires_at`, in `keys._resolve`,
+  whatever the switch says), and, with the account's Enhanced security switch on
+  (`lists.enhanced_security`, set only by the person through `PUT /api/app/security`), the
+  main agent link once `lists.agent_used_at` is `lists.AGENT_IDLE` old (30 days and the
+  hour its hourly stamp can lag). Each is then an ordinary miss: charged, 404 on a path, 401
+  for a bearer on `/mcp`, 403 on REST. The idle test lives in `lists.resolve_agent` only,
+  never in `live_where`, which keys, the capture link and published pages share.
+  `agent_link_expired` in the session is the same calculation. Off to on stamps
+  `agent_used_at`, on to on does not, and replacing the link restamps it; switching off
+  revives an idle link. No tool, command or key reads or changes the switch.
 - **Program keys travel only as `Authorization: Bearer`.** `mcp_server._resolve` resolves a
   `cb_` token only as the bearer; in a path it is an unknown token (404). A key's name labels
   its writes (`_client_name`) and never grants anything: a name that normalises to "you" is
@@ -318,6 +334,11 @@ the call budget charged; every other request goes to FastMCP untouched.
   address clears it and cancels the list's sign-in links (`lists.set_email_in`). The PUT that
   saves an address mints its confirmation link in the same transaction; only the send runs
   after the response. The caps come from `common.caps_for` (hosting mode, confirmed or not).
+  The one other mail is Enhanced security's alert (`signin.send_new_ai`), under the same
+  rule: only to a confirmed email, only when `signin.available()`. `lists.seen_ai` decides
+  it at a name's first-sighting INSERT and stamps `lists.ai_alert_at` in that transaction
+  (one mail per account per day); the send runs on its own thread after the commit. The
+  mail never carries the tool's name, which is the caller's own claim.
 - **Sessions and sign-in tokens are stored hashed.** The cookie is the only copy of a session;
   only create, redeem and reset ever set it, and nothing clears it (sign-out revokes the row).
   Program keys are stored hashed too, and shown once, in the answer that makes one.
