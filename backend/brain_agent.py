@@ -149,10 +149,10 @@ def _read(
     )
 
 
-def _made(page: dict) -> bool:
-    """This caller just made the page, or wrote its only version: the answer holds nothing
-    but its own words, so a write that returns it is not a read."""
-    return page["version"] == 1 and page["created_by"] == _by()
+def _made(page: dict, text: str | None) -> bool:
+    """The answer holds only the words this call sent: a first version whose body is `text`.
+    Then a write that returns the page is not a read. Nothing here trusts the caller's name."""
+    return page["version"] == 1 and text is not None and page["body"].strip() == text.strip()
 
 
 def _read_key() -> bool:
@@ -426,7 +426,7 @@ def brain_page_write(
                 pass_label=pass_label,
                 reason=reason,
             )
-    if not _made(item):  # an unchanged write returns the page as it stands
+    if not _made(item, body):  # an unchanged write returns the page as it stands
         _read(dest, "get", "page", item["id"], item["path"])
     return _place(dest, {"page": item})
 
@@ -452,7 +452,7 @@ def brain_page_append(
         reason=reason,
         restricted=bool(_folders()),
     )
-    if not _made(page):  # the answer carries text the caller did not supply
+    if not _made(page, text):  # the answer carries text the caller did not supply
         _read(b, "get", "page", page["id"], page["path"])
     return _place(b, {"page": page})
 

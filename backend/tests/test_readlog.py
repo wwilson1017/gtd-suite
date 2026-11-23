@@ -155,8 +155,11 @@ async def test_a_write_tool_that_hands_back_what_is_there_leaves_a_row(connect, 
         start = len(rows(account))
         await call(c, "brain_page_write", path="inbox/fresh", body="Mine")
         await call(c, "brain_page_append", path="inbox/journal", text="Mine too")
-        await call(c, "brain_page_write", path="inbox/fresh")
     assert items(account)[start:] == []
+    # The same name asking for it back is a read: the name is a claim, not proof of authorship.
+    async with connect(main_link(multi)) as c:
+        fresh = (await call(c, "brain_page_write", path="inbox/fresh"))["page"]["id"]
+    assert items(account)[start:] == [("get", "page", fresh, "inbox/fresh")]
 
 
 # ── Who read ──────────────────────────────────────────────────────────────────
