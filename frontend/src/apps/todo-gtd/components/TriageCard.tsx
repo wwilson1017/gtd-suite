@@ -814,15 +814,24 @@ export function TriageCard({ todo, projects, contexts, onProcessed, onChanged, o
           >
             Edit
           </button>
-          {/* Delete archives it (status 'dropped'): Undo for 7 seconds, and the Done page's
-              Dropped tab after that. Nothing is ever hard-deleted. */}
+          {/* Done completes it; "Delete — not needed" is for an item that never belonged on
+              the list. Delete archives it (status 'dropped'): Undo for 7 seconds, and the Done
+              page's Dropped tab after that. Nothing is ever hard-deleted. */}
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void patch({ status: 'done' }, true)}
+            className={`${linkCls} text-green-700 hover:text-charcoal dark:text-green-400`}
+          >
+            Done ✓
+          </button>
           <button
             type="button"
             disabled={busy}
             onClick={() => void patch({ status: 'dropped' }, true)}
             className={`${linkCls} text-brand-ink hover:text-charcoal`}
           >
-            Delete
+            Delete — not needed
           </button>
         </div>
         {/* Project fields appear only once there is a project to describe: the one

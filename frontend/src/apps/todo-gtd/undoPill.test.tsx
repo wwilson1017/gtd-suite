@@ -356,6 +356,36 @@ describe('the other two mark-done surfaces', () => {
     expect(updateTodoMock).toHaveBeenLastCalledWith(71, { status: 'inbox' });
   });
 
+  it('Inbox triage’s Done and “Delete — not needed” each queue a row that undoes back to inbox', async () => {
+    for (const [label, status, undo] of [
+      ['Done ✓', 'done', 'Undo marking “old errand” done'],
+      ['Delete — not needed', 'dropped', 'Undo deleting “old errand”'],
+    ] as const) {
+      const item = todo({ id: 73, title: 'old errand', status: 'inbox' });
+      updateTodoMock.mockResolvedValue({ ...item, status });
+      await act(async () => {
+        root.render(
+          <>
+            <TriageCard
+              key={label}
+              todo={item}
+              projects={[]}
+              contexts={[]}
+              onProcessed={() => {}}
+              onChanged={() => {}}
+              onEdit={() => {}}
+            />
+            <UndoPill />
+          </>,
+        );
+      });
+      await clickAsync(button(label));
+      expect(updateTodoMock).toHaveBeenCalledWith(73, { status });
+      await clickAsync(container.querySelector<HTMLButtonElement>(`button[aria-label="${undo}"]`)!);
+      expect(updateTodoMock).toHaveBeenLastCalledWith(73, { status: 'inbox' });
+    }
+  });
+
   it('the edit sheet’s Status dropdown queues a row that undoes to the prior status', async () => {
     const item = todo({ id: 72, title: 'renew passport', status: 'waiting_for' });
     updateTodoMock.mockResolvedValue({ ...item, status: 'done' });

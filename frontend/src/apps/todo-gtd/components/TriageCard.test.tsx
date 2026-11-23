@@ -340,7 +340,7 @@ describe('the two exceptions — done and delete need no context', () => {
   it('Delete archives the todo, leaves the inbox and offers Undo', async () => {
     // Nothing is ever hard-deleted: Delete is a resolving write to status 'dropped'.
     render();
-    click(button('Delete'));
+    click(button('Delete — not needed'));
     await act(async () => {});
 
     expect(updateTodoMock).toHaveBeenCalledWith(7, { status: 'dropped' });
@@ -1956,7 +1956,8 @@ describe('the compact layout (the default)', () => {
     expect(container.querySelector('[aria-label="People"]')).toBeNull();
     expect(container.textContent).toContain('call 555-0100');
     // Everything that files or clears the item is still here.
-    for (const name of ['Took 2 minutes — Done ✓', 'Edit', 'Delete']) expect(button(name)).toBeTruthy();
+    for (const name of ['Took 2 minutes — Done ✓', 'Edit', 'Done ✓', 'Delete — not needed'])
+      expect(button(name)).toBeTruthy();
     expect(container.querySelector('[aria-label="Set context and file this todo"]')).not.toBeNull();
   });
 });
