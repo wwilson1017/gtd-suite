@@ -90,6 +90,25 @@ def test_each_gap_is_capped_at_twenty(B):
     assert len(queue["suspect_injection"]) == len(queue["secret_like"]) == 20
 
 
+@pytest.mark.anyio
+async def test_tools_set_review_dates_and_a_read_key_neither_hears_of_nor_records_a_tidy(http, acct):
+    b = brain.first_brain(acct["list_id"])
+    with db.transaction() as conn:
+        conn.execute("UPDATE brains SET created_at = '2026-01-01T12:00:00Z' WHERE id = ?", (b,))
+    read, write = new_key(acct["list_id"], "reader", access="read"), new_key(acct["list_id"])
+    assert "tidy" not in (await rest(http, read, "brain_start")).json()
+    assert (await rest(http, read, "brain_curate")).status_code == 200
+    assert brain.tidy_due(b)
+    assert "brain_curate" in (await rest(http, write, "brain_start")).json()["tidy"]
+    added = (await rest(http, write, "brain_remember", memories=["Lease ends in March"], review_on="2020-03-01")).json()
+    mid = added["added"][0]["id"]
+    assert added["added"][0]["review_on"] == "2020-03-01"
+    assert (await rest(http, write, "brain_curate")).json()["queue"]["review_due"][0]["memory"] == mid
+    moved = (await rest(http, write, "brain_memory_update", id=mid, review_on="2999-01-01")).json()
+    assert moved["memory"]["review_on"] == "2999-01-01"
+    assert "tidy" not in (await rest(http, write, "brain_start")).json()
+
+
 def test_curate_streams_bodies_and_keeps_counts_and_bounded_queues(B, freeze):
     freeze("2026-10-31T12:00:00")
     for folder in ("inbox", "daily"):
@@ -486,3 +505,18 @@ def test_a_pass_label_or_reason_is_short(L):
     with pytest.raises(ValidationError, match="reason too long"):
         brain.remember(brain.first_brain(L), ["Likes tea", "Rides a bike"], reason="x" * 501)
     assert not brain.memories(brain.first_brain(L))
+
+
+def test_transcript_step_is_always_returned_and_the_skill_carries_it(B):
+    brain.write_page(brain.first_brain(B), "curator/rules", "Keep claims sourced.")
+    for unattended in (False, True):
+        steps = brain.curate(brain.first_brain(B), unattended=unattended, folder="acme/curator")["steps"]
+        step = next(s for s in steps if s.startswith("Meeting transcript"))
+        for said in ("further source", "exact quote", "[14:32]", "what it replaced", "change nothing"):
+            assert said in step
+        assert "append a question to acme/curator/questions" in step and "the person who said it" in step
+        assert "daily/<meeting date>" in step and "no approval" in step
+        assert steps[-1].startswith("Finish:")
+    skill = brain.CURATOR_SKILL.split("## Meeting transcripts")[1]
+    assert "further source" in skill and "change nothing" in skill and "<folder>/questions" in skill
+    assert "meeting transcript" in brain.CURATOR_SKILL.split("---")[1]

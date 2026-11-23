@@ -464,6 +464,7 @@ class BrainMemoryUpdate(BaseModel):
     locked: bool | None = None
     status: str | None = Field(default=None, max_length=MAX_SHORT_CHARS)
     version: int | None = None  # with it, a memory changed since is a 409
+    review_on: str | None = Field(default=None, max_length=MAX_SHORT_CHARS)  # YYYY-MM-DD; '' clears it
 
 
 class BrainPageCreate(BaseModel):
@@ -507,6 +508,7 @@ class KeyCreate(BaseModel):
     folders: list[str] = Field(default_factory=list, max_length=50)
     brains: list[int] | None = Field(default=None, max_length=100)
     kind: Literal["key", "link"] = "key"
+    days: Literal[30, 90, 365] | None = None
 
 
 class BrainSettings(BaseModel):

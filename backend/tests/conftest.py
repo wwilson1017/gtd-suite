@@ -28,6 +28,7 @@ def todo_db(tmp_path, monkeypatch):
         "RESEND_API_KEY",
         "MAIL_FROM",
         "SNAPSHOT_INTERVAL_SECONDS",
+        "SNAPSHOT_AGE_RECIPIENT",
         "FILES_S3_ENDPOINT",
         "FILES_S3_BUCKET",
         "FILES_S3_KEY_ID",

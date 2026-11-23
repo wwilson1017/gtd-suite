@@ -3,7 +3,7 @@
 // the agent link itself with a quiet way to make a new one.
 import { useState } from 'react';
 import { getAgentLink, regenerateAgentLink } from '../api';
-import { useAiToolsOnFocus, useSession } from '../session';
+import { updateSession, useAiToolsOnFocus, useSession } from '../session';
 import type { AiTool } from '../types';
 import { ClientTabs } from './ClientTabs';
 import { ConnectAnimation } from './ConnectAnimation';
@@ -34,7 +34,8 @@ function statusLines(tools: AiTool[]): string[] {
 }
 
 export function ConnectAI() {
-  const lines = statusLines(useSession().session?.ai_tools ?? []);
+  const session = useSession().session;
+  const lines = statusLines(session?.ai_tools ?? []);
   const [url, setUrl] = useState('');
   // The person adds the link in their AI tool and comes back: the status follows, no reload.
   useAiToolsOnFocus();
@@ -68,6 +69,15 @@ export function ConnectAI() {
         {url && <ClientTabs url={url} />}
         <ConnectAnimation />
       </section>
+      {session?.agent_link_expired && (
+        <p
+          role="alert"
+          className="rounded-xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
+        >
+          Your agent link stopped working: it went 30 days without use while Enhanced security was on. Press &ldquo;Make
+          a new link&rdquo; below, then add the new link to your AI tools.
+        </p>
+      )}
       <LinkCard
         title="Your agent link"
         accent="border-line-faint bg-cream"
@@ -78,7 +88,12 @@ export function ConnectAI() {
           </>
         }
         load={getAgentLink}
-        regenerate={regenerateAgentLink}
+        regenerate={() =>
+          regenerateAgentLink().then((link) => {
+            updateSession({ agent_link_expired: false });
+            return link;
+          })
+        }
         regenerateConfirm={
           'Make a new agent link?\n\nThe old link stops working immediately, and every AI ' +
           'tool you connected with it must be re-added with the new one. Your capture link is ' +

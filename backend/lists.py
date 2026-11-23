@@ -25,6 +25,7 @@ import logging
 import secrets
 import sqlite3
 import string
+import threading
 
 from backend.plans import caps as plan_caps
 from backend import apps, common, db, lifecycle, sessions, settings
@@ -35,6 +36,11 @@ _TOKEN_ALPHABET, _TOKEN_LENGTH = string.ascii_letters + string.digits, 43
 _TOUCH_INTERVAL_SECONDS = 3600
 # AI tools remembered per account (seen_ai): a name is the tool's own say-so, so it is capped.
 MAX_AI_TOOLS = 50
+# Enhanced security: the agent link stops answering this long after its stamp. The stamp is
+# hourly (touch), so it can be an hour older than the real last use: the extra hour makes
+# that at least 30 unused days.
+AGENT_IDLE = datetime.timedelta(days=30, hours=1)
+AI_ALERT_INTERVAL = datetime.timedelta(days=1)
 
 logger = logging.getLogger(__name__)
 
@@ -119,7 +125,7 @@ def create_list(
     }
 
 
-def _resolve(column: str, value: str) -> int | None:
+def _resolve(column: str, value: str, *, idle: bool = False) -> int | None:
     # A single indexed lookup: the WHERE match IS the comparison. A list the
     # operator disabled (scripts/admin.py) matches nothing, so capture and MCP
     # answer it as an unknown link (sessions.resolve does the same for browsers).
@@ -129,8 +135,34 @@ def _resolve(column: str, value: str) -> int | None:
     if not value:
         return None
     live, params = live_where()
+    if idle:
+        # Not in live_where: keys and published pages share that, and only this link idles out.
+        live += " AND (enhanced_security = 0 OR agent_used_at IS NULL OR agent_used_at > ?)"
+        params.append(_idle_cutoff())
     row = db.get_db().execute(f"SELECT id FROM lists WHERE {column} = ? AND {live}", [value, *params]).fetchone()
     return row["id"] if row else None
+
+
+def _idle_cutoff() -> str:
+    return common.to_iso(common.utcnow() - AGENT_IDLE)
+
+
+def agent_link_expired(row) -> bool:
+    """Whether Enhanced security has put the agent link away for lack of use: resolve_agent's
+    own test, for the person's screen. Replacing the link, or the switch off, brings one back."""
+    return bool(row["enhanced_security"] and row["agent_used_at"] and row["agent_used_at"] <= _idle_cutoff())
+
+
+def set_enhanced_security(list_id: int, on: bool) -> None:
+    """Settings › Security's switch, the person's alone. Off to on starts the agent link's
+    30 days now; on to on changes nothing. Off only stops the rules applying: an idle link
+    answers again, and end dates already on keys hold."""
+    with db.transaction() as conn:
+        if on:
+            conn.execute(
+                "UPDATE lists SET agent_used_at = ? WHERE id = ? AND enhanced_security = 0", (common.now_iso(), list_id)
+            )
+        conn.execute("UPDATE lists SET enhanced_security = ? WHERE id = ?", (on, list_id))
 
 
 def live_where() -> tuple[str, list]:
@@ -145,7 +177,9 @@ def live_where() -> tuple[str, list]:
 
 
 def resolve_agent(token: str) -> int | None:
-    return _resolve("agent_token_hash", hash_token(token or ""))
+    """The agent link's list. With Enhanced security on, a link unused for AGENT_IDLE is an
+    unknown one, like any other miss."""
+    return _resolve("agent_token_hash", hash_token(token or ""), idle=True)
 
 
 def resolve_capture(token: str) -> int | None:
@@ -159,6 +193,7 @@ def get_list(list_id: int) -> dict | None:
         .execute(
             "SELECT id, account_no, name, agent_token, capture_token, tz, email, email_verified_at, "
             "created_at, last_used_at, review_started_at, disabled_at, apps, sites_own_host, "
+            "enhanced_security, agent_used_at, "
             f"{plan_caps.ACCOUNT_COLUMNS} FROM lists WHERE id = ?",
             (list_id,),
         )
@@ -194,12 +229,13 @@ def set_app_in(conn, list_id: int, app: str, on: bool) -> None:
 
 
 def rotate_agent(list_id: int) -> str | None:
-    """Replace the agent token. The old agent link stops working instantly."""
+    """Replace the agent token. The old agent link stops working instantly, and the new
+    one's idle clock (AGENT_IDLE) starts now."""
     token = mint_token()
     with db.transaction() as conn:
         cur = conn.execute(
-            "UPDATE lists SET agent_token = ?, agent_token_hash = ? WHERE id = ?",
-            (token, hash_token(token), list_id),
+            "UPDATE lists SET agent_token = ?, agent_token_hash = ?, agent_used_at = ? WHERE id = ?",
+            (token, hash_token(token), common.now_iso(), list_id),
         )
         if cur.rowcount == 0:
             return None
@@ -232,9 +268,9 @@ def reset_single() -> str | None:
         )
         agent = mint_token()
         conn.execute(
-            "UPDATE lists SET agent_token = ?, agent_token_hash = ?, capture_token = ?, "
+            "UPDATE lists SET agent_token = ?, agent_token_hash = ?, agent_used_at = ?, capture_token = ?, "
             "email = NULL, email_verified_at = NULL WHERE id = ?",
-            (agent, hash_token(agent), mint_token(), list_id),
+            (agent, hash_token(agent), common.now_iso(), mint_token(), list_id),
         )
         return sessions.create_in(conn, list_id)
 
@@ -332,20 +368,20 @@ def start_review(list_id: int) -> None:
         conn.execute("UPDATE lists SET review_started_at = ? WHERE id = ?", (common.now_iso(), list_id))
 
 
-def touch(list_id: int) -> None:
-    """Record that the list was used.
+def touch(list_id: int, column: str = "last_used_at") -> None:
+    """Record that the list was used, or (`agent_used_at`) that its agent link was.
 
     # simplification: hour-granular — a read first, so most requests take no write lock
     """
-    row = db.get_db().execute("SELECT last_used_at FROM lists WHERE id = ?", (list_id,)).fetchone()
+    row = db.get_db().execute(f"SELECT {column} FROM lists WHERE id = ?", (list_id,)).fetchone()
     if not row:
         return
-    last = row["last_used_at"]
+    last = row[column]
     stale_before = common.utcnow() - datetime.timedelta(seconds=_TOUCH_INTERVAL_SECONDS)
     if last and last >= stale_before.strftime("%Y-%m-%dT%H:%M:%S"):
         return
     with db.transaction() as conn:
-        conn.execute("UPDATE lists SET last_used_at = ? WHERE id = ?", (common.now_iso(), list_id))
+        conn.execute(f"UPDATE lists SET {column} = ? WHERE id = ?", (common.now_iso(), list_id))
 
 
 def seen_ai(list_id: int, name: str | None) -> None:
@@ -356,9 +392,17 @@ def seen_ai(list_id: int, name: str | None) -> None:
     logged; a tool that gives none is stored as ''. A new name is written at once, until
     the account holds MAX_AI_TOOLS; after that only the names it knows are stamped.
 
+    With Enhanced security on, a new name also mails the person (signin.send_new_ai), at
+    most once per AI_ALERT_INTERVAL and only to a confirmed email: decided and stamped in
+    the transaction that writes the name, sent on its own thread after it, so the mail
+    service never delays the tool's call. A copied name, or one past the cap, mails nothing.
+
     # simplification: hour-granular like touch, so the page says a day, never a time
     """
+    from backend import signin  # here: signin imports this module
+
     name = common.clean_source_client(name) or ""
+    alert = None
     try:
         row = (
             db.get_db()
@@ -380,10 +424,21 @@ def seen_ai(list_id: int, name: str | None) -> None:
                     "INSERT INTO ai_tools (list_id, name, first_seen_at, last_seen_at) VALUES (?, ?, ?, ?)",
                     (list_id, name, at, at),
                 )
+                alert = conn.execute(
+                    "SELECT email FROM lists WHERE id = ? AND enhanced_security AND email_verified_at IS NOT NULL "
+                    "AND COALESCE(ai_alert_at, '') <= ?",
+                    (list_id, common.to_iso(now - AI_ALERT_INTERVAL)),
+                ).fetchone()
+                if alert and signin.available():
+                    conn.execute("UPDATE lists SET ai_alert_at = ? WHERE id = ?", (at, list_id))
+                else:
+                    alert = None
     except sqlite3.Error as e:
         # The call this records has already been answered for: a stamp that fails (a busy
         # database) must not turn that answer into an error the tool would retry.
         logger.warning("an AI tool's call was not recorded: %s", type(e).__name__)
+    if alert:
+        threading.Thread(target=signin.send_new_ai, args=(alert["email"],), name="new-ai-mail", daemon=True).start()
 
 
 def ai_tools(list_id: int) -> list[dict]:

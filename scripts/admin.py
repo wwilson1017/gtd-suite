@@ -13,7 +13,7 @@
     python -m scripts.admin enable <list_id>
     python -m scripts.admin delete <list_id> --yes-delete-list-<list_id> [--no-snapshot]
     python -m scripts.admin snapshots
-    python -m scripts.admin restore <list_id> --from <snapshot>
+    python -m scripts.admin restore <list_id> --from <snapshot> [--identity <key file or ->]
     python -m scripts.admin merge-brain <from-ref> <to-ref> --name N --folder F [--yes]
 
 Every <list_id> also takes the list's account number, with or without its dash.
@@ -74,7 +74,7 @@ _LIST_ROW = f"""
 """
 # Delete children first (todos point at projects and areas, projects at areas);
 # all of these before the list's own row.
-_LIST_TABLES = (*apps.content_tables(), "sessions", "signin_tokens", "api_keys", "brains", "ai_tools")
+_LIST_TABLES = (*apps.content_tables(), "sessions", "signin_tokens", "api_keys", "brain_reads", "brains", "ai_tools")
 
 
 # ── Output ────────────────────────────────────────────────────────────────────
@@ -165,10 +165,6 @@ def _require(list_id: int):
     return rows[0]
 
 
-def _snapshot_files() -> list[Path]:
-    return sorted(backup.backups_dir().glob("todo-*.db"))  # names sort by time
-
-
 # ── Read commands ─────────────────────────────────────────────────────────────
 
 
@@ -187,7 +183,7 @@ def cmd_stats(args) -> None:
             "SELECT substr(created_at, 1, 10), COUNT(*) FROM lists WHERE created_at >= ? GROUP BY 1", (days[0],)
         ).fetchall()
     )
-    snaps = _snapshot_files()
+    snaps = backup.files()
     data = {
         "lists": one("SELECT COUNT(*) FROM lists"),
         "lists_disabled": one("SELECT COUNT(*) FROM lists WHERE disabled_at IS NOT NULL"),
@@ -364,7 +360,7 @@ def cmd_show(args) -> None:
 
 def cmd_snapshots(args) -> None:
     rows = []
-    for path in _snapshot_files():
+    for path in backup.files():
         taken = backup._taken(path)
         rows.append(
             {"name": path.name, "taken_at": common.to_iso(taken) if taken else None, "bytes": path.stat().st_size}
@@ -549,7 +545,8 @@ def cmd_restore(args) -> None:
     including its own snapshot of the live database first."""
     _require(args.list_id)
     snapshot = args.snapshot if args.snapshot.is_file() else backup.backups_dir() / args.snapshot.name
-    restore_list.main([str(snapshot), "--list-id", str(args.list_id)])
+    identity = ["--identity", args.identity] if args.identity else []
+    restore_list.main([str(snapshot), "--list-id", str(args.list_id), *identity])
     with db.transaction() as conn:
         _log(conn, "restore", args.list_id)
 
@@ -615,7 +612,7 @@ def merge_brain(from_id: int, to_id: int, name: str, folder: str, *, yes: bool =
             "UPDATE brains SET settled_at = ?, status = ? WHERE id = ?",
             (original["settled_at"] or target["settled_at"], original["status"], target["id"]),
         )
-        for table in apps.APPS["brain"].tables:
+        for table in (*apps.APPS["brain"].tables, "brain_reads"):
             conn.execute(
                 f"UPDATE {table} SET list_id = ?, brain_id = ? WHERE list_id = ?", (to_id, target["id"], from_id)
             )
@@ -730,6 +727,7 @@ def _parser() -> argparse.ArgumentParser:
         required=True,
         help="a snapshot's path, or its file name in DATA_DIR/backups",
     )
+    p.add_argument("--identity", help="for an encrypted snapshot: the age key file, or - to type the key in")
     plan_admin.register(command, day)
     return parser
 
