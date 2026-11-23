@@ -171,7 +171,8 @@ def send_verification(url: str, email: str, app: str = apps.ANCHOR) -> None:
 
 
 def send_new_ai(email: str) -> None:
-    """Enhanced security's alert (lists.seen_ai): a new AI tool has used the agent link. Our
+    """Enhanced security's alert (lists.seen_ai): a new AI tool has called the account, on the
+    agent link, a program key or a staff link, so the words fit all three. Our
     own words only: the tool's name is its own claim, so it stays out of the mail. Runs on
     its own thread and raises nothing.
 
@@ -183,12 +184,13 @@ def send_new_ai(email: str) -> None:
             "A new AI tool connected to your account",
             "\n".join(
                 [
-                    "One or more new AI tools used your agent link for the first time.",
+                    "One or more new AI tools connected to your account for the first time.",
                     "",
                     f"To see which, open {apps.settings_page()} and look under Connect your AI:",
                     f"{settings.configured_base_url()}/app/connect/ai",
                     "",
-                    "If that was not you, make a new agent link there: the old one stops working at once.",
+                    "If that was not you, make a new agent link there, and revoke any program key or "
+                    "staff link you do not recognise.",
                     "",
                     "You get this message, once a day at most, because Enhanced security is on for "
                     f"your account. Turn it off under Security, in {apps.settings_page()}.",

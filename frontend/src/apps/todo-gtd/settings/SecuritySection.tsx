@@ -59,7 +59,7 @@ export function SecuritySection() {
             A new program key or staff link needs an end date: 30, 90 or 365 days. The ones you already have keep
             working, with no end date.
           </li>
-          <li>You get an email when a new AI tool first uses your agent link, once a day at most.</li>
+          <li>You get an email when a new AI tool first connects to your account, once a day at most.</li>
         </ul>
         {session && !session.mail ? (
           <p className="mt-3 text-muted">This server cannot send email, so it sends no alerts.</p>

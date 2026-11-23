@@ -6,7 +6,7 @@ import threading
 
 import pytest
 
-from backend import db, keys, lists, signin
+from backend import connect, db, keys, lists, signin
 from backend.common import ValidationError
 from backend.tests import test_mcp
 from backend.tests.conftest import confirm_list
@@ -160,6 +160,18 @@ def test_the_session_says_the_link_expired(client, freeze):
     assert client.get("/api/app/session").json()["agent_link_expired"] is False
 
 
+def test_approving_a_device_connection_is_use_so_the_link_it_collects_answers(L, freeze):
+    token = lists.get_list(L)["agent_token"]
+    freeze("2026-01-01T00:00:00")
+    lists.set_enhanced_security(L, True)
+    freeze("2026-03-01T00:00:00")
+    assert lists.resolve_agent(token) is None
+    code = connect.start()
+    connect.approve(L, code["user_code"], code["user_code"])
+    assert connect.poll(code["device_token"]) == {"status": "approved", "agent_token": token}
+    assert lists.resolve_agent(token) == L and column(L, "agent_used_at") == "2026-03-01T00:00:00.000Z"
+
+
 # ── End dates on keys and staff links ─────────────────────────────────────────
 
 
@@ -269,6 +281,7 @@ def test_a_new_tool_mails_a_confirmed_email_once_a_day_without_its_name(L, mail,
     text = mail[0][1]
     assert "Claude" not in text and "Codex" not in text
     assert "https://todo.example/app/connect/ai" in text and "Enhanced security" in text
+    assert "new AI tools connected to your account" in text and "revoke any program key or staff link" in text
     freeze("2026-01-02T23:59:59")
     seen(L, "Grok")
     assert len(mail) == 1
@@ -313,3 +326,24 @@ def test_a_send_that_fails_is_logged_by_type_and_swallowed(L, mail, monkeypatch,
     seen(L, "Claude")
     assert "New-AI mail failed: RuntimeError" in caplog.text and "me@example.com" not in caplog.text
     assert [name for (name,) in db.get_db().execute("SELECT name FROM ai_tools WHERE list_id = ?", (L,))] == ["Claude"]
+
+
+async def test_a_keys_first_call_sends_the_same_words_which_do_not_blame_the_agent_link(http, made, monkeypatch):
+    # The mail fixture's stub, without its client: two app lifespans in one test never end.
+    monkeypatch.setenv("RESEND_API_KEY", "re_test")
+    monkeypatch.setenv("MAIL_FROM", "Todo GTD <signin@todo.example>")
+    monkeypatch.setenv("PUBLIC_BASE_URL", "https://todo.example")
+    mail = []
+    monkeypatch.setattr(signin, "_send", lambda to, subject, text: mail.append((to, text)))
+    lid = made["list_id"]
+    confirm_list(lid)
+    lists.set_enhanced_security(lid, True)
+    key = keys.create(lid, "Night robot", days=30)["key"]
+    assert (await http.post("/mcp", json=INIT, headers=bearer(key))).status_code == 200
+    for thread in threading.enumerate():
+        if thread.name == "new-ai-mail":
+            thread.join()
+    assert [to for to, _ in mail] == ["me@example.com"]
+    text = mail[0][1]
+    assert "new AI tools connected to your account" in text and "revoke any program key or staff link" in text
+    assert "used your agent link" not in text and "Night robot" not in text
