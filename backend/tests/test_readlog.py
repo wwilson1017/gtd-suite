@@ -238,8 +238,15 @@ async def test_a_search_across_brains_leaves_a_row_for_each(connect, multi):
     async with connect(main_link(multi), "auto") as c:
         await call(c, "brain_search", query="needle")
         await call(c, "brain_page_get", path="personal/private/unique")
+        await call(c, "brain_page_list")  # the brains themselves, by name and folder
     got = [(r["kind"], r["brain_id"], r["target"]) for r in rows(account) if r["kind"] != "connect"]
-    assert got == [("search", first, "needle"), ("search", second, "needle"), ("get", second, "private/unique")]
+    assert got == [
+        ("search", first, "needle"),
+        ("search", second, "needle"),
+        ("get", second, "private/unique"),
+        ("list", first, ""),
+        ("list", second, ""),
+    ]
     assert sorted(r["brain_id"] for r in rows(account) if r["kind"] == "connect") == [first, second]
 
 

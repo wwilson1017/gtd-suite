@@ -342,11 +342,12 @@ def brain_page_list(
     """The pages by path, without their bodies, the folders with how many pages each
     holds, and the files in the folder (PDFs, images and the like; brain_file_link gives
     a link to one)."""
-    if not folder and len(_scope()) > 1:
+    if not folder and len(carried := _scope()) > 1:
+        _read(carried, "list")  # each brain's name and folder
         return {
             "pages": [],
             "files": [],
-            "folders": [{"folder": b["folder"], "name": b["name"], "path": b["folder"]} for b in _scope()],
+            "folders": [{"folder": b["folder"], "name": b["name"], "path": b["folder"]} for b in carried],
         }
     b, folder = _split(folder)
     brain_id, restricted = b["id"], bool(_folders())
