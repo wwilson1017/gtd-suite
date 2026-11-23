@@ -503,6 +503,7 @@ CREATE TABLE IF NOT EXISTS brains (
     settled_at TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
+    tidied_at TEXT,                             -- step 35: when brain_curate last ran (brain.tidy_due)
     UNIQUE(list_id, folder)
 );
 CREATE TABLE IF NOT EXISTS brain_memories (
@@ -516,7 +517,8 @@ CREATE TABLE IF NOT EXISTS brain_memories (
     created_by  TEXT NOT NULL,
     updated_by  TEXT NOT NULL,
     created_at  TEXT NOT NULL,
-    updated_at  TEXT NOT NULL
+    updated_at  TEXT NOT NULL,
+    review_on   TEXT                            -- step 35: recheck by this date (NULL: 90 days after the last write)
 );
 CREATE INDEX IF NOT EXISTS idx_brain_memories_list ON brain_memories(list_id, status);
 CREATE TABLE IF NOT EXISTS brain_pages (
@@ -815,10 +817,12 @@ def _migrate(conn: sqlite3.Connection) -> None:
     33. `connect_codes.client`, the grant source and the Springform stamp (in plans/caps.COLUMNS): plain added
         columns; every existing code is a Sites code and every existing grant the operator's.
     34. `lists.sites_own_host`: opt-in own addresses, enabled once for existing folder sites.
-    35. `lists.enhanced_security`, `agent_used_at` and `ai_alert_at`: plain added columns; the
+    35. `brains.tidied_at` and `brain_memories.review_on`: plain added columns, empty on every
+        existing row (a tidy counts from the brain's creation, a review from the last write).
+    36. `lists.enhanced_security`, `agent_used_at` and `ai_alert_at`: plain added columns; the
         switch is off on every existing account.
-    36. `api_keys.expires_at`: a plain added column; no existing key or staff link has an end date.
-    37. `brain_reads` (readlog.py): a new table, empty; account bookkeeping like `ai_tools`.
+    37. `api_keys.expires_at`: a plain added column; no existing key or staff link has an end date.
+    38. `brain_reads` (readlog.py): a new table, empty; account bookkeeping like `ai_tools`.
     """
     from backend import brain, lists, sites  # here, not at the top: lists imports this module
 
@@ -1039,7 +1043,11 @@ def _migrate(conn: sqlite3.Connection) -> None:
                     else:
                         ids = [int(part) for part in gate.split(",") if part.strip().isdigit()]
                         conn.executemany("UPDATE lists SET sites_own_host = 1 WHERE id = ?", [(i,) for i in ids])
-            # Step 35: Enhanced security (lists.set_enhanced_security), off everywhere.
+            # Step 35: review dates and the last tidy (brain.tidy_due, brain.curate).
+            for table, column in (("brains", "tidied_at"), ("brain_memories", "review_on")):
+                if column not in {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}:
+                    conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} TEXT")
+            # Step 36: Enhanced security (lists.set_enhanced_security), off everywhere.
             have = {r["name"] for r in conn.execute("PRAGMA table_info(lists)")}
             for name, declaration in (
                 ("enhanced_security", "INTEGER NOT NULL DEFAULT 0"),
@@ -1048,10 +1056,10 @@ def _migrate(conn: sqlite3.Connection) -> None:
             ):
                 if name not in have:
                     conn.execute(f"ALTER TABLE lists ADD COLUMN {name} {declaration}")
-            # Step 36: end dates on program keys and staff links (keys.create).
+            # Step 37: end dates on program keys and staff links (keys.create).
             if "expires_at" not in {r["name"] for r in conn.execute("PRAGMA table_info(api_keys)")}:
                 conn.execute("ALTER TABLE api_keys ADD COLUMN expires_at TEXT")
-            # Step 37: the read log (readlog.py): bookkeeping, not content, as step 31. ON DELETE
+            # Step 38: the read log (readlog.py): bookkeeping, not content, as step 31. ON DELETE
             # CASCADE: a version that does not know the table can still delete a list or a brain.
             conn.execute(
                 "CREATE TABLE IF NOT EXISTS brain_reads ("
