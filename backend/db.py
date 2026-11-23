@@ -822,6 +822,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
     36. `lists.enhanced_security`, `agent_used_at` and `ai_alert_at`: plain added columns; the
         switch is off on every existing account.
     37. `api_keys.expires_at`: a plain added column; no existing key or staff link has an end date.
+    38. `brain_reads` (readlog.py): a new table, empty; account bookkeeping like `ai_tools`.
     """
     from backend import brain, lists, sites  # here, not at the top: lists imports this module
 
@@ -1058,6 +1059,17 @@ def _migrate(conn: sqlite3.Connection) -> None:
             # Step 37: end dates on program keys and staff links (keys.create).
             if "expires_at" not in {r["name"] for r in conn.execute("PRAGMA table_info(api_keys)")}:
                 conn.execute("ALTER TABLE api_keys ADD COLUMN expires_at TEXT")
+            # Step 38: the read log (readlog.py): bookkeeping, not content, as step 31. ON DELETE
+            # CASCADE: a version that does not know the table can still delete a list or a brain.
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS brain_reads ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                "list_id INTEGER NOT NULL REFERENCES lists(id) ON DELETE CASCADE, "
+                "brain_id INTEGER NOT NULL REFERENCES brains(id) ON DELETE CASCADE, "
+                "at TEXT NOT NULL, by TEXT NOT NULL, key_id INTEGER, key_kind TEXT, kind TEXT NOT NULL, "
+                "item_kind TEXT, item_id INTEGER, target TEXT NOT NULL DEFAULT '')"
+            )
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_brain_reads_list ON brain_reads(list_id, id)")
             # After the rebuild: SQLite refuses to drop a table a trigger names.
             for trigger in _rev_triggers():
                 conn.execute(trigger)

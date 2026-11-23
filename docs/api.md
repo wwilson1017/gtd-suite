@@ -40,6 +40,12 @@ Sites turns on Sites, and Brain turns on everything.
   email is told when a new AI tool first connects, once a day at most. Keys made before it
   went on keep working with no end date. Off, an idle agent link answers again; end dates
   already set still hold.
+- While that switch is on, each request that returns Common Brain content leaves a row in
+  the account's read log: when, the caller's name, which key or link (never the key itself),
+  the operation and the page, memory or file it named, or a search's words. A file row means
+  a download link was handed out. The person reads it under Settings → Security; no tool
+  and no route here does. Rows are kept 90 days, Forget removes an item's rows, and the log
+  is best effort: it never fails or delays a read.
 - On a hosted server with mail, an unconfirmed account is archived after 60 idle days and
   removed after 180. Using its agent or capture link brings an archived one back. Confirmed
   and self-hosted accounts are never put away. Unconfirmed Sites pages expire after 7 days.

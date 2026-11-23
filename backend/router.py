@@ -60,6 +60,7 @@ from backend import (
     lists,
     project_links,
     ratelimit,
+    readlog,
     service,
     sessions,
     settings,
@@ -433,6 +434,13 @@ def set_security(body: AppSwitch, owner: int = Depends(active_owner)):
     lists.set_enhanced_security(owner, body.on)
     row = cast(dict, lists.get_list(owner))
     return {"enhanced_security": bool(row["enhanced_security"]), "agent_link_expired": lists.agent_link_expired(row)}
+
+
+@links_router.get("/security/reads")
+def get_reads(before: int | None = None, owner: int = Depends(active_owner)):
+    """Settings › Security's read log (readlog.py): Common Brain reads by AI tools, newest
+    first, a page at a time (`before`: the last row's id). The browser only."""
+    return {"reads": readlog.recent(owner, before)}
 
 
 @links_router.get("/ai-tools")

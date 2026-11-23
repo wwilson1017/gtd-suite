@@ -24,7 +24,7 @@ const api = vi.hoisted(() => ({
   signOut: vi.fn(),
   signOutEverywhere: vi.fn(),
   getConfig: vi.fn(async () => ({ app: 'todo', apps: {} })),
-  todoFetch: vi.fn(),
+  todoFetch: vi.fn(async (): Promise<unknown> => ({ reads: [] })),
 }));
 // A full mock: the real api.ts imports session.ts, which would bind to the real getSession.
 vi.mock('../api', () => api);
@@ -143,7 +143,9 @@ describe('Settings', () => {
     expect(link('Add your email')!.getAttribute('href')).toBe('/connect/email');
     const box = host.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
     expect(box.checked).toBe(false);
-    api.todoFetch.mockResolvedValue({ enhanced_security: true, agent_link_expired: false });
+    api.todoFetch.mockImplementation(async (path?: string) =>
+      path === '/security' ? { enhanced_security: true, agent_link_expired: false } : { reads: [] },
+    );
     await act(async () => box.click());
     expect(api.todoFetch).toHaveBeenCalledWith('/security', { method: 'PUT', body: '{"on":true}' });
     expect(box.checked).toBe(true);
@@ -153,6 +155,64 @@ describe('Settings', () => {
     expect(link('Add your email')).toBeUndefined();
     await open('/connect/security', { mail: false });
     expect(host.textContent).toContain('This server cannot send email, so it sends no alerts.');
+  });
+
+  it('lists the Common Brain reads under the switch, a page at a time, and says what the log is', async () => {
+    const read = (id: number, more: object = {}) => ({
+      id,
+      at: '2026-11-20T15:04:00.000Z',
+      by: 'Claude',
+      kind: 'get',
+      item_kind: 'page',
+      target: `people/p${id}`,
+      brain: 'Work',
+      key_kind: null,
+      key_name: null,
+      ...more,
+    });
+    const first = Array.from({ length: 100 }, (_, i) => read(200 - i));
+    first[0] = read(200, {
+      kind: 'link',
+      item_kind: 'file',
+      target: 'raw/scan.pdf',
+      key_kind: 'key',
+      key_name: 'Nightly',
+    });
+    first[1] = read(199, { kind: 'search', item_kind: null, target: 'maya', key_kind: 'link', key_name: 'Reception' });
+    api.todoFetch.mockImplementation(async (path?: string) => ({
+      reads: path === '/security/reads' ? first : [read(100, { kind: 'connect', item_kind: null, target: '' })],
+    }));
+    await open('/connect/security', { enhanced_security: true });
+    const text = () => host.querySelector('section[aria-labelledby="settings-section"]')!.textContent!;
+    expect(text()).toContain('Common Brain reads, last 90 days');
+    expect(text()).toContain('Only Common Brain reads are logged');
+    expect(text()).toContain('A file row means a download link was handed out');
+    expect(text()).toContain('The log is best effort');
+    expect(text()).toContain('Rows are kept 90 days.');
+    const cells = () =>
+      [...host.querySelectorAll('tbody tr')].map((tr) => [...tr.children].map((td) => td.textContent));
+    expect(cells()).toHaveLength(100);
+    expect(cells()[0].slice(1)).toEqual([
+      'Claude',
+      'Key: Nightly',
+      'Was given a download link to file raw/scan.pdf · Work',
+    ]);
+    expect(cells()[1].slice(1)).toEqual(['Claude', 'Staff link: Reception', 'Searched for “maya” · Work']);
+    expect(cells()[2].slice(1)).toEqual(['Claude', 'Agent link', 'Read page people/p198 · Work']);
+    const older = [...host.querySelectorAll('button')].find((b) => b.textContent === 'Older')!;
+    await act(async () => older.click());
+    expect(api.todoFetch).toHaveBeenLastCalledWith('/security/reads?before=101');
+    expect(cells()).toHaveLength(101);
+    expect(cells()[100][3]).toBe('Connected: your locked memories · Work');
+    // A short page is the last one.
+    expect([...host.querySelectorAll('button')].find((b) => b.textContent === 'Older')).toBeUndefined();
+  });
+
+  it('says how to start the read log while there is none', async () => {
+    api.todoFetch.mockImplementation(async () => ({ reads: [] }));
+    await open('/connect/security');
+    expect(host.textContent).toContain('Nothing logged. Turn on Enhanced security to start the log.');
+    expect(host.querySelector('table')).toBeNull();
   });
 
   it('opens the first step still to do at /connect, else Connect your AI', async () => {

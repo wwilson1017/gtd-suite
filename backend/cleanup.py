@@ -41,7 +41,7 @@ def delete_unused_lists(days: int = 30) -> int:
             f"OR created_list_id IN (SELECT id FROM lists WHERE {unused})",
             (cutoff, cutoff),
         )
-        for table in ("sessions", "signin_tokens", "api_keys", "brains", "ai_tools"):
+        for table in ("sessions", "signin_tokens", "api_keys", "brain_reads", "brains", "ai_tools"):
             conn.execute(
                 f"DELETE FROM {table} WHERE list_id IN (SELECT id FROM lists WHERE {unused})",
                 (cutoff,),

@@ -30,6 +30,7 @@ def test_route_table_is_exactly_the_planned_surface(client):
         ("POST", f"{a}/capture-link/rotate"),
         ("GET", f"{a}/ai-tools"),
         ("PUT", f"{a}/security"),
+        ("GET", f"{a}/security/reads"),
         ("GET", f"{a}/agent-link"),
         ("POST", f"{a}/agent-link/rotate"),
         # Program keys (keys.py) and the REST API they use (api_v1.py)
