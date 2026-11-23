@@ -142,7 +142,8 @@ def _read(
 ) -> None:
     """The read log (readlog.py): this request handed back content of brain `b`, or of each
     of several. The rule for a tool: if its answer carries an existing item's content, it
-    calls this last, after the read and outside any transaction. Never raises."""
+    calls this last, with the answer already built (_place can still refuse), after the read
+    and outside any transaction. Never raises."""
     brains = b if isinstance(b, list) else [b]
     readlog.log(
         brains[0]["list_id"], [x["id"] for x in brains], by or _by(), _key.get(), kind, item_kind, item_id, target
@@ -328,8 +329,9 @@ def brain_memory_update(
             item = store.move_to_brain_in(
                 conn, "memory", id, dest["id"], None, _by(), item["version"], pass_label=pass_label, reason=reason
             )
+    answer = {"memory": _place(dest, item)}
     _read(dest, "get", "memory", id)  # an update with nothing to change still returns its text
-    return {"memory": _place(dest, item)}
+    return answer
 
 
 @_tool("List the brain's pages", read_only=True, app="brain")
@@ -357,8 +359,9 @@ def brain_page_list(
     }
     if len(found) > files.LIST_MAX:
         out["more_files"] = f"{len(found) - files.LIST_MAX} more files are not shown: name a folder to list fewer."
+    answer = _place(b, out)
     _read(b, "list", target=folder)
-    return _place(b, out)
+    return answer
 
 
 @_tool("Read a page", read_only=True, app="brain")
@@ -367,8 +370,9 @@ def brain_page_get(path: _arg(str, "The page's path, like people/maya")) -> dict
     its version."""
     b, path = _split(path)
     page = store.get_page(b["id"], path=path, restricted=bool(_folders()))
+    answer = _place(b, {"page": page})
     _read(b, "get", "page", page["id"], page["path"])
-    return _place(b, {"page": page})
+    return answer
 
 
 @_tool("Write a page", read_only=False, app="brain")
@@ -426,9 +430,10 @@ def brain_page_write(
                 pass_label=pass_label,
                 reason=reason,
             )
+    answer = _place(dest, {"page": item})
     if not _made(item, body):  # an unchanged write returns the page as it stands
         _read(dest, "get", "page", item["id"], item["path"])
-    return _place(dest, {"page": item})
+    return answer
 
 
 @_tool("Add to a page", read_only=False, app="brain")
@@ -452,9 +457,10 @@ def brain_page_append(
         reason=reason,
         restricted=bool(_folders()),
     )
+    answer = _place(b, {"page": page})
     if not _made(page, text):  # the answer carries text the caller did not supply
         _read(b, "get", "page", page["id"], page["path"])
-    return _place(b, {"page": page})
+    return answer
 
 
 @_tool("Edit a page", read_only=False, app="brain")
@@ -479,8 +485,9 @@ def brain_page_edit(
         reason=reason,
         restricted=bool(_folders()),
     )
+    answer = _place(b, {"page": page})
     _read(b, "get", "page", page["id"], page["path"])  # the answer carries text the caller did not supply
-    return _place(b, {"page": page})
+    return answer
 
 
 @_tool("A link to a file", read_only=True, app="brain")
@@ -494,8 +501,7 @@ def brain_file_link(
     if folders and not keys.inside(path, folders, file=True):
         raise ValidationError(f"This key reaches only files inside {', '.join(f + '/' for f in folders)}.")
     got = files.link(b["id"], path=path, seconds=files.LINK_SECONDS)
-    _read(b, "link", "file", got["file"]["id"], got["file"]["path"])
-    return _place(
+    answer = _place(
         b,
         {
             "link": got["url"],
@@ -503,6 +509,8 @@ def brain_file_link(
             "file": {k: got["file"][k] for k in ("path", "size", "content_type", "sha256", "updated_at")},
         },
     )
+    _read(b, "link", "file", got["file"]["id"], got["file"]["path"])
+    return answer
 
 
 @_tool("A memory's or page's history", read_only=True, app="brain")
@@ -514,8 +522,9 @@ def brain_history(
     it and when."""
     b = _item(kind, id)
     versions = store.history(b["id"], kind, id)
+    answer = _place(b, {"versions": versions})
     _read(b, "history", kind, id, versions[0].get("path", "") if versions else "")
-    return _place(b, {"versions": versions})
+    return answer
 
 
 @_tool("Restore a version", read_only=False, app="brain")
@@ -530,8 +539,9 @@ def brain_restore(
     version: nothing in between is lost."""
     b = _item(kind, id)
     item = store.restore(b["id"], kind, id, version, by=_by(), pass_label=pass_label, reason=reason)
+    answer = _place(b, {"restored": item})
     _read(b, "get", kind, id, item.get("path", ""))  # restoring the version it already has returns the item
-    return _place(b, {"restored": item})
+    return answer
 
 
 @_tool("What changed", read_only=True, app="brain")
@@ -544,8 +554,9 @@ def brain_changes(
     made it, when, and what it says now."""
     b = _select(brain)
     changes = store.changes(b["id"], since or None, limit)
+    answer = _place(b, {"changes": changes})
     _read(b, "changes")
-    return _place(b, {"changes": changes})
+    return answer
 
 
 @_tool("Set up the brain", read_only=True, app="brain")
@@ -563,8 +574,9 @@ def brain_onboard(brain: _arg(str | None, "Brain folder; defaults to the first b
             f"This interview is for {b['folder']}: use brain={b['folder']} on path-less tools. "
             "After brain_setup names it, call brain_start again for its new folder. " + out["script"][0]
         )
+    answer = _place(b, out)
     _read(b, "start")  # the script carries the memories, as brain_start does
-    return _place(b, out)
+    return answer
 
 
 @_tool("Finish setting up", read_only=False, app="brain")
@@ -591,8 +603,9 @@ def brain_curate(
     b, folder = _working(folder, brain)
     out = store.curate(b["id"], misses_since or None, unattended, folder, _by(), stamp=not _read_key())
     out["steps"] = [_prose(b, step, folder) for step in out["steps"]]
+    answer = _place(b, out)
     _read(b, "curate")
-    return _place(b, out)
+    return answer
 
 
 @_tool("A link to forget something", read_only=True, app="brain")
@@ -625,8 +638,9 @@ def brain_eval(
     b, folder = _working(folder, brain)
     golden = store.get_page(b["id"], path=f"{store.path_of(folder)}/golden")
     out = store.evaluate(b["id"], folder, _by())
+    answer = _place(b, out)
     _read(b, "get", "page", golden["id"], golden["path"])  # `failures` are ids written on the golden page
-    return _place(b, out)
+    return answer
 
 
 @_tool("A link to export the brain", read_only=True, app="brain")
