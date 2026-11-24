@@ -330,7 +330,7 @@ describe('the resolves contract — in-place edits must not advance the card', (
 describe('the two exceptions — done and delete need no context', () => {
   it('completes immediately', async () => {
     render();
-    click(button('Took 2 minutes — Done ✓'));
+    click(button('2 min — Done ✓'));
     await act(async () => {});
 
     expect(updateTodoMock).toHaveBeenCalledWith(7, { status: 'done' });
@@ -340,7 +340,7 @@ describe('the two exceptions — done and delete need no context', () => {
   it('Delete archives the todo, leaves the inbox and offers Undo', async () => {
     // Nothing is ever hard-deleted: Delete is a resolving write to status 'dropped'.
     render();
-    click(button('Delete — not needed'));
+    click(button('Delete ✕'));
     await act(async () => {});
 
     expect(updateTodoMock).toHaveBeenCalledWith(7, { status: 'dropped' });
@@ -371,7 +371,7 @@ describe('a resolved card is spent', () => {
   // would reopen a completed (and by then already re-spawned) repeating todo.
   it('cannot be filed again after being completed', async () => {
     render();
-    click(button('Took 2 minutes — Done ✓'));
+    click(button('2 min — Done ✓'));
     await act(async () => {});
     updateTodoMock.mockClear();
 
@@ -736,7 +736,7 @@ describe('inline title editing', () => {
     blur(editor);
     await act(async () => {}); // the rename is saved; the prop still says "dentist"
 
-    click(button('Took 2 minutes — Done ✓'));
+    click(button('2 min — Done ✓'));
     await act(async () => {});
 
     const queued = takeAll();
@@ -754,7 +754,7 @@ describe('inline title editing', () => {
     const editor = openEditor();
     setValue(editor, 'a title the server will refuse');
     blur(editor);
-    click(button('Took 2 minutes — Done ✓'));
+    click(button('2 min — Done ✓'));
     await act(async () => {});
 
     expect(updateTodoMock).toHaveBeenCalledWith(7, { status: 'done' });
@@ -776,7 +776,7 @@ describe('inline title editing', () => {
     const editor = openEditor();
     setValue(editor, 'call the dentist');
     blur(editor);
-    click(button('Took 2 minutes — Done ✓'));
+    click(button('2 min — Done ✓'));
     await act(async () => {});
     expect(updateTodoMock).not.toHaveBeenCalledWith(7, { status: 'done' }); // waits for the rename
 
@@ -802,7 +802,7 @@ describe('inline title editing', () => {
     const editor = openEditor();
     setValue(editor, 'call the dentist');
     blur(editor);
-    click(button('Took 2 minutes — Done ✓'));
+    click(button('2 min — Done ✓'));
     await act(async () => {
       release({ ...TODO, title: 'call the dentist' });
     }); // same updated_at
@@ -821,7 +821,7 @@ describe('inline title editing', () => {
     await act(async () => {});
     render({ title: 'book the dentist for March', updated_at: '2026-08-06T12:10:00Z' });
 
-    click(button('Took 2 minutes — Done ✓'));
+    click(button('2 min — Done ✓'));
     await act(async () => {});
 
     expect(takeAll().map((e) => e.title)).toEqual(['book the dentist for March']);
@@ -1387,7 +1387,7 @@ describe('step 2 — notes without leaving triage', () => {
     render();
     setValue(notesBox(), 'two minute job');
     unfocus(notesBox());
-    click(button('Took 2 minutes — Done ✓'));
+    click(button('2 min — Done ✓'));
     await act(async () => {});
 
     expect(updateTodoMock).toHaveBeenCalledWith(7, { notes: 'two minute job' });
@@ -1590,7 +1590,7 @@ describe('step 2 — notes without leaving triage', () => {
     unfocus(notesBox()); // save #1 in flight
     setValue(notesBox(), 'first and second');
     unfocus(notesBox()); // queued behind it — what clicking a button does
-    click(button('Took 2 minutes — Done ✓'));
+    click(button('2 min — Done ✓'));
 
     await act(async () => {
       land({ ...TODO, notes: 'first' });
@@ -1956,8 +1956,7 @@ describe('the compact layout (the default)', () => {
     expect(container.querySelector('[aria-label="People"]')).toBeNull();
     expect(container.textContent).toContain('call 555-0100');
     // Everything that files or clears the item is still here.
-    for (const name of ['Took 2 minutes — Done ✓', 'Edit', 'Done ✓', 'Delete — not needed'])
-      expect(button(name)).toBeTruthy();
+    for (const name of ['2 min — Done ✓', 'Delete ✕', 'Edit']) expect(button(name)).toBeTruthy();
     expect(container.querySelector('[aria-label="Set context and file this todo"]')).not.toBeNull();
   });
 });
