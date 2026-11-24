@@ -24,6 +24,9 @@ FILES_S3_KEY_ID     the store's access key id, with read and write on the bucket
 FILES_S3_SECRET     its secret
 SITES_FILES_PREFIX  the bucket prefix this deployment keeps Sites files under (default sites); one per deployment
 FILES_S3_REGION     the region requests are signed for; default auto (R2's), MinIO and S3 name one
+BACKUP_S3_ENDPOINT  with BACKUP_S3_BUCKET, BACKUP_S3_KEY_ID and BACKUP_S3_SECRET (and BACKUP_S3_REGION,
+                    as above), a second bucket each encrypted snapshot is copied to (backup.push);
+                    unset, or without SNAPSHOT_AGE_RECIPIENT, nothing is copied
 """
 
 from contextvars import ContextVar
@@ -118,11 +121,9 @@ def sites_files_prefix() -> str:
     return (prefix or "sites") + "/"
 
 
-def files_s3() -> dict | None:
-    """Common Brain's file store (objectstore.py): endpoint, bucket, key_id, secret and
-    region, or None while any of the first four is unset, and then Files is off."""
+def _s3(prefix: str) -> dict | None:
     cfg = {
-        name.lower(): os.environ.get(f"FILES_S3_{name}", "").strip()
+        name.lower(): os.environ.get(f"{prefix}_S3_{name}", "").strip()
         for name in ("ENDPOINT", "BUCKET", "KEY_ID", "SECRET")
     }
     if not all(cfg.values()):
@@ -130,8 +131,20 @@ def files_s3() -> dict | None:
     return {
         **cfg,
         "endpoint": cfg["endpoint"].rstrip("/"),
-        "region": os.environ.get("FILES_S3_REGION", "").strip() or "auto",
+        "region": os.environ.get(f"{prefix}_S3_REGION", "").strip() or "auto",
     }
+
+
+def files_s3() -> dict | None:
+    """Common Brain's file store (objectstore.py): endpoint, bucket, key_id, secret and
+    region, or None while any of the first four is unset, and then Files is off."""
+    return _s3("FILES")
+
+
+def backup_s3() -> dict | None:
+    """The bucket encrypted snapshots are copied to (backup.push), in the same shape, or
+    None while any of the first four is unset."""
+    return _s3("BACKUP")
 
 
 def trust_proxy() -> bool:

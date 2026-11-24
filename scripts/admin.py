@@ -39,6 +39,7 @@ import argparse
 import datetime
 import json
 import re
+import sqlite3
 import sys
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -168,6 +169,31 @@ def _require(list_id: int):
 # ── Read commands ─────────────────────────────────────────────────────────────
 
 
+def _in_bucket() -> str:
+    """Whether the newest encrypted snapshot is in the backup bucket: one HEAD from here."""
+    cfg, sealed = backup.bucket(), backup.sealed()
+    if cfg is None:
+        return "not set up"
+    if not sealed:
+        return "no encrypted snapshot yet"
+    try:
+        return "yes" if backup.in_bucket(sealed[-1], cfg) else "not there"
+    except Exception:  # unreachable, refused, or misconfigured: none of them is "not there"
+        return "could not check"
+
+
+def _biggest_tables(conn) -> list[dict] | None:
+    """The five biggest tables, each with its indexes; None when this SQLite has no dbstat."""
+    try:
+        rows = conn.execute(
+            "SELECT s.tbl_name AS name, SUM(d.pgsize) AS bytes FROM dbstat d JOIN sqlite_master s ON s.name = d.name"
+            " GROUP BY 1 ORDER BY 2 DESC LIMIT 5"
+        ).fetchall()
+    except sqlite3.OperationalError:
+        return None
+    return [{"name": r[0], "bytes": r[1]} for r in rows]
+
+
 def cmd_stats(args) -> None:
     conn = db.get_db()
 
@@ -200,7 +226,9 @@ def cmd_stats(args) -> None:
             "count": len(snaps),
             "bytes": sum(p.stat().st_size for p in snaps),
             "newest": snaps[-1].name if snaps else None,
+            "newest_encrypted_in_bucket": _in_bucket(),
         },
+        "biggest_tables": _biggest_tables(conn),
     }
 
     def text():
@@ -214,6 +242,9 @@ def cmd_stats(args) -> None:
         print(f"Database file: {_size(data['database_bytes'])}")
         s = data["snapshots"]
         print(f"Snapshots: {s['count']}, {_size(s['bytes'])}, newest {s['newest'] or '-'}")
+        print(f"Newest encrypted snapshot in the backup bucket: {s['newest_encrypted_in_bucket']}")
+        if data["biggest_tables"]:
+            print("Biggest tables: " + ", ".join(f"{t['name']} {_size(t['bytes'])}" for t in data["biggest_tables"]))
         print("Lists created per day (UTC), last 14 days:")
         for d, n in data["lists_created_by_day"].items():
             print(f"  {d}  {n}")

@@ -2,7 +2,8 @@
 
 No SDK: requests are signed here with AWS Signature Version 4 (hmac and hashlib),
 path-style (``<endpoint>/<bucket>/<key>``), in FILES_S3_REGION. The
-calls here HEAD, copy, delete, stream and list, with httpx. Normally bytes travel between the store
+calls here HEAD, copy, delete, stream and list, with httpx. ``head`` and ``put`` (a local
+file, uploaded) also take another store's settings: the backup bucket's (backup.push). Normally bytes travel between the store
 and the client on presigned links; brain_import uses those links for zip attachments.
 
 Object keys are random ASCII (files.py makes them), never a file's path, so the signing needs
@@ -19,7 +20,10 @@ import builtins
 import hashlib
 import hmac
 import datetime
+import logging
+import time
 from collections.abc import Iterator, Generator
+from typing import BinaryIO
 from xml.etree import ElementTree
 from urllib.parse import quote, urlsplit
 
@@ -29,6 +33,10 @@ from backend import common, settings
 
 _ALGORITHM = "AWS4-HMAC-SHA256"
 _EMPTY = hashlib.sha256(b"").hexdigest()  # the payload hash of a call with no body
+_CHUNK = 1 << 20
+_PUT_SECONDS = 600  # a whole upload; each connect, read and write has its own shorter timeout
+# The client logs each request's URL at INFO: the store's address, bucket and object name.
+logging.getLogger("httpx2").setLevel(logging.WARNING)
 
 
 class StoreError(common.ValidationError):
@@ -128,17 +136,26 @@ def presigned_get(key: str, filename: str, content_type: str, seconds: int, disp
     )
 
 
-def _signed(method: str, key: str, headers: dict | None = None, params: dict | None = None) -> tuple[str, dict]:
-    cfg = _cfg()
+def _signed(
+    method: str,
+    key: str,
+    headers: dict | None = None,
+    params: dict | None = None,
+    cfg: dict | None = None,
+    payload: str = _EMPTY,
+) -> tuple[str, dict]:
+    """`cfg` names another store in settings.files_s3's shape (the backup bucket); the
+    Files store without it. `payload` is the body's SHA-256, in hex."""
+    cfg = cfg or _cfg()
     path = f"/{cfg['bucket']}/{key}"
     stamp = common.utcnow().strftime("%Y%m%dT%H%M%SZ")
     signed = {
         "host": urlsplit(cfg["endpoint"]).netloc,
-        "x-amz-content-sha256": _EMPTY,
+        "x-amz-content-sha256": payload,
         "x-amz-date": stamp,
         **(headers or {}),
     }
-    signature = _signature(cfg, method, path, params or {}, signed, _EMPTY, stamp)
+    signature = _signature(cfg, method, path, params or {}, signed, payload, stamp)
     auth = (
         f"{_ALGORITHM} Credential={cfg['key_id']}/{_scope(cfg, stamp)}, "
         f"SignedHeaders={';'.join(sorted(signed))}, Signature={signature}"
@@ -150,12 +167,18 @@ def _signed(method: str, key: str, headers: dict | None = None, params: dict | N
 
 
 def _call(
-    method: str, key: str, headers: dict | None = None, timeout: float = 10, *, params: dict | None = None
+    method: str,
+    key: str,
+    headers: dict | None = None,
+    timeout: float = 10,
+    *,
+    params: dict | None = None,
+    cfg: dict | None = None,
 ) -> httpx.Response:
     """One signed call; only ListObjectsV2 may address the bucket itself."""
     if not key and not (method == "GET" and params and params.get("list-type") == "2"):
         raise ValueError("No object key")
-    url, signed = _signed(method, key, headers, params)
+    url, signed = _signed(method, key, headers, params, cfg)
     try:
         return httpx.request(method, url, timeout=timeout, headers=signed)
     except httpx.HTTPError:
@@ -208,15 +231,47 @@ def _refused(res: httpx.Response, what: str) -> StoreError:
     return StoreError(f"The file store answered {res.status_code} to {what}. Try again in a minute.")
 
 
-def head(key: str) -> int | None:
+def head(key: str, cfg: dict | None = None) -> int | None:
     """The object's size, or None when there is none."""
     # R2 gzips a compressible object's HEAD for a client that accepts it, and then sends no length.
-    res = _call("HEAD", key, {"accept-encoding": "identity"})
+    res = _call("HEAD", key, {"accept-encoding": "identity"}, cfg=cfg)
     if res.status_code == 404:
         return None
     if res.status_code != 200:
         raise _refused(res, "a check")
     return int(res.headers["content-length"])
+
+
+def put(key: str, file: BinaryIO, cfg: dict | None = None) -> None:
+    """Upload an open local file to `key`, streamed from disk: read once for its SHA-256,
+    then sent with its length and that hash signed, so the store keeps these bytes or nothing."""
+    if not key:
+        raise ValueError("No object key")
+    # simplification: one PUT, so 5 GB at most (the stores' limit) and whatever _PUT_SECONDS
+    # lets through; a compressed snapshot is tens of MB. Multipart upload is the way up.
+    digest = hashlib.sha256()
+    for chunk in iter(lambda: file.read(_CHUNK), b""):
+        digest.update(chunk)
+    headers = {
+        "content-length": str(file.tell()),
+        "x-amz-checksum-sha256": base64.b64encode(digest.digest()).decode(),
+    }
+    url, signed = _signed("PUT", key, headers, cfg=cfg, payload=digest.hexdigest())
+    file.seek(0)
+    deadline = time.monotonic() + _PUT_SECONDS
+
+    def body() -> Iterator[bytes]:  # a store that trickles cannot hold the caller's thread for ever
+        while chunk := file.read(_CHUNK):
+            if time.monotonic() > deadline:
+                raise StoreError("The file store was too slow. Try again in a minute.")
+            yield chunk
+
+    try:
+        res = httpx.request("PUT", url, headers=signed, timeout=60, content=body())
+    except httpx.HTTPError:
+        raise StoreError("The file store could not be reached. Try again in a minute.") from None
+    if res.status_code != 200:
+        raise _refused(res, "an upload")
 
 
 def copy(source: str, key: str) -> None:

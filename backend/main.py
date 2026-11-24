@@ -121,6 +121,7 @@ async def _maintain() -> None:
         await asyncio.sleep(wait)
         wait = settings.snapshot_interval()
         await asyncio.to_thread(backup.snapshot)
+        await asyncio.to_thread(backup.push)
         await asyncio.to_thread(_sweep_files)
         if last_daily is None or time.monotonic() - last_daily >= _DAILY_SECONDS:
             last_daily = time.monotonic()
