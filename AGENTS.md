@@ -86,7 +86,9 @@ backend/
                  pages (Markdown/HTML at a path); every write a version (history, restore, the
                  what-changed feed, each AI's catch-up); the AI cap and the email nudge; secrets
                  blanked; Forget; review dates and the monthly tidy hint (tidy_due); curator queues, probe evals, contact-drop warnings and snapshot exports.
-                 Pass labels and reasons in history. No AI runs here, ever
+                 Pass labels and reasons in history. Tickles: one unanswered question a day in
+                 brain_start (a failing golden line, else a repeated miss), rested by
+                 tickle_record in brain_tickles. No AI runs here, ever
   brain_import.py Markdown zip import: dry run, resumable chunks and passes, files, archive missing
   brain_routes.py the brain API under /api/app, with Forget (POST …/forget)
   brain_agent.py Common Brain on the agent link: brain_ tools (MCP only), and its paragraph of the

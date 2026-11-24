@@ -75,6 +75,8 @@ export interface Overview {
   /** Show the "add your email" nudge. */
   nudge: boolean;
   custom_instruction: string;
+  /** What AIs searched for in the last 30 days and the brain still cannot answer, most asked first. */
+  misses?: { query: string; asked: number; last: string }[];
 }
 
 export interface Change {

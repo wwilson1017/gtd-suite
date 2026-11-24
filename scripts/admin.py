@@ -616,6 +616,8 @@ def merge_brain(from_id: int, to_id: int, name: str, folder: str, *, yes: bool =
             conn.execute(
                 f"UPDATE {table} SET list_id = ?, brain_id = ? WHERE list_id = ?", (to_id, target["id"], from_id)
             )
+        # Asked questions keep their rest: the table has no list_id, so it is not in the loop above.
+        conn.execute("UPDATE brain_tickles SET brain_id = ? WHERE brain_id = ?", (target["id"], original["id"]))
         names = {r["name"].lower() for r in conn.execute("SELECT name FROM api_keys WHERE list_id = ?", (to_id,))}
         for key in report["keys"]:
             name = key["name"]
