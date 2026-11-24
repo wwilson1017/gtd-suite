@@ -111,10 +111,15 @@ async def _maintain() -> None:
 
     The cleanup runs only with open signup: a one-list server's list is its
     whole point, and deleting it while empty would let a stranger claim the
-    deployment. Sleeps first, so a crash loop cannot fill the volume with snapshots."""
+    deployment. Sleeps first: at least a minute, then until the newest snapshot is one
+    interval old (backup.due_in), so a crash loop cannot fill the volume with snapshots and
+    a run of deploys cannot keep putting the next one off."""
     last_daily = None
+    interval = settings.snapshot_interval()
+    wait = min(interval, max(60.0, backup.due_in(interval)))
     while True:
-        await asyncio.sleep(settings.snapshot_interval())
+        await asyncio.sleep(wait)
+        wait = settings.snapshot_interval()
         await asyncio.to_thread(backup.snapshot)
         await asyncio.to_thread(backup.push)
         await asyncio.to_thread(_sweep_files)

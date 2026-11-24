@@ -328,6 +328,46 @@ def test_cleanup_deletes_only_old_lists_with_nothing_in_them(todo_db):
     assert cleanup.delete_unused_lists() == 0
 
 
+def test_a_restart_waits_only_until_the_newest_snapshot_is_one_interval_old(single, monkeypatch):
+    import asyncio
+    import datetime
+    from backend import backup, common, main
+
+    out = backup.backups_dir()
+    out.mkdir(parents=True, exist_ok=True)
+    assert backup.due_in(3600) == 0  # none yet: due
+    now = common.utcnow()
+    for ago, suffix in ((50, ".zst.age"), (90, "")):  # minutes; the newest decides, whatever its kind
+        (out / ((now - datetime.timedelta(minutes=ago)).strftime(backup._NAME) + suffix)).write_bytes(b"x")
+    assert 590 <= backup.due_in(3600) <= 600
+    assert backup.due_in(1800) == 0  # already overdue
+
+    slept = []
+
+    async def sleep(seconds):
+        slept.append(seconds)
+        if len(slept) == 2:
+            raise asyncio.CancelledError
+
+    monkeypatch.setattr(main.asyncio, "sleep", sleep)
+    monkeypatch.setattr(main.settings, "snapshot_interval", lambda: 3600.0)
+    monkeypatch.setattr(main.backup, "snapshot", lambda: None)
+    with pytest.raises(asyncio.CancelledError):
+        asyncio.run(main._maintain())
+    assert 590 <= slept[0] <= 600 and slept[1] == 3600.0  # the rest of the hour, then every hour
+    monkeypatch.setattr(main.settings, "snapshot_interval", lambda: 1800.0)
+    slept.clear()
+    with pytest.raises(asyncio.CancelledError):
+        asyncio.run(main._maintain())
+    assert slept[0] == 60.0  # overdue, but never in a start's first minute
+
+    def unreadable():
+        raise PermissionError("backups")
+
+    monkeypatch.setattr(backup, "files", unreadable)
+    assert backup.due_in(1800) == 1800  # the loop starts anyway, with the old full wait
+
+
 def test_the_maintenance_loop_expires_always_and_cleans_up_only_with_open_signup(single, monkeypatch):
     import asyncio
     from backend import main
