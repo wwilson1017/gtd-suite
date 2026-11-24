@@ -561,11 +561,44 @@ def brain_changes(
 
 
 @_tool("Set up the brain", read_only=True, app="brain")
-def brain_onboard(brain: _arg(str | None, "Brain folder; defaults to the first brain") = None) -> dict:
+def brain_onboard(
+    guide: _arg(
+        str,
+        "'chats' for the steps to load an export of past conversations (Slack, Cliq, WhatsApp, email, support threads); empty for the set-up",
+    ) = "",
+    brain: _arg(str | None, "Brain folder; defaults to the first brain") = None,
+) -> dict:
     """The set-up script, once per AI: bring over what you know about the person,
     check it against the brain, ask about the gaps, and report. Call it when the
-    person says "set up my brain", or when brain_start says to offer it."""
+    person says "set up my brain", or when brain_start says to offer it.
+    With guide='chats' it returns the steps for turning an export of old chats into
+    sourced memories and pages, any time, and changes nothing."""
     b = _select(brain)
+    guide = guide.strip().lower()
+    if guide == "chats":
+        out = store.chat_import_script(b["id"], _by())
+        out["script"] = [_prose(b, step, "imports") for step in out["script"]]
+        if not b["settled_at"]:
+            # brain_start says nothing of this to a key or staff link, and brain_setup refuses them
+            out["script"].insert(
+                0,
+                "This brain has no name or rules yet, so nothing says what must stay out of it. Import nothing until it has them. "
+                + (
+                    "You cannot set them: ask the person to name this brain and set its rules in Common Brain, then call this guide again."
+                    if _key.get()
+                    else "Offer the naming interview in brain_onboard, call brain_setup with the person's agreement, then call this guide again."
+                ),
+            )
+        if len(_scope()) > 1:
+            out["script"][0] = (
+                f"This import is for {b['folder']}: pass brain={b['folder']} to brain_remember. brain_search takes "
+                f"no brain and searches them all: count only results marked brain {b['folder']}. " + out["script"][0]
+            )
+        answer = _place(b, out)
+        _read(b, "start")  # the guide carries the memories, as the set-up script does
+        return answer
+    if guide:
+        raise ValidationError("guide is 'chats', or empty for the set-up")
     out = store.onboard_script(b["id"], _by())
     out["script"] = [_prose(b, step) for step in out["script"]]
     if _key.get() and not b["settled_at"]:

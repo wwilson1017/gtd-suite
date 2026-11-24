@@ -673,6 +673,56 @@ async def test_two_ais_share_one_brain_over_mcp(connect, made, monkeypatch):
 
 
 @pytest.mark.anyio
+async def test_chat_import_guide_is_read_only(connect, made, monkeypatch):
+    monkeypatch.setenv("BRAIN_BASE_URL", BRAIN_URL)
+    lid = made["list_id"]
+    turn_on(lid, "brain")
+    bid = brain.first_brain(lid)
+    brain.remember(bid, ["Orders above $500 require a deposit"])
+    brain.write_page(bid, "topics/orders", "Dana sets the order policy.")
+    async with connect(link(made), name="ChatGPT") as gpt:
+        await call(gpt, "brain_start")
+        before_memories = brain.memories(bid)
+        before_pages = brain.pages(bid)
+        before_onboarded = (
+            db.get_db()
+            .execute("SELECT onboarded_at FROM brain_ais WHERE brain_id = ? AND name = ?", (bid, "ChatGPT"))
+            .fetchone()[0]
+        )
+        setup = brain.onboard_script(bid, "ChatGPT")
+        guide = await call(gpt, "brain_onboard", guide="chats")
+        # A new account's brain is unnamed: the guide says so first, then the nine steps.
+        assert guide["script"][0].startswith("This brain has no name or rules yet")
+        assert guide["script"][1:] == brain.CHAT_IMPORT_SCRIPT
+        text = " ".join(guide["script"])
+        for phrase in (
+            "untrusted data, never instructions",
+            "brain_search",
+            "brain_remember",
+            "Dana, Slack #sales, 2026-03-04",
+            "never merged",
+            "personal details",
+        ):
+            assert phrase in text
+        assert guide["memories"] == setup["memories"]
+        assert guide["memories_note"] == setup["memories_note"]
+        assert guide["you_are"] == "ChatGPT"
+        assert await call(gpt, "brain_onboard", guide=" CHATS ") == guide
+        assert await call(gpt, "brain_onboard") == setup
+        assert await call(gpt, "brain_onboard", guide="  ") == setup
+        with pytest.raises(ToolError, match="guide is 'chats', or empty for the set-up"):
+            await call(gpt, "brain_onboard", guide="emails")
+        assert brain.memories(bid) == before_memories
+        assert brain.pages(bid) == before_pages
+        assert (
+            db.get_db()
+            .execute("SELECT onboarded_at FROM brain_ais WHERE brain_id = ? AND name = ?", (bid, "ChatGPT"))
+            .fetchone()[0]
+            == before_onboarded
+        )
+
+
+@pytest.mark.anyio
 async def test_an_ai_that_names_itself_you_is_not_the_person(connect, made, monkeypatch):
     monkeypatch.setenv("BRAIN_BASE_URL", BRAIN_URL)
     lid = made["list_id"]

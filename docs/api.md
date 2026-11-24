@@ -181,6 +181,8 @@ logs no misses. Eval reads `- id: query => expected; expected` lines from `<fold
 and appends the score to `<folder>/scorecard`. Write tools take `pass_label` and `reason`
 for the history.
 
+`brain_onboard(guide="chats")` returns the guide for loading an export of past conversations.
+
 Handed a meeting transcript, the curator follows the transcript step `brain_curate` returns:
 a quote that backs an entry is added to it as a further source (speaker, timestamp, exact
 quote), a clear change updates the entry, and anything unclear becomes a question in
