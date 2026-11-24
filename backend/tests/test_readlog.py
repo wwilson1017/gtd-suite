@@ -129,6 +129,15 @@ async def test_initialize_discovery_and_every_brain_tool_leave_their_row(connect
     assert {r["brain_id"] for r in rows(account)} == {first}
 
 
+async def test_the_chat_import_guide_carries_the_memories_so_it_leaves_a_row(connect, multi):
+    account = multi["list_id"]
+    switch_on(account)
+    async with connect(main_link(multi), mode="2026-07-28") as c:
+        guide = await call(c, "brain_onboard", guide="chats")
+    assert guide["memories"]
+    assert [(r["kind"], r["brain_id"], r["item_kind"]) for r in rows(account)] == [("start", multi["first"], None)]
+
+
 async def test_a_write_tool_that_hands_back_what_is_there_leaves_a_row(connect, multi):
     account, page, memory = multi["list_id"], multi["public"]["id"], multi["memory"]["id"]
     switch_on(account)

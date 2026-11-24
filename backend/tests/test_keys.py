@@ -1014,13 +1014,21 @@ async def test_setup_only_once_and_only_main_link(connect, http, acct):
     arguments = {"name": "Company", "description": "Work records", "rules": ["Work only", "Keep personal details out"]}
     assert (await rest(http, key, "brain_setup", **arguments)).status_code == 403
     staff = keys.create(acct["list_id"], "Staff", kind="link", access="write")
+    # The chat guide says an unnamed brain takes no import: brain_start is silent on it to a key.
+    keyed = (await rest(http, key, "brain_onboard", guide="chats")).json()["script"]
+    assert "Import nothing until" in keyed[0] and "in Common Brain" in keyed[0] and "brain_setup" not in keyed[0]
+    assert keyed[1:] == brain.CHAT_IMPORT_SCRIPT
     async with connect(f"http://testserver/link/{staff['key']}") as c:
         with pytest.raises(ToolError, match="main agent link"):
             await call(c, "brain_setup", **arguments)
+        assert (await call(c, "brain_onboard", guide="chats"))["script"] == keyed
     async with connect(f"http://testserver/link/{acct['agent_token']}") as c:
         script = (await call(c, "brain_onboard"))["script"]
         assert "what must stay out" in script[0] and "brain_setup" in script[0]
+        chats = (await call(c, "brain_onboard", guide="chats"))["script"]
+        assert "Import nothing until" in chats[0] and "brain_setup" in chats[0] and "in Common Brain" not in chats[0]
         settled = await call(c, "brain_setup", **arguments)
+        assert (await call(c, "brain_onboard", guide="chats"))["script"] == brain.CHAT_IMPORT_SCRIPT
         assert settled["folder"] == "company" and settled["settled_at"] and settled["rules"] == arguments["rules"]
         with pytest.raises(ToolError, match="Only the person changes"):
             await call(c, "brain_setup", **arguments)
