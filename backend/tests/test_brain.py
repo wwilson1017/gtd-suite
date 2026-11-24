@@ -712,3 +712,39 @@ def test_the_instructions_lead_with_the_brain_and_carry_locked_memories(B):
         mcp_server._list_id.reset(reset)
     assert text.startswith("Common Brain (the brain_ tools)")
     assert "- [brain] Call me Will" in text and text.index("Common Brain") < text.index("GTD (Getting")
+
+
+def test_search_ranks_well_backed_entries_first_and_says_how_each_is_backed(B):
+    confirm_list(B)
+    b = brain.first_brain(B)
+    assert brain._sources("Maya works nights (Maya, Oct 24; payroll sheet).") == 2
+    assert brain._sources("Maya works nights (Maya, Oct 24; maya, oct 24)") == 1  # the same source twice is one
+    assert brain._sources("Maya (the baker) works nights") == 0
+    assert brain._sources("---\nsources:\n  - Maya, Oct 24\n  - payroll sheet\n---\nx", page=True) == 2
+    assert brain._sources("---\nsource: Maya; payroll\n---\nx", page=True) == 2
+    assert brain._sources("No frontmatter (a; b)", page=True) == 0
+    brain.remember(b, ["The oven runs at 325 degrees"], by="ChatGPT")
+    brain.remember(b, ["The oven is set to 325 degrees (Maya, Oct 24)"], by="ChatGPT")
+    brain.remember(b, ["The oven holds 325 degrees (Maya, Oct 24; oven manual p. 3)"], by="ChatGPT")
+    locked = brain.remember(b, ["The oven must never pass 325 degrees"])["added"][0]
+    brain.update_memory(b, locked["id"], locked=True)
+    found = brain.search(b, "oven 325 degrees")["memories"]
+    assert [m["backing"] for m in found[:2]] == ["locked: the person's own words", "2 sources"]
+    assert {m["backing"] for m in found[2:]} == {"one source", "no source named"}
+    # Backing breaks near-ties only: a clearly better match with one source still leads.
+    brain.remember(b, ["Proofing proofing proofing takes an hour (Maya, Oct 24)"], by="ChatGPT")
+    brain.remember(
+        b,
+        ["Many unrelated words about the bakery floor, and somewhere proofing (Maya, Oct 24; manual)"],
+        by="ChatGPT",
+    )
+    assert brain.search(b, "proofing")["memories"][0]["backing"] == "one source"
+    front = "---\nsources:\n{}\nlast_checked: 2026-10-01\n---\nThe mixer is serviced each spring.\n"
+    brain.write_page(b, "topics/mixer-a", front.format("  - Maya, Oct 24"), title="Mixer", by="ChatGPT")
+    brain.write_page(
+        b, "topics/mixer-b", front.format("  - Maya, Oct 24\n  - service log"), title="Mixer", by="ChatGPT"
+    )
+    brain.write_page(b, "topics/mixer-c", "The mixer is serviced each spring.\n", title="Mixer", by="ChatGPT")
+    pages = brain.search(b, "mixer serviced")["pages"]
+    assert (pages[0]["path"], pages[0]["backing"]) == ("topics/mixer-b", "2 sources, last checked 2026-10-01")
+    assert {p["backing"] for p in pages[1:]} == {"one source, last checked 2026-10-01", "no source named"}
