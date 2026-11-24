@@ -21,7 +21,9 @@ A snapshot that fails is logged and skipped; the next run tries again. Snapshots
 stop, with a warning, while free space is under a floor, so they can never
 starve the live database.
 
-# simplification: snapshots share the volume with the DB; add off-volume copy before charging
+With BACKUP_S3_* set as well, ``push`` copies each encrypted snapshot to that bucket after
+the app's own hourly run. Only the app pushes, and only encrypted files: a plain one never
+leaves the volume. Nothing here ever deletes from the bucket; its lifecycle rule does.
 """
 
 import datetime
@@ -33,7 +35,7 @@ import sqlite3
 import subprocess
 from pathlib import Path
 
-from backend import common, db, settings
+from backend import common, db, objectstore, settings
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +43,7 @@ KEEP_ALL = datetime.timedelta(hours=6)
 KEEP_DAILY = datetime.timedelta(days=7)
 # Free space that must remain AFTER a snapshot the size of the live database.
 MIN_FREE_BYTES = 100 * 1024 * 1024
+PUSH_MAX = 3  # uploads a run: a first run, or one after an outage, catches up over a few hours
 _NAME = "todo-%Y%m%dT%H%M%SZ.db"
 
 
@@ -184,3 +187,60 @@ def snapshot() -> Path | None:
     if path:
         logger.info("Snapshot written: %s", path.name)
     return path
+
+
+def bucket() -> dict | None:
+    """The backup bucket's settings, or None when nothing is pushed: BACKUP_S3_* unset, or no
+    SNAPSHOT_AGE_RECIPIENT, since only encrypted snapshots leave the volume."""
+    return settings.backup_s3() if settings.snapshot_recipient() else None
+
+
+def sealed() -> list[Path]:
+    """The encrypted snapshots, oldest first."""
+    return [p for p in files() if p.name.endswith(".age")]
+
+
+def in_bucket(path: Path, cfg: dict) -> bool:
+    """Whether the bucket holds this snapshot, whole: the same name and size."""
+    return objectstore.head(path.name, cfg) == path.stat().st_size
+
+
+def _push(cfg: dict) -> int:
+    sent = 0
+    for path in reversed(sealed()):  # newest first
+        if sent == PUSH_MAX:
+            break
+        try:
+            # No file lock: a snapshot appears whole (os.replace) and is never rewritten, and
+            # one pruned while it uploads stays readable through the open file.
+            with open(path, "rb") as file:
+                if objectstore.head(path.name, cfg) == os.fstat(file.fileno()).st_size:
+                    continue
+                objectstore.put(path.name, file, cfg)
+        except FileNotFoundError:  # pruned since it was listed
+            continue
+        sent += 1
+        logger.info("Snapshot copied to the backup bucket: %s", path.name)
+    return sent
+
+
+def push() -> int:
+    """Copy the encrypted snapshots the backup bucket lacks, newest first, at most PUSH_MAX a
+    run; how many went. Never raises: a failure is logged and the next run tries again."""
+    cfg = bucket()
+    if cfg is None:
+        return 0
+    try:
+        sent = _push(cfg)
+    except objectstore.StoreError as e:
+        logger.warning("Copying snapshots to the backup bucket failed; tried again next run. %s", e)
+        return 0
+    except Exception as e:  # the kind only: another error's text could carry the store's address
+        logger.error("Copying snapshots to the backup bucket failed (%s); tried again next run", type(e).__name__)
+        return 0
+    if sent:
+        try:
+            _uncache(files())  # each upload read its file twice
+        except Exception:
+            logger.exception("Dropping snapshots from the page cache failed; tried again next run")
+    return sent

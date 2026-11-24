@@ -65,6 +65,7 @@ Only two matter for most people: a persistent `DATA_DIR`, and `PUBLIC_BASE_URL`.
 | `RESEND_API_KEY`, `MAIL_FROM` | unset | Both together turn on email: confirming an address and signing in by email. `MAIL_FROM` must be on a domain verified with [Resend](https://resend.com). Mail also needs `PUBLIC_BASE_URL` (or Railway's domain), since a mailed link is never built from a request's address. Without mail, hosted accounts stay on the small limits and are never put away. |
 | `SNAPSHOT_INTERVAL_SECONDS` | `3600` | How often a backup snapshot is taken. |
 | `SNAPSHOT_AGE_RECIPIENT` | unset | An [age](https://age-encryption.org) public key (`age1…`). Set, every snapshot is encrypted to it and only the encrypted file is kept. Unset, snapshots are plain. See [Backups](#backups). |
+| `BACKUP_S3_ENDPOINT`, `BACKUP_S3_BUCKET`, `BACKUP_S3_KEY_ID`, `BACKUP_S3_SECRET` | unset | A second S3-compatible bucket the app copies each encrypted snapshot to. Needs `SNAPSHOT_AGE_RECIPIENT`. `BACKUP_S3_REGION` as `FILES_S3_REGION`. See [Backups](#backups). |
 | `FILES_S3_ENDPOINT`, `FILES_S3_BUCKET`, `FILES_S3_KEY_ID`, `FILES_S3_SECRET` | unset | An S3-compatible store (R2, MinIO, S3, B2), path-style, for Common Brain's files and Sites' file sites. Unset, Files is off. See [Files](#files). |
 | `FILES_S3_REGION` | `auto` | `auto` for R2; MinIO and S3 need a real region. |
 | `SITES_FILES_PREFIX` | `sites` | Each deployment sharing a bucket needs its own: a daily pass deletes objects under it that its database doesn't know. |
@@ -116,6 +117,39 @@ encrypted, since the app has to read it.
 They share the volume with the database, so they protect against mistakes, not against
 losing the volume. Copy them somewhere else:
 
+- **Have the app push them to a bucket.** With `SNAPSHOT_AGE_RECIPIENT` and the four
+  `BACKUP_S3_*` variables set, the app copies each encrypted snapshot to an S3-compatible
+  bucket (Cloudflare R2, S3, B2, MinIO) after its hourly snapshot, under the snapshot's own
+  file name. Each hour it checks the encrypted snapshots on the volume, newest first, and
+  uploads up to three the bucket lacks or holds at another size, so a first run or an outage
+  catches up over the next hours. A failed upload is logged and tried again the next hour.
+  Plain snapshots are never uploaded: without the public key nothing is pushed. Snapshots
+  taken by `scripts/admin.py delete` and `scripts/restore_list.py` go up with the app's next
+  run, not from those commands.
+
+  | Variable | What it does |
+  |---|---|
+  | `BACKUP_S3_ENDPOINT` | The store's address, e.g. `https://<account>.r2.cloudflarestorage.com`. |
+  | `BACKUP_S3_BUCKET` | The bucket, addressed path-style. |
+  | `BACKUP_S3_KEY_ID` | An access key id for that bucket. |
+  | `BACKUP_S3_SECRET` | Its secret. |
+  | `BACKUP_S3_REGION` | Optional: the region requests are signed for. Default `auto` (R2's); S3 and MinIO name one. |
+
+  Set the bucket up like this:
+
+  - **A bucket of its own**, not the one Files uses (`FILES_S3_*`), so nothing in Files or
+    Sites code can touch a backup.
+  - **A key of its own**, allowed to read and write objects in that bucket only.
+  - **A lifecycle rule that deletes old objects** (30 days, say). The app never deletes from
+    the bucket, so without the rule it grows for ever.
+
+  That the app never deletes there is a rule in this code, not something the store enforces:
+  a read-and-write key can usually overwrite and delete too. The separate bucket guards
+  against mistakes, not against someone who has taken over the app. If your store has object
+  versioning or an object lock, turning it on closes that gap.
+
+  `python -m scripts.admin stats` says whether the newest encrypted snapshot is in the bucket.
+  Have something outside the app warn you when the bucket's newest object is a few hours old.
 - **Pull them hourly** to a machine you control with the [Railway CLI](https://docs.railway.com/guides/cli)
   and a project token (**Settings → Tokens**). Fetch only new files, never `todo.db` itself:
 
@@ -190,7 +224,7 @@ Anywhere else, run it from the app directory with the app's `DATA_DIR`.
 
 | Command | What it does |
 |---|---|
-| `stats` | Totals: accounts, todos, sign-ups per day, emails, database and snapshot sizes |
+| `stats` | Totals: accounts, todos, sign-ups per day, emails, database and snapshot sizes, the five biggest tables, and whether the newest encrypted snapshot is in the backup bucket |
 | `lists` | One row per account. Filters: `--email`, `--name`, `--created-after`, `--created-before`, `--unused`, `--limit`; `--show-email` |
 | `find --link=<link>` | Which account an agent or capture link belongs to |
 | `show <id>` | One account's details; `--content` also prints its titles, and is logged |
