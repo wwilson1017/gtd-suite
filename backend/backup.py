@@ -65,8 +65,13 @@ def _taken(path: Path) -> datetime.datetime | None:
 
 def due_in(interval: float) -> float:
     """Seconds until the newest snapshot is `interval` old: what a starting app waits, so
-    restarts (each deploy is one) cannot keep putting the next snapshot off. 0 with none."""
-    taken = [t for t in map(_taken, files()) if t]
+    restarts (each deploy is one) cannot keep putting the next snapshot off. 0 with none.
+    Never raises: a folder that cannot be read means the whole interval, as before."""
+    try:
+        taken = [t for t in map(_taken, files()) if t]
+    except OSError:
+        logger.exception("Could not read the snapshot folder; the first snapshot waits a full interval")
+        return interval
     if not taken:
         return 0.0
     return max(0.0, interval - (common.utcnow() - max(taken)).total_seconds())

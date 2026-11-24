@@ -361,6 +361,12 @@ def test_a_restart_waits_only_until_the_newest_snapshot_is_one_interval_old(sing
         asyncio.run(main._maintain())
     assert slept[0] == 60.0  # overdue, but never in a start's first minute
 
+    def unreadable():
+        raise PermissionError("backups")
+
+    monkeypatch.setattr(backup, "files", unreadable)
+    assert backup.due_in(1800) == 1800  # the loop starts anyway, with the old full wait
+
 
 def test_the_maintenance_loop_expires_always_and_cleans_up_only_with_open_signup(single, monkeypatch):
     import asyncio
