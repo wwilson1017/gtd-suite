@@ -362,19 +362,27 @@ class _AppsOn(Middleware):
             await _seen(_client_name())
         return result
 
-    async def _instructed(self, context, call_next):
+    async def _instructed(self, context, call_next, name: str | None = None):
         result = await call_next(context)
         if hasattr(result, "instructions"):  # an InitializeResult or DiscoverResult
             result.instructions = _instructions(_apps_on.get())
+            if "brain" in _apps_on.get() and (carried := _brains.get()):
+                # Brain's paragraph carries the locked memories: a read (readlog.py), logged
+                # after it and off the event loop.
+                from backend import brain_agent  # here: brain_agent imports this module
+
+                by = brain_agent._by(name or _client_name())
+                await asyncio.to_thread(brain_agent._read, carried, "connect", by=by)
         return result
 
     async def on_initialize(self, context, call_next):
-        result = await self._instructed(context, call_next)
         # The handshake is where an older client names itself, and _client_name() does not
         # read it. A program key's name still comes first.
         info, key = context.message.params.client_info, _key.get()
         declared = info.title or info.name
-        await _seen(key["name"] if key else common.client_name(declared, get_http_headers().get("user-agent")))
+        name = key["name"] if key else common.client_name(declared, get_http_headers().get("user-agent"))
+        result = await self._instructed(context, call_next, name)
+        await _seen(name)
         return result
 
     on_discover = _instructed
@@ -1103,6 +1111,7 @@ def _resolve(token: str, bearer: bool) -> tuple[int | None, list[str], dict | No
     list_id = lists.resolve_agent(token)
     if list_id is not None:
         lists.touch(list_id)
+        lists.touch(list_id, "agent_used_at")  # any use counts, the bare guide included
         return list_id, lists.apps_on(list_id), None, brain.main_brains(list_id)
     key = keys.resolve_link(token) if not bearer else None
     if key:

@@ -94,6 +94,9 @@ def approve(
             "UPDATE connect_codes SET list_id = ?, approved_at = ? WHERE user_code = ?",
             (list_id, common.now_iso(), code),
         )
+        # The person handing the agent link to a device is its use: Enhanced security's idle
+        # clock starts now, so the link the device collects answers.
+        conn.execute("UPDATE lists SET agent_used_at = ? WHERE id = ?", (common.now_iso(), list_id))
 
 
 def poll(token: str) -> dict | None:
