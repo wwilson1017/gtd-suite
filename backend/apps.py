@@ -57,7 +57,15 @@ APPS: dict[str, App] = {
         "Common Brain",
         "Brain",
         "BRAIN_BASE_URL",
-        ("brain_files", "brain_misses", "brain_ais", "brain_versions", "brain_pages", "brain_memories"),
+        (
+            "brain_contradictions",
+            "brain_files",
+            "brain_misses",
+            "brain_ais",
+            "brain_versions",
+            "brain_pages",
+            "brain_memories",
+        ),
     ),
 }
 ANCHOR = next(iter(APPS))

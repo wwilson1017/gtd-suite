@@ -44,6 +44,8 @@ LEAVES = {
     "brain_eval": ("get", "page"),
     "brain_export_link": None,  # a link to the app, which grants nothing
     "brain_setup": None,  # refused here: the brain is already named
+    "brain_contradiction_flag": ("curate", None),  # the pair carries both entries
+    "brain_contradiction_settle": ("curate", None),
 }
 # Words only the seeded brain holds: an answer carrying one is a read, whatever LEAVES says.
 SEEDED = ("needle", "Public memory", "Allowed correction", "inbox/public")

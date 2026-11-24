@@ -86,7 +86,9 @@ backend/
                  pages (Markdown/HTML at a path); every write a version (history, restore, the
                  what-changed feed, each AI's catch-up); the AI cap and the email nudge; secrets
                  blanked; Forget; review dates and the monthly tidy hint (tidy_due); curator queues, probe evals, contact-drop warnings and snapshot exports.
-                 Pass labels and reasons in history. No AI runs here, ever
+                 Pass labels and reasons in history. Contradictions: a pair of entries an AI flags
+                 stays open, both live, until the person's answer archives one (flag_contradiction,
+                 settle_contradiction; an entry reworded since refuses the answer). No AI runs here, ever
   brain_import.py Markdown zip import: dry run, resumable chunks and passes, files, archive missing
   brain_routes.py the brain API under /api/app, with Forget (POST …/forget)
   brain_agent.py Common Brain on the agent link: brain_ tools (MCP only), and its paragraph of the

@@ -329,7 +329,7 @@ def test_delete_needs_the_exact_flag_and_removes_only_that_list(made, new_list, 
         assert code == 1 and "Nothing was deleted" in out
         assert f"add --yes-delete-list-{made['id']}" in out
         assert (
-            "2 todos, 1 projects, 0 areas, 0 rule fired, 0 rules, 0 readings, 0 boosts, 0 bookmarks, 0 events, 0 recordings, 0 cards, 0 labels, 0 board columns, 0 boards, 0 people, 0 site data fields, 0 site data, 0 site files, 0 site blobs, 0 sites, 0 notes, 0 brain files, 0 brain misses, 0 brain ais, 0 brain versions, 0 brain pages, 0 brain memories, 1 sessions, 1 signin tokens, 0 api keys"
+            "2 todos, 1 projects, 0 areas, 0 rule fired, 0 rules, 0 readings, 0 boosts, 0 bookmarks, 0 events, 0 recordings, 0 cards, 0 labels, 0 board columns, 0 boards, 0 people, 0 site data fields, 0 site data, 0 site files, 0 site blobs, 0 sites, 0 notes, 0 brain contradictions, 0 brain files, 0 brain misses, 0 brain ais, 0 brain versions, 0 brain pages, 0 brain memories, 1 sessions, 1 signin tokens, 0 api keys"
             in out
         )
         assert lists.get_list(made["id"]) is not None

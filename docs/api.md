@@ -186,6 +186,11 @@ a quote that backs an entry is added to it as a further source (speaker, timesta
 quote), a clear change updates the entry, and anything unclear becomes a question in
 `<folder>/questions`.
 
+`brain_contradiction_flag` parks two disagreeing entries for the person to answer;
+`brain_contradiction_settle` records their answer and archives the entry it replaces.
+An entry reworded after the flag refuses the answer until the pair is flagged again.
+Folder-limited keys cannot call either tool.
+
 ## Site sync
 
 With a file store and a content domain, and "Own address for each page" on in Sites

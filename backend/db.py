@@ -583,6 +583,28 @@ CREATE TABLE IF NOT EXISTS brain_misses (
     at          TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_brain_misses_list ON brain_misses(list_id, at);
+-- Pairs of entries an AI flagged as disagreeing, for the person to settle (brain.flag_contradiction).
+-- ON DELETE CASCADE: after a rollback, a version that does not know the table can still delete a list or a brain.
+CREATE TABLE IF NOT EXISTS brain_contradictions (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    list_id     INTEGER NOT NULL REFERENCES lists(id) ON DELETE CASCADE,
+    brain_id    INTEGER NOT NULL REFERENCES brains(id) ON DELETE CASCADE,
+    a_kind      TEXT NOT NULL CHECK(a_kind IN ('memory','page')),
+    a_id        INTEGER NOT NULL,
+    a_version   INTEGER NOT NULL,           -- each side's version when flagged: an entry edited since
+    b_kind      TEXT NOT NULL CHECK(b_kind IN ('memory','page')),
+    b_id        INTEGER NOT NULL,
+    b_version   INTEGER NOT NULL,           -- is not archived by an answer about the old words
+    note        TEXT NOT NULL,
+    flagged_by  TEXT NOT NULL,
+    flagged_at  TEXT NOT NULL,
+    settled_at  TEXT,
+    settled_by  TEXT,
+    kept        TEXT,           -- 'a', 'b', 'both', or 'forgotten' (a side was forgotten)
+    answer      TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_brain_contradictions_brain ON brain_contradictions(brain_id, settled_at);
+CREATE INDEX IF NOT EXISTS idx_brain_contradictions_list ON brain_contradictions(list_id);
 -- Brain search's full-text index over pages and memories: _migrate step 22 (_BRAIN_FTS).
 
 -- Common Brain's files (files.py), one row per version; the bytes are in the object store
@@ -823,6 +845,8 @@ def _migrate(conn: sqlite3.Connection) -> None:
         switch is off on every existing account.
     37. `api_keys.expires_at`: a plain added column; no existing key or staff link has an end date.
     38. `brain_reads` (readlog.py): a new table, empty; account bookkeeping like `ai_tools`.
+    39. `brain_contradictions` (brain.flag_contradiction): a new table (in _SCHEMA, which runs
+        at every start before this), empty; nothing here, as step 23.
     """
     from backend import brain, lists, sites  # here, not at the top: lists imports this module
 

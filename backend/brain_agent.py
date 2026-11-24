@@ -669,3 +669,52 @@ def brain_setup(
         raise ValidationError("Only the main agent link can set up a brain.")
     b = _select(brain)
     return store.setup(b["id"], name, description, rules, _by())
+
+
+def _entry(ref: str) -> tuple[dict, str, int]:
+    if re.fullmatch(r"memory:[0-9]+", ref):
+        ident = int(ref.split(":")[1])
+        return _item("memory", ident), "memory", ident
+    b, path = _split(ref)
+    return b, "page", store.get_page(b["id"], path=path)["id"]
+
+
+@_tool("Flag a disagreement", read_only=False, app="brain")
+def brain_contradiction_flag(
+    a: _arg(str, "An entry: memory:<id>, or a page path like people/maya"),
+    b: _arg(str, "An entry: memory:<id>, or a page path like people/maya"),
+    note: _arg(str, "One sentence saying what disagrees (up to 500 characters)"),
+) -> dict:
+    """Two entries say different things: do not pick one and do not merge them;
+    flag the pair. Both stay as they are, and every AI's brain_start shows the pair
+    until the person says which is right."""
+    brain, kind_a, id_a = _entry(a)
+    other, kind_b, id_b = _entry(b)
+    # simplification: a pair lives in one brain; a disagreement across brains is refused,
+    # since each brain has its own rules.
+    if brain["id"] != other["id"]:
+        raise ValidationError("Both entries must be in the same brain.")
+    out = _place(brain, store.flag_contradiction(brain["id"], (kind_a, id_a), (kind_b, id_b), note, by=_by()))
+    _read(brain, "curate")  # the pair carries both entries: a piece of the tidy-up queue
+    return out
+
+
+@_tool("Settle a disagreement", read_only=False, app="brain")
+def brain_contradiction_settle(
+    id: _arg(int, "The open pair's id from brain_start or brain_curate"),
+    keep: _arg(str, "'a' or 'b' keeps that side and archives the other; 'both' closes the pair"),
+    answer: _arg(str, "The person's answer (up to 500 characters)") = "",
+) -> dict:
+    """Call only with the person's own answer about an open pair: keep 'a' or 'b'
+    archives the other entry (history says what replaced it; a locked memory is
+    the person's to change in Common Brain). 'both' closes the pair without
+    changing either (not a real disagreement, or already corrected with the normal tools)."""
+    carried = _scope()
+    row = db.get_db().execute("SELECT brain_id FROM brain_contradictions WHERE id = ?", (id,)).fetchone()
+    if row:
+        for b in carried:
+            if row["brain_id"] == b["id"]:
+                out = _place(b, _plain(store.settle_contradiction, b["id"], id, keep, by=_by(), answer=answer))
+                _read(b, "curate")  # as brain_contradiction_flag
+                return out
+    raise NotFoundError("Contradiction not found")
