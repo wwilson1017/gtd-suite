@@ -275,6 +275,8 @@ def test_a_repeated_miss_is_asked_until_it_is_answered(T, freeze):
     assert tickle(T)["question"] == "dentist phone"  # OR stayed an OR: one side answers it
     # A curator page that only quotes the question does not answer it.
     brain.write_page(T, "curator/questions", "- dentist phone?")
+    brain.write_page(T, "acme/curator/questions", "- dentist phone?")  # a curator's own working folder
+    brain.write_page(T, "acme/archive/old", "dentist phone, long gone")
     assert tickle(T)["question"] == "dentist phone"
     brain.write_page(T, "people/dentist", "Dentist: phone 555-0100")
     assert tickle(T) is None
@@ -418,6 +420,8 @@ async def test_the_tools_hand_out_one_tickle_across_brains_and_record_it(http, a
     assert (await rest(http, key, "brain_tickle_record", question="alpha")).json()["times_asked"] == 1
     refused = await rest(http, key, "brain_tickle_record", question="made up")
     assert refused.status_code == 400 and "not a question" in refused.text
+    # One a day across the link's brains: the second brain's question waits for tomorrow.
+    assert not [g for g in (await rest(http, key, "brain_start")).json()["guidance"] if "tickle" in g]
     # Answered on that page, the question passes for the tickle and for brain_eval.
     await rest(http, key, "brain_page_write", path="brain/people/a", body="alpha is answered")
     assert (await rest(http, key, "brain_eval", brain="brain")).json()["score"] == 1

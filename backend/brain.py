@@ -2216,8 +2216,8 @@ def _miss_groups(conn, brain_id: int) -> list[dict]:
 
 def _answered(conn, brain_id: int, query: str) -> bool:
     """Whether a memory or page now holds every word of a missed search: the test
-    search() logs a miss by, less the pages under curator/ and archive/, which quote
-    questions rather than answer them."""
+    search() logs a miss by, less the pages in a curator or archive folder at any depth
+    (acme/curator/questions too), which quote questions rather than answer them."""
     match = _fts_query(query.replace("\x00", " ").split())
     if not match:
         return True
@@ -2229,7 +2229,9 @@ def _answered(conn, brain_id: int, query: str) -> bool:
         conn.execute(find.format("brain_memories", ""), (match, brain_id)).fetchone()
         or conn.execute(
             find.format(
-                "brain_pages", " AND brain_pages.path NOT LIKE 'curator/%' AND brain_pages.path NOT LIKE 'archive/%'"
+                "brain_pages",
+                " AND instr('/' || brain_pages.path || '/', '/curator/') = 0"
+                " AND instr('/' || brain_pages.path || '/', '/archive/') = 0",
             ),
             (match, brain_id),
         ).fetchone()
@@ -2320,6 +2322,18 @@ def _tickle(brain_id: int, by: str) -> dict | None:
             else ""
         ),
     }
+
+
+def tickled_today(brain_ids: list[int]) -> bool:
+    """Whether a question was recorded today on any of these brains: a link that carries
+    several asks one a day in all, not one for each."""
+    marks = ",".join("?" for _ in brain_ids)
+    rows = db.get_db().execute(
+        "SELECT t.last_at, l.tz FROM brain_tickles t JOIN brains b ON b.id = t.brain_id "
+        f"JOIN lists l ON l.id = b.list_id WHERE t.brain_id IN ({marks})",
+        brain_ids,
+    )
+    return any(common.local_date(r["last_at"], r["tz"]) == common.business_today(r["tz"]) for r in rows)
 
 
 def tickle_record(brain_id: int, question: str, by: str) -> dict:

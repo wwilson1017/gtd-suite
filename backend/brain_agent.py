@@ -203,6 +203,8 @@ def brain_start() -> dict:
     question the brain cannot answer, to ask the person."""
     carried = _scope()
     results, mems = [], []
+    # One question a day across the brains this link carries; a single brain checks itself.
+    asked = len(carried) > 1 and store.tickled_today([b["id"] for b in carried])
     for b in carried:
         part = _place(b, store.start(b["id"], _by(), _apps_on.get(), restricted=bool(_folders())))
         if _read_key():
@@ -220,7 +222,12 @@ def brain_start() -> dict:
             )
         tickle = part.pop("tickle", None)
         # One question per chat, and none for a key that cannot record the ask.
-        if tickle and not any("tickle" in r for r in results) and (_key.get() or {}).get("access") != "read":
+        if (
+            tickle
+            and not asked
+            and not any("tickle" in r for r in results)
+            and (_key.get() or {}).get("access") != "read"
+        ):
             tickle["do"] = _prose(b, tickle["do"])  # the question itself is data
             if len(carried) > 1:
                 tickle["do"] += f" Pass brain={b['folder']}; its pages' paths start with {b['folder']}/."
