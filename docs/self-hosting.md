@@ -146,6 +146,10 @@ losing the volume. Copy them somewhere else:
   - **A lifecycle rule that deletes old objects** (30 days, say). The app never deletes from
     the bucket, so without the rule it grows for ever.
 
+  Each snapshot goes up in one request, so one that is over 5 GB encrypted, or takes more
+  than ten minutes to send, is not uploaded: the log warns each hour and `admin.py stats`
+  says it is not in the bucket.
+
   That the app never deletes there is a rule in this code, not something the store enforces:
   a read-and-write key can usually overwrite and delete too. The separate bucket guards
   against mistakes, not against someone who has taken over the app. If your store has object

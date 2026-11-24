@@ -247,6 +247,8 @@ def put(key: str, file: BinaryIO, cfg: dict | None = None) -> None:
     then sent with its length and that hash signed, so the store keeps these bytes or nothing."""
     if not key:
         raise ValueError("No object key")
+    # simplification: one PUT, so 5 GB at most (the stores' limit) and whatever _PUT_SECONDS
+    # lets through; a compressed snapshot is tens of MB. Multipart upload is the way up.
     digest = hashlib.sha256()
     for chunk in iter(lambda: file.read(_CHUNK), b""):
         digest.update(chunk)
