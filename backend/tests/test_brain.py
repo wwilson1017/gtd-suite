@@ -197,6 +197,18 @@ def test_every_locked_memory_loads_even_past_the_budget(B):
 # ── Pages ─────────────────────────────────────────────────────────────────────
 
 
+def test_the_rules_cover_live_numbers_and_tribal_knowledge(B):
+    bid = brain.first_brain(B)
+    rules = " ".join(brain.start(bid, "Claude", ["brain"])["rules"])
+    assert "Never copy live numbers (sales, stock, balances)" in rules and "where the live number is found" in rules
+    assert "the system wins: fix the brain" in rules
+    assert "In normal use" in rules and "written nowhere" in rules
+    asks = " ".join(brain.onboard_script(bid, "Claude")["checklist"])
+    assert "what do you know that isn't written down" in asks and "what does everyone here just know" in asks
+    for text in (" ".join(brain.curate(bid)["rules"]), brain.CURATOR_SKILL):
+        assert "sales, stock, balances" in text and "the system wins: fix the brain" in text
+
+
 def test_pages_are_written_appended_edited_moved_and_archived(B):
     confirm_list(B)  # several AIs
     page = brain.write_page(brain.first_brain(B), "People/Maya Lopez.md", "# Maya\n\nNurse.", by="ChatGPT")
