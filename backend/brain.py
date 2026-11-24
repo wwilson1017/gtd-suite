@@ -1669,6 +1669,10 @@ RULES = [
     "End a memory with its sources in brackets, several split by ';': '(Maya, Oct 24; payroll sheet)'. "
     "A page lists them under `sources:` in its frontmatter, one '- ' line each. Search ranks a fact "
     "with two or more higher.",
+    "Never copy live numbers (sales, stock, balances) into the brain: say where the live number "
+    "is found. When the brain and a live system disagree, the system wins: fix the brain.",
+    "In normal use, when the person says something they plainly know that is written nowhere "
+    "(how things are done, who to ask, what everyone just knows), save it.",
     "Never delete. When something stops being true, archive it, or change it and say what it "
     "replaced. Only the person can forget something for good: give them the link from "
     "brain_forget_link.",
@@ -1906,6 +1910,8 @@ def onboard_script(brain_id: int, by: str) -> dict:
             "current projects and goals",
             "health, food or other needs worth knowing",
             "the tools and AIs they use",
+            "for a company or business brain, two questions: what do you know that isn't "
+            "written down, and what does everyone here just know?",
         ],
         "memories": [{k: m[k] for k in ("id", "text", "locked")} for m in _core(memories(brain_id))[0]],
         "memories_note": "The locked and newest memories; brain_search checks a fact against the rest.",
@@ -1929,6 +1935,8 @@ def onboarded(brain_id: int, by: str) -> dict:
 CURATOR_RULES = [
     "Never delete: archive with a reason, or supersede (change the memory and say what it replaced).",
     "Every claim names its source.",
+    "Live numbers (sales, stock, balances) stay in their system: the brain says where to find "
+    "them. When the brain and a live system disagree, the system wins: fix the brain.",
     "One fact per memory, in the third person; detail goes on a page.",
     "Where does this belong? How should it be written? What is the simplest place to find it?",
     "Locked memories are the person's: leave them, or ask.",
@@ -2359,6 +2367,8 @@ Nothing runs on the brain's server: you are the curator.
    unless review_on says otherwise): recheck each, then set a new review_on, correct or archive it.
    Fold near-copies and long memories into sourced facts and pages; fold lasting journal
    facts into topic pages. Keep now current. Never invent facts or last_checked dates.
+   Replace a copied live number (sales, stock, balances) with where the live number is
+   found; when the brain and a live system disagree, the system wins: fix the brain.
 5. Use a pass_label and reason on remember, memory_update, page_write, page_append,
    page_edit and restore. Heed contact-drop warnings: preserve contacts on the subject's
    page unless their removal is intended. History makes changes reversible.
