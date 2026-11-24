@@ -63,6 +63,15 @@ def _taken(path: Path) -> datetime.datetime | None:
         return None
 
 
+def due_in(interval: float) -> float:
+    """Seconds until the newest snapshot is `interval` old: what a starting app waits, so
+    restarts (each deploy is one) cannot keep putting the next snapshot off. 0 with none."""
+    taken = [t for t in map(_taken, files()) if t]
+    if not taken:
+        return 0.0
+    return max(0.0, interval - (common.utcnow() - max(taken)).total_seconds())
+
+
 def prune(now: datetime.datetime) -> None:
     """Delete snapshots past retention, and temp files a crash left behind.
     The newest snapshot is kept whatever its age, so a long pause never empties the folder."""
