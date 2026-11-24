@@ -20,6 +20,8 @@ import builtins
 import hashlib
 import hmac
 import datetime
+import logging
+import time
 from collections.abc import Iterator, Generator
 from typing import BinaryIO
 from xml.etree import ElementTree
@@ -32,6 +34,9 @@ from backend import common, settings
 _ALGORITHM = "AWS4-HMAC-SHA256"
 _EMPTY = hashlib.sha256(b"").hexdigest()  # the payload hash of a call with no body
 _CHUNK = 1 << 20
+_PUT_SECONDS = 600  # a whole upload; each connect, read and write has its own shorter timeout
+# The client logs each request's URL at INFO: the store's address, bucket and object name.
+logging.getLogger("httpx2").setLevel(logging.WARNING)
 
 
 class StoreError(common.ValidationError):
@@ -251,10 +256,16 @@ def put(key: str, file: BinaryIO, cfg: dict | None = None) -> None:
     }
     url, signed = _signed("PUT", key, headers, cfg=cfg, payload=digest.hexdigest())
     file.seek(0)
+    deadline = time.monotonic() + _PUT_SECONDS
+
+    def body() -> Iterator[bytes]:  # a store that trickles cannot hold the caller's thread for ever
+        while chunk := file.read(_CHUNK):
+            if time.monotonic() > deadline:
+                raise StoreError("The file store was too slow. Try again in a minute.")
+            yield chunk
+
     try:
-        # simplification: the timeout bounds each connect, read and write, not the whole upload;
-        # a store that trickles holds the caller's thread. Add a deadline if that ever happens.
-        res = httpx.request("PUT", url, headers=signed, timeout=60, content=iter(lambda: file.read(_CHUNK), b""))
+        res = httpx.request("PUT", url, headers=signed, timeout=60, content=body())
     except httpx.HTTPError:
         raise StoreError("The file store could not be reached. Try again in a minute.") from None
     if res.status_code != 200:

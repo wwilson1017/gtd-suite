@@ -140,6 +140,9 @@ losing the volume. Copy them somewhere else:
   - **A bucket of its own**, not the one Files uses (`FILES_S3_*`), so nothing in Files or
     Sites code can touch a backup.
   - **A key of its own**, allowed to read and write objects in that bucket only.
+    On AWS S3 and MinIO it must also be allowed to list that bucket (`s3:ListBucket`):
+    without it the store answers "forbidden" for a snapshot that is not there yet, instead of
+    "not found", and nothing is uploaded.
   - **A lifecycle rule that deletes old objects** (30 days, say). The app never deletes from
     the bucket, so without the rule it grows for ever.
 

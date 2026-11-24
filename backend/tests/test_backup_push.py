@@ -231,3 +231,12 @@ def test_stats_lists_the_biggest_tables_or_leaves_them_out(todo_db, run, monkeyp
             raise admin.sqlite3.OperationalError("no such table: dbstat")
 
     assert admin._biggest_tables(NoDbstat()) is None
+
+
+def test_an_upload_that_runs_past_its_deadline_is_refused_and_request_urls_stay_out_of_the_log(bucket, monkeypatch):
+    name = snap(1)
+    monkeypatch.setattr(objectstore, "_PUT_SECONDS", -1)
+    assert backup.push() == 0 and bucket.objects == {}  # the body stops; nothing is kept
+    monkeypatch.setattr(objectstore, "_PUT_SECONDS", 600)
+    assert backup.push() == 1 and list(bucket.objects) == [name]
+    assert not logging.getLogger("httpx2").isEnabledFor(logging.INFO)  # its INFO line is the URL
