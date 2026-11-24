@@ -1500,6 +1500,43 @@ def _demoted(conn, brain_id: int) -> list[str]:
     return [f for f in (str(f).strip().strip("/").lower() for f in folders) if f]
 
 
+# How far naming two or more sources lifts a result's relevance score: enough to pass a
+# comparably relevant lone claim, never enough to bury a clearly better match.
+BACKED = 1.5
+_CITED = re.compile(r"[(\[]([^()\[\]]+)[)\]][\s.]*\Z")
+
+
+def _sources(text: str | None, page: bool = False) -> int:
+    """How many sources an entry names. A page: the items of `sources:` (or `source:`)
+    in its frontmatter. A memory: the parts, split on `;`, of the bracket that ends it:
+    'Maya works nights (Maya, Oct 24; payroll sheet)' names two.
+    # simplification: a convention read from free text at search time, so a bracket that
+    # ends a memory counts as one source whatever it holds, sources named mid-text are
+    # not counted, and a page's inline list (`sources: [Maya, Oct 24]`) splits on its commas,
+    # so it wants one `- ` line per source. The way up: a stamped column like brain_pages.confidential, set on
+    # every write, or a sources argument on brain_remember.
+    """
+    if page:
+        meta = _front(text or "")
+        named = meta.get("sources", meta.get("source", ""))
+    else:
+        cited = _CITED.search(text or "")
+        named = cited.group(1) if cited else ""
+    parts = named if isinstance(named, list) else str(named).split(";")
+    return len({str(part).strip().lower() for part in parts} - {""})
+
+
+def _backing(text: str | None, page: bool = False, locked: bool = False) -> str:
+    """How an entry is backed, in a phrase: what search shows beside each result, and
+    what a tidy needs to find the thin ones (one source or none, and no last_checked)."""
+    if locked:
+        return "locked: the person's own words"
+    count = _sources(text, page)
+    backed = f"{count} sources" if count > 1 else "one source" if count else "no source named"
+    checked = _when(_front(text or "").get("last_checked")) if page else None
+    return f"{backed}, last checked {checked.date().isoformat()}" if checked else backed
+
+
 def search(
     brain_id: int | list[int],
     query: str,
@@ -1514,7 +1551,9 @@ def search(
     every filter before the LIMIT. A page holding every word comes first unless its folder
     is demoted (a curator's page quotes the questions, so it would crowd out real answers);
     within that, a hit in the title over the path over the body, and a demoted folder's score
-    is halved. Memories: locked ones first. An AI's search that
+    is halved. Memories: locked ones first. An entry naming two or more sources (_sources)
+    has its score lifted by BACKED, so it passes a comparably relevant lone claim, and every
+    result says how it is backed (`backing`). An AI's search that
     nothing holds every word of is logged as a miss for the curator, even when pages
     holding some of them are shown: any-word matching alone would hide every gap."""
     words = str(query or "").replace("\x00", " ").split()
@@ -1522,16 +1561,19 @@ def search(
     if not match:
         raise ValidationError("query is required")
     conn = db.get_db()
+    conn.create_function("brain_sources", 2, _sources, deterministic=True)
     ids = brain_id if isinstance(brain_id, list) else [brain_id]
     if not ids:
         raise ValidationError("This link reaches no active brain")
+    backed = "CASE WHEN brain_sources({}) > 1 THEN ? ELSE 1 END"
     scope = "brain_id IN (" + ",".join("?" for _ in ids) + ")"
     label = ", brain_id" if isinstance(brain_id, list) else ""
     mem = conn.execute(
         "WITH hits AS (SELECT rowid AS id, bm25(brain_memories_fts) AS score FROM brain_memories_fts "
         f"WHERE brain_memories_fts MATCH ?) SELECT {_MEMORY_COLS}{label} FROM brain_memories JOIN hits "
-        f"USING (id) WHERE {scope} AND status = 'active' ORDER BY locked DESC, score LIMIT ?",
-        (match, *ids, limit),
+        f"USING (id) WHERE {scope} AND status = 'active' ORDER BY locked DESC, "
+        f"score * {backed.format('text, 0')} LIMIT ?",
+        (match, *ids, BACKED, limit),
     ).fetchall()
     visible = f"{scope} AND status = 'active'" + (" AND confidential = 0" if restricted else "")
     demoted = [(ident, f) for ident in ids for f in _demoted(conn, ident)]
@@ -1542,14 +1584,19 @@ def search(
         "brain_pages_fts WHERE brain_pages_fts MATCH ?), every_word AS (SELECT rowid AS id FROM "
         f"brain_pages_fts WHERE brain_pages_fts MATCH ?) SELECT {_PAGE_COLS}{label}, body FROM brain_pages "
         f"JOIN hits USING (id) WHERE {visible} ORDER BY (id IN every_word AND NOT ({in_demoted})) DESC, "
-        f"score * CASE WHEN {in_demoted} THEN 0.5 ELSE 1 END LIMIT ?",
-        (_any_word(words), match, *ids, *folders, *folders, limit),
+        f"score * CASE WHEN {in_demoted} THEN 0.5 ELSE 1 END * {backed.format('body, 1')} LIMIT ?",
+        (_any_word(words), match, *ids, *folders, *folders, BACKED, limit),
     ).fetchall()
     terms = [w.strip('"') for w in words if w != "OR"]
     found: dict[str, list[dict] | str] = {
-        "memories": [_memory_out(r) for r in mem],
+        "memories": [{**_memory_out(r), "backing": _backing(r["text"], locked=bool(r["locked"]))} for r in mem],
         "pages": [
-            {**{k: r[k] for k in r.keys() if k != "body"}, "snippet": reports._snippet(r["body"], terms)} for r in pg
+            {
+                **{k: r[k] for k in r.keys() if k != "body"},
+                "snippet": reports._snippet(r["body"], terms),
+                "backing": _backing(r["body"], page=True),
+            }
+            for r in pg
         ],
     }
     if (
@@ -1627,6 +1674,9 @@ RULES = [
     "notes go in inbox/. Log the day's notable events with brain_page_append on "
     "daily/<YYYY-MM-DD>.",
     "Every claim names its source: who said it and when ('Maya, Oct 24'), or the document it came from.",
+    "End a memory with its sources in brackets, several split by ';': '(Maya, Oct 24; payroll sheet)'. "
+    "A page lists them under `sources:` in its frontmatter, one '- ' line each. Search ranks a fact "
+    "with two or more higher.",
     "Never copy live numbers (sales, stock, balances) into the brain: say where the live number "
     "is found. When the brain and a live system disagree, the system wins: fix the brain.",
     "In normal use, when the person says something they plainly know that is written nowhere "
