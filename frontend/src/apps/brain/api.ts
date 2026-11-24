@@ -70,7 +70,7 @@ export const addMemory = (text: string) =>
 /** With `version`, a memory changed since it was read is refused (409). */
 export const updateMemory = (
   id: number,
-  fields: Partial<Pick<Memory, 'text' | 'locked' | 'status'>> & { version?: number },
+  fields: Partial<Pick<Memory, 'text' | 'locked' | 'status'>> & { version?: number; review_on?: string },
 ) => send<Memory>('PUT', `/memories/${id}`, fields);
 export const createPage = (fields: { path: string; title?: string; body?: string; format?: string }) =>
   send<Page>('POST', '/pages', fields);
@@ -100,12 +100,16 @@ export interface ProgramKey {
   folders: string[];
   created_at: string;
   last_used_at: string | null;
+  /** Its end date, if it was given one; past it the key is `expired` and works no more. */
+  expires_at?: string | null;
+  expired?: boolean;
 }
 /** A key just made: the only answer that carries the key. */
 export type NewProgramKey = ProgramKey & { key: string; link?: string };
 export const getKeys = () => todoFetch<{ keys: ProgramKey[] }>('/keys').then((r) => r.keys);
-export const createKey = (fields: Pick<ProgramKey, 'name' | 'apps' | 'access' | 'folders' | 'brains' | 'kind'>) =>
-  todoFetch<NewProgramKey>('/keys', { method: 'POST', body: JSON.stringify(fields) });
+export const createKey = (
+  fields: Pick<ProgramKey, 'name' | 'apps' | 'access' | 'folders' | 'brains' | 'kind'> & { days?: number },
+) => todoFetch<NewProgramKey>('/keys', { method: 'POST', body: JSON.stringify(fields) });
 export const revokeKey = (id: number) => todoFetch<{ ok: boolean }>(`/keys/${id}/revoke`, { method: 'POST' });
 
 /** A file in the brain (backend/files.py); its bytes are in the file store. */

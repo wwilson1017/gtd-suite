@@ -8,6 +8,11 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 
 const api = vi.hoisted(() => ({ getKeys: vi.fn(), createKey: vi.fn(), revokeKey: vi.fn() }));
 vi.mock('./api', () => api);
+const account = vi.hoisted(() => ({ enhanced_security: false }));
+vi.mock('../todo-gtd/session', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  useSession: () => ({ session: account }),
+}));
 
 import { ProgramKeys } from './ProgramKeys';
 
@@ -36,6 +41,7 @@ const type = (label: string, value: string) => {
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   vi.clearAllMocks();
+  account.enhanced_security = false;
   host = document.createElement('div');
   document.body.appendChild(host);
   root = createRoot(host);
@@ -92,6 +98,52 @@ it('makes a key, shows it once, lists it without the key, and revokes it after a
   });
   expect(api.revokeKey).toHaveBeenCalledWith(3);
   expect(host.textContent).not.toContain('cb_secretABCDWXYZ');
+});
+
+it('gives a key an end date when asked, and always with Enhanced security on', async () => {
+  api.getKeys.mockResolvedValue([
+    KEY,
+    { ...KEY, id: 4, name: 'dated', expires_at: '2027-01-15T12:00:00.000Z', expired: false },
+    { ...KEY, id: 5, name: 'old', expires_at: '2026-01-15T12:00:00.000Z', expired: true },
+  ]);
+  api.createKey.mockResolvedValue({ ...KEY, key: 'cb_x' });
+  await act(async () => {
+    root.render(<ProgramKeys />);
+  });
+  const rows = [...host.querySelectorAll('li')].map((li) => li.textContent);
+  expect(rows[0]).toContain('never used · no end date');
+  expect(rows[1]).toContain('never used · ends Jan 15, 2027');
+  expect(rows[2]).toContain('never used · expired');
+  const options = () => [...host.querySelectorAll('[aria-label="End date"] option')].map((o) => o.textContent);
+  expect(options()).toEqual(['No end date', 'Ends in 30 days', 'Ends in 90 days', 'Ends in 365 days']);
+  await act(async () => {
+    type('Key name', 'a');
+    type('End date', '365');
+  });
+  await act(async () => {
+    button('Make a key').click();
+  });
+  expect(api.createKey).toHaveBeenLastCalledWith({ name: 'a', apps: 'brain', access: 'read', days: 365, folders: [] });
+
+  account.enhanced_security = true;
+  await act(async () => {
+    root.render(<ProgramKeys key="fresh" kind="link" />);
+  });
+  expect(options()).toEqual(['Ends in 30 days', 'Ends in 90 days', 'Ends in 365 days']);
+  await act(async () => {
+    type('Link name', 'b');
+  });
+  await act(async () => {
+    button('Make a link').click();
+  });
+  expect(api.createKey).toHaveBeenLastCalledWith({
+    name: 'b',
+    kind: 'link',
+    apps: 'brain',
+    access: 'read',
+    days: 90,
+    folders: [],
+  });
 });
 
 it('offers folders only for a Common Brain key, and sends none for every app', async () => {

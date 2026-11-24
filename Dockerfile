@@ -14,9 +14,9 @@ FROM python:3.12-slim
 COPY --from=ghcr.io/astral-sh/uv:0.12.11 /uv /bin/uv
 
 # tzdata: every list has its own time zone, resolved through zoneinfo.
-# age: encrypts snapshots when SNAPSHOT_AGE_RECIPIENT is set (backend/backup.py).
+# age, zstd: compress and encrypt snapshots when SNAPSHOT_AGE_RECIPIENT is set (backend/backup.py).
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends tzdata age \
+    && apt-get install -y --no-install-recommends tzdata age zstd \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
