@@ -17,6 +17,7 @@ import { InstallGuide } from '../components/InstallGuide';
 import { OtherApps } from '../components/OtherApps';
 import { useSession } from '../session';
 import { hasOtherApps, useConfig } from '../useConfig';
+import { SecuritySection } from './SecuritySection';
 import { LABEL, SETTINGS, useSetup, type Section, type Step, type StepKey } from './setup';
 
 /** An app's own group of sections, after Account (Todo GTD's). */
@@ -76,6 +77,13 @@ function useGroups(own?: Group): Group[] {
           <AccountNumber />
         </div>
       ),
+    },
+    {
+      key: 'security',
+      icon: '⚿',
+      title: 'Security',
+      sub: 'Tighter rules for your agent link, keys and new AI tools.',
+      body: <SecuritySection />,
     },
     ...(hasOtherApps(config)
       ? [

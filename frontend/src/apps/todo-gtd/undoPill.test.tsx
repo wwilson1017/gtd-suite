@@ -328,7 +328,7 @@ describe('the other two mark-done surfaces', () => {
   // drives the actual button can see. Both were mutation-checked: removing either
   // line leaves every other suite in this app green.
 
-  it('Inbox triage’s “Took 2 minutes — Done ✓” queues a row that undoes back to inbox', async () => {
+  it('Inbox triage’s “2 min — Done ✓” queues a row that undoes back to inbox', async () => {
     const item = todo({ id: 71, title: 'dentist', status: 'inbox' });
     updateTodoMock.mockResolvedValue({ ...item, status: 'done' });
     await act(async () => {
@@ -347,13 +347,43 @@ describe('the other two mark-done surfaces', () => {
       );
     });
 
-    await clickAsync(button('Took 2 minutes — Done ✓'));
+    await clickAsync(button('2 min — Done ✓'));
 
     expect(updateTodoMock).toHaveBeenCalledWith(71, { status: 'done' });
     expect(rows()).toHaveLength(1);
 
     await clickAsync(undoFor('dentist'));
     expect(updateTodoMock).toHaveBeenLastCalledWith(71, { status: 'inbox' });
+  });
+
+  it('Inbox triage’s “2 min — Done ✓” and “Delete ✕” each queue a row that undoes back to inbox', async () => {
+    for (const [label, status, undo] of [
+      ['2 min — Done ✓', 'done', 'Undo marking “old errand” done'],
+      ['Delete ✕', 'dropped', 'Undo deleting “old errand”'],
+    ] as const) {
+      const item = todo({ id: 73, title: 'old errand', status: 'inbox' });
+      updateTodoMock.mockResolvedValue({ ...item, status });
+      await act(async () => {
+        root.render(
+          <>
+            <TriageCard
+              key={label}
+              todo={item}
+              projects={[]}
+              contexts={[]}
+              onProcessed={() => {}}
+              onChanged={() => {}}
+              onEdit={() => {}}
+            />
+            <UndoPill />
+          </>,
+        );
+      });
+      await clickAsync(button(label));
+      expect(updateTodoMock).toHaveBeenCalledWith(73, { status });
+      await clickAsync(container.querySelector<HTMLButtonElement>(`button[aria-label="${undo}"]`)!);
+      expect(updateTodoMock).toHaveBeenLastCalledWith(73, { status: 'inbox' });
+    }
   });
 
   it('the edit sheet’s Status dropdown queues a row that undoes to the prior status', async () => {
@@ -947,7 +977,7 @@ describe('a later context choice and a pending row', () => {
 
 describe('an undo that lands an item back in the inbox', () => {
   it('re-focuses the triage card for ANY such undo, not only a filing', async () => {
-    // "Took 2 minutes — Done ✓" completes straight from triage, so its undo restores
+    // "2 min — Done ✓" completes straight from triage, so its undo restores
     // 'inbox' exactly as a filing's does. Keying the focus on the kind left that item
     // wherever `items[0]` put it; keying it on where the revert lands does not.
     const seen: number[] = [];

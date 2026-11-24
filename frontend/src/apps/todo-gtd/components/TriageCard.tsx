@@ -652,15 +652,29 @@ export function TriageCard({ todo, projects, contexts, onProcessed, onChanged, o
             );
           })}
         </div>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => void patch({ status: 'done' }, true)}
-          title="It took under 2 minutes — done"
-          className="mt-2 rounded-lg border border-green-600 px-3 py-1.5 text-sm font-heading text-green-700 disabled:opacity-50 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-950/30"
-        >
-          Took 2 minutes — Done ✓
-        </button>
+        {/* The two ways out of the inbox that need no context. Delete is for an item that
+            never belonged on the list: it archives it (status 'dropped'), with the same 7s
+            Undo, then the Done page's Dropped tab. Nothing is ever hard-deleted. */}
+        <div className="mt-2 flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void patch({ status: 'done' }, true)}
+            title="It took 2 minutes or less — done"
+            className="rounded-lg border border-green-600 px-3 py-1.5 text-sm font-heading text-green-700 disabled:opacity-50 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-950/30"
+          >
+            2 min — Done ✓
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void patch({ status: 'dropped' }, true)}
+            title="Not needed — delete it"
+            className="rounded-lg border border-brand px-3 py-1.5 text-sm font-heading text-brand-ink disabled:opacity-50 hover:bg-brand/10"
+          >
+            Delete ✕
+          </button>
+        </div>
       </div>
 
       {/* Step 2 — optional enrichment. Nothing here leaves the inbox. */}
@@ -813,16 +827,6 @@ export function TriageCard({ todo, projects, contexts, onProcessed, onChanged, o
             className={`${linkCls} text-muted hover:text-charcoal`}
           >
             Edit
-          </button>
-          {/* Delete archives it (status 'dropped'): Undo for 7 seconds, and the Done page's
-              Dropped tab after that. Nothing is ever hard-deleted. */}
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void patch({ status: 'dropped' }, true)}
-            className={`${linkCls} text-brand-ink hover:text-charcoal`}
-          >
-            Delete
           </button>
         </div>
         {/* Project fields appear only once there is a project to describe: the one

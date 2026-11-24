@@ -41,7 +41,7 @@ from typing import cast
 from backend.plans import caps as plan_caps
 from backend.plans import plans
 from backend.plans import extension
-from backend import common, db, reports, settings
+from backend import common, db, readlog, reports, settings
 from backend.common import ConflictError, NotFoundError, ValidationError
 
 YOU = "you"  # the person, writing in the app
@@ -1454,6 +1454,8 @@ def forget(brain_id: int, kind: str, item_id: int) -> dict:
             "AND ((a_kind = ? AND a_id = ?) OR (b_kind = ? AND b_id = ?))",
             (YOU, common.now_iso(), _list_of(conn, brain_id), kind, item_id, kind, item_id),
         )
+        # Its rows in the read log too: by item, so a rename or a move to another brain hides none.
+        readlog.forget_in(conn, _list_of(conn, brain_id), kind, [item_id])
     return {"forgotten": kind, "id": item_id, "versions": n}
 
 
@@ -1812,7 +1814,8 @@ def start(brain_id: int, by: str, apps_on: list[str], *, restricted: bool = Fals
                 "open": n,
                 "ask": "These entries disagree and are waiting for the person. When the moment suits, ask them "
                 "which is right, one pair at a time, then call brain_contradiction_settle with their answer. "
-                "Never pick one yourself. brain_curate lists them all.",
+                "Never pick one yourself. A pair marked changed was edited since it was flagged: read both "
+                "first, then flag it again or close it with keep='both'. brain_curate lists them all.",
                 "pairs": pairs,
             }
     return out
@@ -2199,6 +2202,23 @@ def _side_in(conn, brain_id: int, kind: str, item_id: int) -> dict | None:
     return side
 
 
+def _changed_in(conn, row) -> bool:
+    """An entry's words were rewritten since the pair was flagged: the pair's note, and any
+    answer to it, are about words that are no longer there. A lock, a rename or an archive
+    and restore is one more version with the same words, so the words are what is compared."""
+    for side in ("a", "b"):
+        kind, item_id = row[f"{side}_kind"], row[f"{side}_id"]
+        table, words = ("brain_memories", "text") if kind == "memory" else ("brain_pages", "body")
+        same = conn.execute(
+            f"SELECT 1 FROM {table} i JOIN brain_versions v ON v.kind = ? AND v.item_id = i.id "
+            f"AND v.version = ? AND v.text = i.{words} WHERE i.id = ?",
+            (kind, row[f"{side}_version"], item_id),
+        ).fetchone()
+        if same is None:
+            return True
+    return False
+
+
 def _contradiction_out(conn, row) -> dict | None:
     a = _side_in(conn, row["brain_id"], row["a_kind"], row["a_id"])
     b = _side_in(conn, row["brain_id"], row["b_kind"], row["b_id"])
@@ -2208,6 +2228,8 @@ def _contradiction_out(conn, row) -> dict | None:
     out.update(a=a or {"kind": row["a_kind"], "id": row["a_id"]}, b=b or {"kind": row["b_kind"], "id": row["b_id"]})
     if row["settled_at"] is not None:
         out.update({k: row[k] for k in ("settled_at", "settled_by", "kept", "answer")})
+    elif _changed_in(conn, row):
+        out["changed"] = True
     return out
 
 
@@ -2242,10 +2264,12 @@ def flag_contradiction(brain_id: int, a: tuple[str, int], b: tuple[str, int], no
             raise ValidationError("note is required")
         _policy_in(conn, brain_id, by)
         _writer_in(conn, brain_id, by)
+        versions = {}
         for kind, item_id in (a, b):
             item = _memory(conn, brain_id, item_id) if kind == "memory" else _page_row(conn, brain_id, item_id)
             if item["status"] != "active":
                 raise NotFoundError("Archived entries cannot be flagged")
+            versions[kind, item_id] = item["version"]
         row = conn.execute(
             "SELECT * FROM brain_contradictions WHERE brain_id = ? AND settled_at IS NULL AND "
             "((a_kind = ? AND a_id = ? AND b_kind = ? AND b_id = ?) OR "
@@ -2253,14 +2277,21 @@ def flag_contradiction(brain_id: int, a: tuple[str, int], b: tuple[str, int], no
             (brain_id, *a, *b, *b, *a),
         ).fetchone()
         if row is not None:
+            if _changed_in(conn, row):
+                # Flagged again after an edit: the same pair, now about the entries as they are.
+                conn.execute(
+                    "UPDATE brain_contradictions SET note = ?, a_version = ?, b_version = ? WHERE id = ?",
+                    (note, versions[row["a_kind"], row["a_id"]], versions[row["b_kind"], row["b_id"]], row["id"]),
+                )
+                row = conn.execute("SELECT * FROM brain_contradictions WHERE id = ?", (row["id"],)).fetchone()
             return {"contradiction": _contradiction_out(conn, row), "already": True}
         if open_contradictions(brain_id, 0, conn)[1] >= CONTRADICTIONS_OPEN:
             raise ValidationError("Ask the person about the open contradictions first; this brain has 50 open pairs.")
         pair_id = conn.execute(
             "INSERT INTO brain_contradictions "
-            "(list_id, brain_id, a_kind, a_id, b_kind, b_id, note, flagged_by, flagged_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (_list_of(conn, brain_id), brain_id, *a, *b, note, by, common.now_iso()),
+            "(list_id, brain_id, a_kind, a_id, a_version, b_kind, b_id, b_version, note, flagged_by, flagged_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (_list_of(conn, brain_id), brain_id, *a, versions[a], *b, versions[b], note, by, common.now_iso()),
         ).lastrowid
         row = conn.execute(
             "SELECT * FROM brain_contradictions WHERE id = ? AND brain_id = ?", (pair_id, brain_id)
@@ -2296,6 +2327,12 @@ def settle_contradiction(brain_id: int, pair_id: int, keep: str, by: str = YOU, 
                 raise ValidationError(
                     "This pair changed since it was flagged: an entry was archived or moved. "
                     "Read both again; keep='both' closes the pair."
+                )
+            if _changed_in(conn, row):
+                raise ConflictError(
+                    "An entry was edited since this pair was flagged, so the answer may be about "
+                    "words that are gone. Nothing was changed: read both again. If they still disagree, "
+                    "flag them again and ask the person; if not, keep='both' closes the pair."
                 )
             label = f"memory {kept['id']}" if kept["kind"] == "memory" else f"page {kept['path']}"
             reason = f"Contradiction {pair_id}: the person kept {label}; it replaces this."[:500]

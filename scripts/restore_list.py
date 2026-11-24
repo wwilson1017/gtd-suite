@@ -12,7 +12,7 @@ content added after the snapshot is gone afterwards, so a fresh snapshot of the 
 database is taken first. Snapshot-only brains return archived and read-only; old
 snapshots without brain ids restore into the live first brain.
 
-An encrypted snapshot (``….db.age``, backup.py) needs the private key: ``--identity <key
+An encrypted snapshot (``….db.zst.age``, or an older ``….db.age``; backup.py) needs the private key: ``--identity <key
 file>``, or ``--identity -`` to type it in. It is decrypted into a private folder beside the
 database, which is removed when the restore ends; the key itself is never written anywhere.
 Or decrypt it elsewhere and pass the plain file.
@@ -22,6 +22,7 @@ Run it from the app directory with the same DATA_DIR as the app.
 """
 
 import argparse
+import contextlib
 import getpass
 import shutil
 import sqlite3
@@ -198,8 +199,29 @@ def _decrypt(snapshot: Path, identity: str | None, folder: Path) -> Path:
     key = getpass.getpass("The age private key (AGE-SECRET-KEY-…): ") + "\n" if identity == "-" else None
     plain = folder / "snapshot.db"
     try:
-        subprocess.run(["age", "-d", "-i", identity, "-o", str(plain), str(snapshot)], input=key, text=True, check=True)
+        if snapshot.name.endswith(".zst.age"):  # age piped into zstd; both must exit 0
+            age = subprocess.Popen(
+                ["age", "-d", "-i", identity, str(snapshot)], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True
+            )
+            assert age.stdin is not None and age.stdout is not None
+            try:
+                zstd = subprocess.Popen(["zstd", "-d", "--long=27", "-q", "-o", str(plain)], stdin=age.stdout)
+            except BaseException:
+                age.kill()
+                raise
+            finally:
+                age.stdout.close()  # zstd holds its own end
+                with contextlib.suppress(BrokenPipeError):  # age may have refused the file already
+                    age.stdin.write(key or "")
+                    age.stdin.close()
+            if age.wait() | zstd.wait():
+                raise subprocess.CalledProcessError(1, "age | zstd")
+        else:
+            subprocess.run(
+                ["age", "-d", "-i", identity, "-o", str(plain), str(snapshot)], input=key, text=True, check=True
+            )
     except (OSError, subprocess.CalledProcessError):
+        plain.unlink(missing_ok=True)
         raise SystemExit(f"Could not decrypt {snapshot.name}; nothing was changed") from None
     return plain
 

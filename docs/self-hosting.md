@@ -105,10 +105,12 @@ Every hour the app writes a snapshot to `DATA_DIR/backups/todo-<time>.db`. It ke
 **Encrypt them.** A snapshot is the whole database, readable by anyone who gets a copy. To
 encrypt them, run `age-keygen -o key.txt` on your own machine, keep `key.txt` somewhere safe
 that is not the server (a password manager, and a printed copy), and set
-`SNAPSHOT_AGE_RECIPIENT` to the public key it prints. Snapshots are then written as
-`todo-<time>.db.age` and can only be opened with `key.txt`: lose it and they are gone. If
-`age` fails, that snapshot fails and is logged; a plain one is never written in its place.
-Snapshots taken before you set it stay plain until they age out. The live database is not
+`SNAPSHOT_AGE_RECIPIENT` to the public key it prints. Snapshots are then compressed with
+`zstd`, encrypted, and written as `todo-<time>.db.zst.age`, usually a fraction of the
+database's size. They can only be opened with `key.txt`: lose it and they are gone. If `zstd`
+or `age` fails, that snapshot fails and is logged; a plain one is never written in its place.
+Snapshots taken before you set it stay plain until they age out, and ones an earlier version
+wrote as `todo-<time>.db.age` (encrypted, not compressed) still restore. The live database is not
 encrypted, since the app has to read it.
 
 They share the volume with the database, so they protect against mistakes, not against
@@ -121,7 +123,7 @@ losing the volume. Copy them somewhere else:
   export RAILWAY_TOKEN=<project token> V=<volume name>
   cd <your backup folder>
   railway volume files --volume "$V" list /backups --json </dev/null | jq -r '.files[].name' |
-    grep -E '^todo-[0-9TZ]+\.db(\.age)?$' | while read -r name; do
+    grep -E '^todo-[0-9TZ]+\.db((\.zst)?\.age)?$' | while read -r name; do
       [ -e "$name" ] || { railway volume files --volume "$V" download "/backups/$name" "$name.part" \
         --overwrite </dev/null && mv "$name.part" "$name"; }
     done
@@ -149,8 +151,11 @@ machine and copy the plain file to the server, so the key never touches the serv
 the key in there (`-i -` reads it from the terminal, and it is not saved):
 
 ```bash
-age -d -i - -o todo.db.restore backups/todo-20261004T120000Z.db.age
+age -d -i - backups/todo-20261004T120000Z.db.zst.age | zstd -d --long=27 -o todo.db.restore
 ```
+
+For an older `.db.age` file there is no `zstd` step:
+`age -d -i - -o todo.db.restore backups/todo-20261004T120000Z.db.age`.
 
 Restart straight away (`docker compose restart`, or **Deployments → Restart** on Railway).
 The running app still has the old file open, so anything written between the `mv` and the

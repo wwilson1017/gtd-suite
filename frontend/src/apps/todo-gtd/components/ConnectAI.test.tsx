@@ -130,6 +130,22 @@ describe('Connect your AI', () => {
     }
   });
 
+  it('says when the link stopped for lack of use, until a new one is made', async () => {
+    await show();
+    expect(host.querySelector('[role="alert"]')).toBeNull();
+    await show({ enhanced_security: true, agent_link_expired: true });
+    expect(host.querySelector('[role="alert"]')!.textContent).toContain('Your agent link stopped working');
+    api.regenerateAgentLink.mockResolvedValue({ url: LINK + '2', token: 'TOKEN2' });
+    vi.stubGlobal(
+      'confirm',
+      vi.fn(() => true),
+    );
+    const again = [...host.querySelectorAll('button')].find((b) => b.textContent === 'Make a new link…')!;
+    await act(async () => again.click());
+    vi.unstubAllGlobals();
+    expect(host.querySelector('[role="alert"]')).toBeNull();
+  });
+
   it('says which AI is connected, as text', async () => {
     const name = '<img src=x onerror=alert(1)>';
     await show({ ai_tools: [tool(name, 0), tool('Codex', 1)] });

@@ -6,7 +6,7 @@ import pytest
 from fastmcp.exceptions import ToolError
 
 from backend import apps, brain, db, keys, lists, mcp_server
-from backend.common import NotFoundError, ValidationError
+from backend.common import ConflictError, NotFoundError, ValidationError
 from backend.tests.conftest import confirm_list, turn_on
 from backend.tests.test_brains import add_brain
 from backend.tests.test_mcp import anyio_backend as anyio_backend
@@ -250,6 +250,41 @@ def test_two_pages_stale_pair_cannot_archive_remaining_side(B, changed):
     assert brain.get_page(bid, survivor["id"])["version"] == survivor["version"]
     assert stored(flagged["id"])["settled_at"] is None
     assert not brain.settle_contradiction(bid, flagged["id"], "both", by="AI")["already"]
+
+
+@pytest.mark.parametrize("edited", ["a", "b"])
+def test_an_edit_after_the_flag_refuses_the_answer_until_flagged_again(pair, edited):
+    bid, a, b, flagged = pair
+    side = a if edited == "a" else b
+    brain.update_memory(bid, side["id"], text="Maya works weekends", by="AI two")
+    (shown,), _ = brain.open_contradictions(bid)
+    assert shown["changed"] is True and shown[edited]["text"] == "Maya works weekends"
+    for keep in ("a", "b"):
+        with pytest.raises(ConflictError, match="edited since this pair was flagged"):
+            brain.settle_contradiction(bid, flagged["id"], keep, by="AI one", answer="Nights")
+    assert stored(flagged["id"])["settled_at"] is None
+    assert [brain.get_memory(bid, m["id"])["status"] for m in (a, b)] == ["active", "active"]
+    again = brain.flag_contradiction(bid, ("memory", b["id"]), ("memory", a["id"]), "Still disagree", by="AI two")
+    assert again["already"] and again["contradiction"]["id"] == flagged["id"]
+    assert "changed" not in again["contradiction"] and again["contradiction"]["note"] == "Still disagree"
+    assert db.get_db().execute("SELECT COUNT(*) FROM brain_contradictions").fetchone()[0] == 1
+    out = brain.settle_contradiction(bid, flagged["id"], "a", by="AI one", answer="Nights")
+    assert out["replaced"]["id"] == b["id"] and brain.get_memory(bid, b["id"])["status"] == "archived"
+
+
+def test_a_lock_or_a_restore_is_not_an_edit(pair):
+    bid, a, b, flagged = pair
+    brain.update_memory(bid, a["id"], locked=True)
+    brain.update_memory(bid, b["id"], status="archived")
+    brain.update_memory(bid, b["id"], status="active")
+    assert "changed" not in brain.open_contradictions(bid)[0][0]
+    assert brain.settle_contradiction(bid, flagged["id"], "a", by="AI one")["replaced"]["id"] == b["id"]
+
+
+def test_an_edited_pair_still_closes_with_both(pair):
+    bid, a, _, flagged = pair
+    brain.update_memory(bid, a["id"], text="Maya works days", by="AI two")
+    assert brain.settle_contradiction(bid, flagged["id"], "both", by="AI two")["contradiction"]["kept"] == "both"
 
 
 def test_validation_secrets_and_brain_scope(B, pair):
