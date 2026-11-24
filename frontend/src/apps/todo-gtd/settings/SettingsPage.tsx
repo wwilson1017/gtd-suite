@@ -9,7 +9,7 @@ import { Fragment } from 'react';
 import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
 import { APP } from '../../../core/app';
 import { useMediaQuery } from '../../../core/theme/menuLayout';
-import { usePlanSection } from '../../../paid/planSection';
+import { useExtensionSection } from '../../../plans/offers';
 import { reachOf } from '../clients';
 import { AccountNumber, EmailSection, SignInElsewhere, ThisDevice } from '../ConnectPage';
 import { ConnectAI } from '../components/ConnectAI';
@@ -17,6 +17,7 @@ import { InstallGuide } from '../components/InstallGuide';
 import { OtherApps } from '../components/OtherApps';
 import { useSession } from '../session';
 import { hasOtherApps, useConfig } from '../useConfig';
+import { SecuritySection } from './SecuritySection';
 import { LABEL, SETTINGS, useSetup, type Section, type Step, type StepKey } from './setup';
 
 /** An app's own group of sections, after Account (Todo GTD's). */
@@ -42,7 +43,7 @@ const STEP_SUB: Record<StepKey, string> = {
 function useGroups(own?: Group): Group[] {
   const session = useSession().session;
   const config = useConfig();
-  const plan = usePlanSection();
+  const plan = useExtensionSection();
   const reaches = reachOf(session?.apps ?? []) || 'apps';
   const start: Section[] = [
     {
@@ -76,6 +77,13 @@ function useGroups(own?: Group): Group[] {
           <AccountNumber />
         </div>
       ),
+    },
+    {
+      key: 'security',
+      icon: '⚿',
+      title: 'Security',
+      sub: 'Tighter rules for your agent link, keys and new AI tools.',
+      body: <SecuritySection />,
     },
     ...(hasOtherApps(config)
       ? [

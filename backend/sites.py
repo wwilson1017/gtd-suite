@@ -33,8 +33,8 @@ import unicodedata
 from datetime import timedelta
 from urllib.parse import unquote, urlsplit
 
-from backend.paid import caps as paid_caps
-from backend.paid import plans
+from backend.plans import caps as plan_caps
+from backend.plans import plans
 from backend import apps, common, db, lists, settings, objectstore, storage
 from backend.common import NotFoundError, ValidationError
 
@@ -129,7 +129,7 @@ def _view(row, views: bool, content: bool = False) -> dict:
 
 
 def _caps(conn, list_id: int) -> tuple[tuple[int, int], bool, bool, str | None]:
-    row = conn.execute(f"SELECT {paid_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (list_id,)).fetchone()
+    row = conn.execute(f"SELECT {plan_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (list_id,)).fetchone()
     verified, hosted = bool(row and row["email_verified_at"]), settings.open_signup()
     plan = plans.of(row) if row else None
     return common.site_caps_for(verified, hosted, plan), verified, hosted, plan
@@ -160,7 +160,7 @@ def _check_cap(conn, list_id: int, kind: str) -> None:
         )
     raise ValidationError(
         f"This account holds {cap} {kind}s, the limit. Update or delete one."
-        f"{plans.site_upsell(hosted and not plan, kind)}"
+        f"{plans.site_note(hosted and not plan, kind)}"
         " Nothing was changed."
     )
 
@@ -175,7 +175,7 @@ def _utf8(text: str, field: str) -> bytes:
 
 
 def _page_bytes(conn, list_id: int) -> int:
-    row = conn.execute(f"SELECT {paid_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (list_id,)).fetchone()
+    row = conn.execute(f"SELECT {plan_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (list_id,)).fetchone()
     return common.site_page_bytes_for(settings.open_signup(), plans.of(row) if row else None)
 
 
@@ -190,7 +190,7 @@ def _content(content, limit: int) -> tuple[str, int]:
 def _fits(size: int, limit: int) -> None:
     if size > limit:
         raise ValidationError(
-            f"A page is at most {limit // 1_000_000} MB of content on this plan; "
+            f"A page is at most {limit // 1_000_000} MB of content on this account; "
             f"this is {size:,} bytes. Nothing was changed."
         )
 
@@ -296,8 +296,8 @@ def _host(name: str | None) -> str:
 def _insert(conn, list_id: int, **fields) -> int:
     now = common.now_iso()
     if fields["kind"] == "page" and settings.open_signup():
-        # A paid account that changed its email keeps its pages (its plan outranks "unconfirmed").
-        row = conn.execute(f"SELECT {paid_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (list_id,)).fetchone()
+        # A raised account that changed its email keeps its pages (its level outranks "unconfirmed").
+        row = conn.execute(f"SELECT {plan_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (list_id,)).fetchone()
         if row and not row["email_verified_at"] and plans.of(row) is None:
             fields["expires_at"] = common.to_iso(common.utcnow() + timedelta(days=7))
     for attempt in range(5):
@@ -360,7 +360,7 @@ def publish(
     name, title = _name(name), _title(title, content, fmt)  # before the write lock
     note, folder = _note(note or ""), _folder(folder or "")
     with db.transaction() as conn:
-        _fits(size, _page_bytes(conn, list_id))  # again: the plan may have changed since
+        _fits(size, _page_bytes(conn, list_id))  # again: the level may have changed since
         _check_cap(conn, list_id, "page")
         mode = _data_setting_in(conn, list_id, "off" if data is None else data, {"kind": "page", "password_hash": ""})
         new_id = _insert(
@@ -432,7 +432,7 @@ def update(
 ) -> dict:
     """The one way a page or link changes, all or nothing: a field left as None
     stays as it is. A link has no content or format, and content is never empty.
-    ``password`` locks a page ('' unlocks it): the plan gate applies to locking, unlocking always."""
+    ``password`` locks a page ('' unlocks it): the level gate applies to locking, unlocking always."""
     hashed = None
     if password:
         # The cheap checks first, so nobody spends hashing work on a page they may not
@@ -551,7 +551,7 @@ def caps(list_id: int) -> dict:
     """How many pages and links the list may hold now, for the web app."""
     conn = db.get_db()
     (pages, links), _, _, _ = _caps(conn, list_id)
-    row = conn.execute(f"SELECT {paid_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (list_id,)).fetchone()
+    row = conn.execute(f"SELECT {plan_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (list_id,)).fetchone()
     site_bytes, quota = _file_limits(row)
     return {
         "pages": pages,
@@ -649,7 +649,7 @@ def _short_name_in(conn, list_id: int, name) -> str | None:
         raise ValidationError(
             "short_name must be 4 to 30 lowercase letters, digits or hyphens, not a reserved name or an address"
         )
-    row = conn.execute(f"SELECT {paid_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (list_id,)).fetchone()
+    row = conn.execute(f"SELECT {plan_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (list_id,)).fetchone()
     hosted, plan = settings.open_signup(), plans.of(row)
     cap = common.short_name_cap_for(hosted, plan)
     if not plans.features(hosted, plan):
@@ -665,14 +665,14 @@ def _short_name_in(conn, list_id: int, name) -> str | None:
 
 
 def short_name_grace() -> None:
-    """Stamp the first observed lapse; restore a plan to keep the name, otherwise free it."""
+    """Stamp the first observed lapse; restore a level to keep the name, otherwise free it."""
     if not settings.open_signup():
         return
     with db.transaction() as conn:
         now = common.now_iso()
         until = common.to_iso(common.utcnow() + timedelta(days=30))
         for row in conn.execute(
-            f"SELECT id, {paid_caps.PLAN_COLUMNS} FROM lists WHERE id IN "
+            f"SELECT id, {plan_caps.PLAN_COLUMNS} FROM lists WHERE id IN "
             "(SELECT list_id FROM sites WHERE short_name IS NOT NULL)"
         ).fetchall():
             if plans.active(row):
@@ -700,7 +700,7 @@ def lookup_short(name: str):
     ).fetchone()
     if row is None:
         return None
-    account = conn.execute(f"SELECT {paid_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (row["list_id"],)).fetchone()
+    account = conn.execute(f"SELECT {plan_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (row["list_id"],)).fetchone()
     if account is None:
         return None
     # A lapse the daily step hasn't stamped yet still resolves; the stamp starts the 30 days.
@@ -728,7 +728,7 @@ class DataTooLarge(ValidationError):
 
 
 def _data_caps(conn, list_id: int) -> tuple[int, int]:
-    row = conn.execute(f"SELECT {paid_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (list_id,)).fetchone()
+    row = conn.execute(f"SELECT {plan_caps.PLAN_COLUMNS} FROM lists WHERE id = ?", (list_id,)).fetchone()
     return common.site_data_caps_for(
         bool(row and row["email_verified_at"]), settings.open_signup(), plans.of(row) if row else None
     )
@@ -743,7 +743,7 @@ def _data_setting_in(conn, list_id: int, value, row) -> str:
         if row["password_hash"]:
             raise ValidationError("A locked page cannot have data. Unlock it first.")
         if not _data_caps(conn, list_id)[0]:
-            raise ValidationError("Page data needs a confirmed email or a paid plan.")
+            raise ValidationError("Page data needs a confirmed email.")
     return "" if value == "off" else value
 
 
@@ -1212,7 +1212,7 @@ def _manifest(manifest) -> list[dict]:
 def _live_list_in(conn, list_id: int):
     live, params = lists.live_where()
     row = conn.execute(
-        f"SELECT sites_own_host, {paid_caps.PLAN_COLUMNS} FROM lists WHERE id = ? AND {live}", (list_id, *params)
+        f"SELECT sites_own_host, {plan_caps.PLAN_COLUMNS} FROM lists WHERE id = ? AND {live}", (list_id, *params)
     ).fetchone()
     if row is None:
         raise NotFoundError("Account not found")

@@ -15,7 +15,7 @@ agent link, a disabled or removed list refuses its keys.
 
 Staff links share these rows with kind='link': an unprefixed token accepted only
 in token paths by resolve_link. They are Brain-only, default to read, and have a
-separate plan cap. Both kinds carry ordered brain ids validated against the account.
+separate level cap. Both kinds carry ordered brain ids validated against the account.
 
 Named revoke, not delete: a revoked credential keeps its row.
 """
@@ -24,7 +24,7 @@ import datetime
 import json
 import re
 
-from backend.paid import billing
+from backend.plans import extension
 from backend import brain, common, db, lists
 
 PREFIX = "cb_"
@@ -34,7 +34,8 @@ MAX_FOLDERS = 20
 APPS = ("brain", "all")
 ACCESS = ("read", "write")
 _TOUCH_INTERVAL = datetime.timedelta(hours=1)
-_COLS = "id, name, last4, apps, access, folders, brains, kind, created_at, last_used_at"
+DAYS = (30, 90, 365)
+_COLS = "id, name, last4, apps, access, folders, brains, kind, created_at, last_used_at, expires_at"
 
 
 def _out(row) -> dict:
@@ -42,7 +43,8 @@ def _out(row) -> dict:
         brains = json.loads(row["brains"])
     except ValueError:
         brains = []
-    return {**dict(row), "folders": json.loads(row["folders"]), "brains": brains}
+    expired = bool(row["expires_at"]) and row["expires_at"] <= common.now_iso()
+    return {**dict(row), "folders": json.loads(row["folders"]), "brains": brains, "expired": expired}
 
 
 def _name(name) -> str:
@@ -69,9 +71,22 @@ def _folders(folders, app: str) -> list[str]:
 
 
 def create(
-    list_id: int, name, app: str = "brain", access: str = "read", folders=None, brains=None, kind: str = "key"
+    list_id: int,
+    name,
+    app: str = "brain",
+    access: str = "read",
+    folders=None,
+    brains=None,
+    kind: str = "key",
+    days: int | None = None,
 ) -> dict:
-    """A new key: the row, with the key itself under `key`, the only time it is shown."""
+    """A new key: the row, with the key itself under `key`, the only time it is shown.
+    `days` gives it an end date, which holds whatever the account's Enhanced security
+    switch does later; while that is on, a new key must have one.
+
+    # simplification: no extending and no mail before an end date, make a new key; a
+    # warning mail a week ahead is the way up
+    """
     name = _name(name)
     if app not in APPS:
         raise common.ValidationError("apps must be 'brain' or 'all'")
@@ -82,6 +97,8 @@ def create(
         raise common.ValidationError("kind must be key or link")
     if kind == "link" and (app != "brain" or folders):
         raise common.ValidationError("Staff links are Brain-only, without folder limits")
+    if days is not None and days not in DAYS:
+        raise common.ValidationError("An end date is 30, 90 or 365 days away")
     key = (PREFIX if kind == "key" else "") + lists.mint_token()
     # A staff token can never accidentally look like a Bearer-only key.
     while kind == "link" and key.startswith(PREFIX):
@@ -94,21 +111,26 @@ def create(
         # simplification: folders on a multi-brain key wait until asked for
         if folders and len(brains) != 1:
             raise common.ValidationError("Folders require exactly one brain")
-        live = conn.execute(
-            "SELECT name, kind FROM api_keys WHERE list_id = ? AND revoked_at IS NULL", (list_id,)
+        if days is None and conn.execute("SELECT enhanced_security FROM lists WHERE id = ?", (list_id,)).fetchone()[0]:
+            raise common.ValidationError("Enhanced security is on: choose an end date, 30, 90 or 365 days away")
+        now = common.utcnow()
+        # An expired key keeps its name until it is revoked (it is still listed), but no place under a cap.
+        shown = conn.execute(
+            "SELECT name, kind, expires_at FROM api_keys WHERE list_id = ? AND revoked_at IS NULL", (list_id,)
         ).fetchall()
+        live = [r for r in shown if not r["expires_at"] or r["expires_at"] > common.to_iso(now)]
         if kind == "key" and sum(r["kind"] == "key" for r in live) >= MAX_PER_LIST:
             raise common.ValidationError(f"An account holds at most {MAX_PER_LIST} keys: revoke one first")
         cap = brain.account_caps(list_id, conn)
         if kind == "link" and sum(r["kind"] == "link" for r in live) >= cap["links"]:
             raise common.ValidationError(
-                f"This account holds at most {cap['links']} staff links.{billing.upsell(cap['upsell'])}"
+                f"This account holds at most {cap['links']} staff links.{extension.cap_note(cap['raisable'])}"
             )
-        if name.lower() in {r["name"].lower() for r in live}:
+        if name.lower() in {r["name"].lower() for r in shown}:
             raise common.ValidationError(f"There is already a key called {name}")
         key_id = conn.execute(
-            "INSERT INTO api_keys (list_id, name, key_hash, last4, apps, access, folders, brains, kind, created_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO api_keys (list_id, name, key_hash, last4, apps, access, folders, brains, kind, created_at, "
+            "expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 list_id,
                 name,
@@ -119,7 +141,8 @@ def create(
                 json.dumps(folders),
                 json.dumps(brains),
                 kind,
-                common.now_iso(),
+                common.to_iso(now),
+                common.to_iso(now + datetime.timedelta(days=days)) if days else None,
             ),
         ).lastrowid
         row = conn.execute(f"SELECT {_COLS} FROM api_keys WHERE id = ?", (key_id,)).fetchone()
@@ -140,7 +163,8 @@ def inside(path, folders: list[str], *, file: bool = False) -> bool:
 
 
 def list_keys(list_id: int) -> list[dict]:
-    """The live keys, newest first, without the keys themselves."""
+    """The keys not revoked, newest first, without the keys themselves. One past its end
+    date is `expired`: it no longer works, and stays listed until it is revoked."""
     return [
         _out(r)
         for r in db.get_db().execute(
@@ -169,7 +193,7 @@ def resolve_link(token: str) -> dict | None:
 
 
 def _resolve(key: str, kind: str) -> dict | None:
-    """The live key behind a Bearer value, or None: unknown, revoked, or its list
+    """The live key behind a Bearer value, or None: unknown, revoked, past its end date, or its list
     disabled or removed (lists.live_where, as the agent link). Adds `on`, the apps it
     reaches now: those turned on for the account, within its scope. Touches the key
     and the list, so a program's use keeps an archived list, like an AI's."""
@@ -178,8 +202,8 @@ def _resolve(key: str, kind: str) -> dict | None:
         db.get_db()
         .execute(
             f"SELECT list_id, {_COLS} FROM api_keys WHERE key_hash = ? AND kind = ? AND revoked_at IS NULL "
-            f"AND list_id IN (SELECT id FROM lists WHERE {live})",
-            (lists.hash_token(key), kind, *params),
+            f"AND (expires_at IS NULL OR expires_at > ?) AND list_id IN (SELECT id FROM lists WHERE {live})",
+            (lists.hash_token(key), kind, common.now_iso(), *params),
         )
         .fetchone()
     )

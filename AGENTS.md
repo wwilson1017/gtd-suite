@@ -61,17 +61,20 @@ backend/
                  todo_complete, comment_add, activity_list; PROJECT … PEOPLE commands, its guide part
   sites.py       Simple Sites: pages (HTML/Markdown) and short links at <SITES_BASE_URL>/<name->code;
                  caps (site_caps_for), one update path, lookup and render for pages.py, view
-                 counts (count_view in memory, flush_views each minute; shown with Pro only); page data
+                 counts (count_view in memory, flush_views each minute; shown on a raised level); page data
                  (visitor/owner records, indexed fields, quota counters, read cursors and browser Clear)
   sites_agent.py Simple Sites on the agent link: site_*/link_create tools, SITES … REPUBLISH and SITE_SYNC commands
-  paid/billing.py Pro, the paid plan (sold through Sites, covers the account): Stripe Checkout
-                 (Managed Payments), the Customer Portal, sync(), catch_up() and the hourly loop
-  paid/caps.py   paid limits and plan column names/DDL; no app imports
-  paid/plans.py  plan derivation, feature gates and plan wording
-  paid/routes.py billing routes and the session plan block
-  paid/settings.py payment service environment variables, and FREE_MAX (free_max: the suite is free)
-  paid/admin.py  comp, billing-sync, billing checks and admin plan reports
-  paid/smoke.sh  checks the hosted service's addresses after a deploy, without credentials
+  plans/         account levels: a hosted account's limits come from its level ("pro" and
+                 "max" are the stored tier keys), which only FREE_MAX, operator grants and the
+                 optional extension set
+  plans/extension.py the optional extension: off when not installed (no extra routes, notes,
+                 pages, commands; each name answers "nothing"); when the package gtd_extension
+                 imports, every name hands over to it. Nothing else checks for it
+  plans/caps.py  level limits and the level column names/DDL; no app imports
+  plans/plans.py level derivation, feature gates and their wording
+  plans/routes.py the session's level block and the email guard
+  plans/settings.py FREE_MAX (free_max: the suite is free)
+  plans/admin.py comp (grants), the disable/delete check's undo, and admin level reports
   site_host.py   isolated content hosts: body pages, file manifests, text cache, password passes and takedowns
   site_routes.py the Sites API under /api/app, with the own-address setting and browser-only deletion of pages and their records
   notes.py       Notes GTD: notes (markdown body, #hashtag tags derived from it, colour, pin); a
@@ -82,7 +85,7 @@ backend/
                  atomic cross-brain moves; memories (short facts every AI loads; the person locks them) and
                  pages (Markdown/HTML at a path); every write a version (history, restore, the
                  what-changed feed, each AI's catch-up); the AI cap and the email nudge; secrets
-                 blanked; Forget; curator queues, probe evals, contact-drop warnings and snapshot exports.
+                 blanked; Forget; review dates and the monthly tidy hint (tidy_due); curator queues, probe evals, contact-drop warnings and snapshot exports.
                  Pass labels and reasons in history. No AI runs here, ever
   brain_import.py Markdown zip import: dry run, resumable chunks and passes, files, archive missing
   brain_routes.py the brain API under /api/app, with Forget (POST …/forget)
@@ -93,23 +96,26 @@ backend/
   lists.py       list rows, the account number, the agent and capture tokens, rotate, claim, reset,
                  email (+ confirmed stamp),
                  weekly-review stamp, the apps turned on (apps_on, served, set_app_in), the AI
-                 tools that have called (seen_ai, ai_tools: the Connect your AI status)
+                 tools that have called (seen_ai, ai_tools: the Connect your AI status);
+                 Enhanced security (set_enhanced_security, AGENT_IDLE, agent_link_expired)
   sessions.py    the session cookie: one hashed row per signed-in browser, ≤20 per list, revoke, expire
   keys.py        program keys (kind=key, cb_…, Bearer only) and staff links (kind=link, path only):
                  named, hashed, shown once, revoke; ordered brains, scope (brain | all), access
-                 (read | write), single-brain key write folders; separate key and staff-link caps
+                 (read | write), single-brain key write folders; separate key and staff-link caps;
+                 an optional end date (expires_at), required while Enhanced security is on
   api_v1.py      the REST API for program keys: GET /api/v1, POST /api/v1/tools/{name} through
                  mcp.call_tool; _authorize, the one check for its own Brain routes
   lifecycle.py   the idle lifecycle of a hosted, unconfirmed list: enabled(), state() (active / archived
                  at 60 idle days / removed at 180), derived from the last use, never stored
   connect.py     device connection codes: hashed poll token, browser approval and one-use agent link delivery;
                  a code's client: sites, or springform (every app on; hosted, a confirmed email gets Max once,
-                 comp_source 'springform', springform_at stamped for good; paid/admin.springform_comp_in)
+                 comp_source 'springform', springform_at stamped for good; plans/admin.springform_comp_in)
   signin.py      sign-in links: one hour, single use, hashed; mailed (httpx to Resend) to confirm an email or
-                 to a confirmed one, or shown as a QR; redeem (a mailed link confirms the address)
+                 to a confirmed one, or shown as a QR; redeem (a mailed link confirms the address);
+                 send_new_ai, Enhanced security's mail when a new AI tool connects
   router.py      /api: session_owner/active_owner (cookie, X-List, same-origin; A refuses a put-away list),
-                 build_router on /api/app, links, account (email, sign-in link, apps on/off, restore,
-                 sign out),
+                 build_router on /api/app, links, the Enhanced security switch (PUT /app/security),
+                 account (email, sign-in link, apps on/off, restore, sign out),
                  capture, create, sign in, reset
   mcp_server.py  the agent link: MCP tools over service.py and boards.py (board_/card_), each tagged
                  with its app and read-only flag; _AppsOn offers only the apps turned on, narrowed by a
@@ -119,24 +125,33 @@ backend/
   pages.py       SPA shell, /app (signed in) or 303 /, manifests, /signin, retired /w, one-segment catch-all;
                  _site_host keeps visitor routes top-level on the Sites or fallback main host
   ratelimit.py   IPRateLimiter, client_ip(), the wrong-token guard
+  readlog.py     the read log: Common Brain reads by AI tools while Enhanced security is on (log,
+                 recent, expire at 90 days, forget_in); the person's Security page only
   files.py       Common Brain's files: reserve, done (claim, copy, commit), links, Forget, the sweeper
   storage.py     the shared account pool: Brain files and Sites blobs, reservations and tombstones included
   objectstore.py hand-signed SigV4 (no SDK) for the S3-compatible file store: presigned PUT/GET, HEAD, copy, DELETE, streamed GET and paged inventory
-  backup.py      snapshots and pruning
+  backup.py      snapshots (`zstd` then `age` when SNAPSHOT_AGE_RECIPIENT is set), one at a time across
+                 processes (backups/.lock), and pruning
   cleanup.py     deletes never-used lists (the only hard delete), with their sessions, sign-in links, keys
   logscrub.py    replaces token path segments with *** in every log record
   tests/         pytest, real temp SQLite file per test
 scripts/sites_sync_check.py  stdlib large-deck sync check: agent link from a file or env, never printed
 scripts/restore_list.py   one-list repair from a snapshot
+scripts/smoke.sh          the hosted service's addresses after a deploy, without credentials
 scripts/admin.py          the operator's command line (stats, find, disable, delete, …); docs/self-hosting.md "Admin tool"
 frontend/        Vite + React 19 + Tailwind 4; builds into backend/static. One bundle; the
                  gtd-app meta (core/app.ts) makes /app the todo app, apps/projects-gtd or
                  apps/notes-gtd. Each app's colours: pages._shell stamps <html data-app>, and
                  index.css sets that app's brand-* and band-* tokens under [data-app="…"]
-                 src/paid/ holds everything about paid plans (the plan card, prices, billing
-                 calls, policy links); nothing outside it names a plan (paidBoundary.test.ts).
-                 public/paid/ holds the policy pages, served at /terms.html … only with open signup;
-                 pages.py leaves out their <!-- paid --> parts while free, or <!-- free --> ones
+                 apps/todo-gtd/settings/SecuritySection.tsx is Settings › Security in every
+                 app: the Enhanced security switch and its stated limits
+                 src/plans/ holds everything about levels (limit wording, policy links); nothing
+                 outside it names a level (plansBoundary.test.ts). The optional extension's
+                 screens come through the @extension alias: src/plans/extension-off.tsx
+                 (nothing), or an installed extension's, copied into src/plans/extension/
+                 (git-ignored)
+                 public/policy/ holds the policy pages, served at /terms.html … only with open
+                 signup; an installed extension may serve its own pages (extension.page)
 docs/agent-commands.md   the generic Agent Commands spec the guide links to
 Dockerfile       frontend build, then Python 3.12 + uv, one uvicorn worker
 ```
@@ -178,6 +193,17 @@ the call budget charged; every other request goes to FastMCP untouched.
 - **A valid token is always served.** Only a MISS is charged to the per-address wrong-token
   bucket, and only misses get 429 when it is empty (`ratelimit.wrong_token_status`). Never
   check that bucket before resolving the token. Program keys follow the same rule.
+  What makes a token valid is its resolver's own WHERE, and two things there end one by
+  date: a key or staff link past its end date (`api_keys.expires_at`, in `keys._resolve`,
+  whatever the switch says), and, with the account's Enhanced security switch on
+  (`lists.enhanced_security`, set only by the person through `PUT /api/app/security`), the
+  main agent link once `lists.agent_used_at` is `lists.AGENT_IDLE` old (30 days and the
+  hour its hourly stamp can lag). Each is then an ordinary miss: charged, 404 on a path, 401
+  for a bearer on `/mcp`, 403 on REST. The idle test lives in `lists.resolve_agent` only,
+  never in `live_where`, which keys, the capture link and published pages share.
+  `agent_link_expired` in the session is the same calculation. Off to on stamps
+  `agent_used_at`, on to on does not, and replacing the link restamps it; switching off
+  revives an idle link. No tool, command or key reads or changes the switch.
 - **Program keys travel only as `Authorization: Bearer`.** `mcp_server._resolve` resolves a
   `cb_` token only as the bearer; in a path it is an unknown token (404). A key's name labels
   its writes (`_client_name`) and never grants anything: a name that normalises to "you" is
@@ -236,23 +262,24 @@ the call budget charged; every other request goes to FastMCP untouched.
   email inside the same transaction; blobs are left for GC.
   Common Brain's Forget is the other: `POST /api/app/brain/…/forget`
   removes a memory or page with its whole history, for the person in the browser only.
+  Forget (`brain.forget`, `files.forget`) also deletes the item's read-log rows in the same
+  transaction (`readlog.forget_in`: by `list_id`, `item_kind` and `item_id`, so a rename or a
+  move to another brain hides none; a file: every version at the path). A search's words
+  are not scrubbed; they age out with their row. `readlog.expire` drops rows past 90 days.
   An agent archives, or hands over `brain_forget_link`, a link to the app that grants nothing.
-- **Pro is derived, never set.** While the suite is free (`paid_settings.free_max()`, the
-  default; `FREE_MAX=false` turns paid plans back on exactly as they were), `paid/plans.of`
-  answers Max for a hosted account with a confirmed email (`lists.email_verified_at`, one of
-  `PLAN_COLUMNS`), never stored; an unconfirmed one keeps the trial caps, a self-host its own.
-  Free also turns `billing.syncing()` off, so nothing is sold or synced, and the app shows no
-  plan, price or upsell (`plan.free`, `config.free`). The paid code stays, behind that switch.
-  Otherwise `paid/plans.of` reads `lists.plan_status` + `plan_until`,
-  which only `paid/billing.sync` writes, from Stripe's current subscriptions of the account's own
-  customer. Never set Pro from a single webhook event (order and duplicates vary), never
-  from metadata, and never by hand outside `scripts/admin.py billing-sync`. The one other
-  way in is the free grant, `lists.pro_comp_until` + `comp_plan` (+ `comp_source`), set only by
-  `paid/admin.py`: the operator's `comp`, and Max for an approved Springform connect. Max
-  exists only as that grant (`paid/plans.of`), and outranks a subscription. Every SELECT that feeds `paid/plans.of` names
-  `paid/caps.PLAN_COLUMNS`. Every cap function takes `plan`; a new cap check passes
-  `paid/plans.of(row)` like the others.
-  Stripe answers and webhook bodies carry the customer's email: never log them.
+- **An account's level is derived, never set.** While the suite is free
+  (`plans/settings.free_max()`, the default), `plans/plans.of` answers max for a hosted
+  account with a confirmed email (`lists.email_verified_at`, one of `PLAN_COLUMNS`), never
+  stored; an unconfirmed one keeps the trial caps, a self-host its own. The app shows no level
+  then (`plan.free`, `config.free`). Otherwise `plans/plans.of` reads `lists.plan_status` +
+  `plan_until`, which only the optional extension writes (through `plans/extension.py`, the
+  one seam); without it they never change. The one other way in is a grant,
+  `lists.pro_comp_until` + `comp_plan` (+ `comp_source`), set only by `plans/admin.py`: the
+  operator's `comp`, and max for an approved Springform connect. A max grant outranks a stored
+  level (`plans/plans.of`). Every SELECT that feeds `plans/plans.of` names
+  `plans/caps.PLAN_COLUMNS`. Every cap function takes `plan` (the level); a new cap check
+  passes `plans/plans.of(row)` like the others. `admin.py disable` and `delete` refuse a list
+  tied to an outside account (`stripe_customer`) unless the extension is there to check it.
 - **Simple Sites pages on the app and short hosts are always served sandboxed.**
   `pages._site` answers on those hosts, or at the main host's top level when Sites has no
   configured address; visitor pages, short names, data and unlock never answer under an app prefix,
@@ -260,7 +287,7 @@ the call budget charged; every other request goes to FastMCP untouched.
   blank origin and cannot use the visitor's session. Never add `allow-same-origin`, and never
   serve unsandboxed content there, whatever the configuration. Only the isolated content
   host below is exempt. A miss there is a wrong link (`wrong_token_status`).
-  A locked page (Pro, `sites.password_hash`) answers its form with 403 until the visitor's
+  A locked page (a raised level, `sites.password_hash`) answers its form with 403 until the visitor's
   `sp_<code>` pass checks out (`sites.unlocked`: expiry + HMAC keyed by the hash); every
   try at `/<address>/unlock` is charged to `ratelimit.password_limiter` before any hashing,
   and the hash never appears in an answer (`_view` turns it into `locked`).
@@ -314,6 +341,11 @@ the call budget charged; every other request goes to FastMCP untouched.
   address clears it and cancels the list's sign-in links (`lists.set_email_in`). The PUT that
   saves an address mints its confirmation link in the same transaction; only the send runs
   after the response. The caps come from `common.caps_for` (hosting mode, confirmed or not).
+  The one other mail is Enhanced security's alert (`signin.send_new_ai`), under the same
+  rule: only to a confirmed email, only when `signin.available()`. `lists.seen_ai` decides
+  it at a name's first-sighting INSERT and stamps `lists.ai_alert_at` in that transaction
+  (one mail per account per day); the send runs on its own thread after the commit. The
+  mail never carries the tool's name, which is the caller's own claim.
 - **Sessions and sign-in tokens are stored hashed.** The cookie is the only copy of a session;
   only create, redeem and reset ever set it, and nothing clears it (sign-out revokes the row).
   Program keys are stored hashed too, and shown once, in the answer that makes one.
@@ -356,6 +388,23 @@ the call budget charged; every other request goes to FastMCP untouched.
   rows cascade with their list, so a version that does not know the table can still delete one.
   A REST call reaches the tools without the HTTP request: `api_v1._as` passes its `Origin` on.
   Messages name the account page through `apps.settings_page` (Settings, in every app).
+- **The read log is written only while Enhanced security is on, and read only by the person.**
+  `readlog.log` writes `brain_reads`: one row per request that returned Brain content, per
+  brain it touched. Its INSERT checks the switch itself, and for a row naming a page, memory
+  or file, that the item is still in the account (a file: not a tombstone), so a read that
+  ends just after a Forget cannot put a forgotten path back. It takes the name, the
+  credential (`key_id` + `key_kind`; both empty is the main link; never a token) and the
+  brains as arguments and reads no contextvar: REST's own reads (`/files`, `/files/{id}`,
+  `/export`) run outside `_as`. It runs after the read, off the event loop, never inside
+  another transaction, and a failure is logged by type and swallowed. A Brain tool whose
+  answer carries an existing item's content calls `brain_agent._read` last: the read tools,
+  and the write tools that hand back what is there (an unchanged `brain_page_write`,
+  append, edit, `brain_memory_update`, `brain_restore`, `brain_eval`); the instructions at
+  initialize and discovery are `connect`. A new Brain tool gets a line in
+  `test_readlog.LEAVES`. Only `GET /api/app/security/reads` reads the log: no tool, command
+  or REST route. The table is bookkeeping like `ai_tools`: in `admin._LIST_TABLES` and
+  `cleanup.py` before `brains` (its rows point at one), out of `apps.content_tables()`,
+  cascading with its list and brain; `admin merge_brain` moves its rows.
 - **Schema changes** go in `db._migrate` as idempotent steps (`CREATE TABLE IF NOT EXISTS`
   does not alter a table that exists, and the live database does).
 - **One place decides the client address:** `ratelimit.client_ip`. Do not read
@@ -367,7 +416,7 @@ the call budget charged; every other request goes to FastMCP untouched.
 - **The short host (`SITES_SHORT_URL`, e.g. ss.page) serves page and link addresses only.**
   `main._ShortHost` lets through `GET`/`HEAD /<address>` and `POST /<address>/unlock`, plus
   `GET`/`POST`/`OPTIONS /<address>/data`. One-segment short names resolve to link redirects
-  while the account has a paid tier or its 30-day grace has not passed. It sends every other
+  while the account has a raised level or its 30-day grace has not passed. It sends every other
   GET to the same path on `SITES_BASE_URL`, and 404s the rest, so no app, API,
   agent link, sign-in or session cookie ever answers there. `sites.address` hands out the
   short host; `SITES_BASE_URL` keeps serving the same addresses.
@@ -378,7 +427,7 @@ the call budget charged; every other request goes to FastMCP untouched.
 - Worktrees go in `.claude/worktrees/`, one branch per worktree, branched from `master`.
 - `scripts/check.sh` runs every CI check locally (ruff, pyright, pytest, ESLint, Prettier, the
   frontend tests and build); run it before a PR. One suite: `uv run pytest backend/tests`, or
-  `npm test` in `frontend/`. `backend/paid/smoke.sh` checks the hosted service after a deploy.
+  `npm test` in `frontend/`. `scripts/smoke.sh` checks the hosted service after a deploy.
 - Formatting is ruff format and Prettier. Claude Code's hook formats each file it saves; CI
   refuses anything unformatted.
 - Tests default to `OPEN_SIGNUP=true` (see `conftest.py`); one-list behaviour is in `test_hosting.py`.

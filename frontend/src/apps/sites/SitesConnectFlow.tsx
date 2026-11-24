@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { apiErrorMessage } from '../../core/api/client';
-import { springformEmail, springformOffer } from '../../paid/springform';
+import { springformEmail, springformOffer } from '../../plans/springform';
 import { createList, getConfig, requestSignIn, setEmail, todoFetch } from '../todo-gtd/api';
 import { PageFrame } from '../todo-gtd/components/PageFrame';
 import { bootstrap, pinnedListId, useSession } from '../todo-gtd/session';

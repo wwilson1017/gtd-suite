@@ -107,6 +107,7 @@ def update_memory(memory_id: int, body: BrainMemoryUpdate, brain_id: int = Depen
         locked=f.get("locked"),
         status=f.get("status"),
         version=f.get("version"),
+        review_on=f.get("review_on"),
     )
 
 

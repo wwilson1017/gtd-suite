@@ -232,14 +232,14 @@ def test_the_page_cap_and_search_with_misses(B):
 def test_search_ranks_title_over_body_finds_synonyms_and_takes_any_text(B):
     confirm_list(B)
     brain.write_page(
-        brain.first_brain(B), "notes/a", "We paid the invoices from the supplier last week.", title="Supplier"
+        brain.first_brain(B), "notes/a", "We settled the invoices from the supplier last week.", title="Supplier"
     )
     brain.write_page(brain.first_brain(B), "money/invoices", "How we pay.", title="Invoices")
     brain.write_page(brain.first_brain(B), "money/bills", "The electric bill.", title="Utilities")
     brain.remember(brain.first_brain(B), ["Sends invoices on Fridays"])
     found = brain.search(brain.first_brain(B), "invoice")  # porter: invoice finds invoices
     assert [p["path"] for p in found["pages"]] == ["money/invoices", "notes/a"]
-    assert found["pages"][1]["snippet"].startswith("We paid the invoices")
+    assert found["pages"][1]["snippet"].startswith("We settled the invoices")
     assert [m["text"] for m in found["memories"]] == ["Sends invoices on Fridays"]
     assert {p["path"] for p in brain.search(brain.first_brain(B), "invoice OR bill")["pages"]} == {
         "money/invoices",

@@ -2,7 +2,7 @@
 
 The ONLY hard delete in the app, and it cannot reach anyone's data: a list
 qualifies only with no row in any app's content tables (apps.py; archived rows
-count), no email and no billing customer (paid/billing.py: the row is billing's only tie to
+count), no email and no outside account (plans/extension.py: the row is its only tie to
 the account), more than 30 days after it was made. That is a "Create my list" click
 that nobody came back to. An emailless trial account whose one site expired and was
 deleted (sites.expire_sites, day 37) then holds nothing and qualifies too: that is the
@@ -11,14 +11,14 @@ end of a trial nobody kept, and a tool holding its link connects again.
 
 import datetime
 
-from backend.paid import billing
+from backend.plans import extension
 from backend import apps, common, db
 
 
 def _unused() -> str:
     return (
         "created_at < ? AND email IS NULL AND "
-        + billing.NO_CUSTOMER_SQL
+        + extension.NO_CUSTOMER_SQL
         + "".join(f" AND NOT EXISTS (SELECT 1 FROM {t} WHERE {t}.list_id = lists.id)" for t in apps.content_tables())
     )
 
@@ -41,7 +41,7 @@ def delete_unused_lists(days: int = 30) -> int:
             f"OR created_list_id IN (SELECT id FROM lists WHERE {unused})",
             (cutoff, cutoff),
         )
-        for table in ("sessions", "signin_tokens", "api_keys", "brains", "ai_tools"):
+        for table in ("sessions", "signin_tokens", "api_keys", "brain_reads", "brains", "ai_tools"):
             conn.execute(
                 f"DELETE FROM {table} WHERE list_id IN (SELECT id FROM lists WHERE {unused})",
                 (cutoff,),

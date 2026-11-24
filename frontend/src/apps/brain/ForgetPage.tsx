@@ -42,7 +42,8 @@ export function ForgetPage() {
         )}
         <p className="mt-4 text-sm text-muted">
           This removes the {kind} and every earlier version of it. No AI can bring it back, and your AIs will not see it
-          again. Backups age out on their own within a few weeks. To keep it but stop using it, archive it instead.
+          again. Backups age out on their own within a few weeks. Its rows in the Security read log go too; the words of
+          a search stay there until they are 90 days old. To keep it but stop using it, archive it instead.
         </p>
         {error && (
           <p role="alert" className="mt-3 text-sm text-[#ff9db0]">

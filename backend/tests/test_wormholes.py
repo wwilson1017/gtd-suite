@@ -119,7 +119,7 @@ def test_importing_into_a_list_makes_groups(L, B):
 
 def test_an_import_over_the_cap_adds_nothing(L, B, monkeypatch):
     have = len(recordings.todoset(L, B)["loose"])
-    monkeypatch.setattr(common, "recording_cap_for", lambda verified, hosted, pro=False: have + 2)
+    monkeypatch.setattr(common, "recording_cap_for", lambda verified, hosted, plan=None: have + 2)
     with pytest.raises(ValidationError):
         recordings.import_todos(L, B, "- a\n- b\n- c")
     assert recordings.todoset(L, B)["loose"] == []

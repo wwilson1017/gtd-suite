@@ -1,11 +1,21 @@
 """todo-gtd — scheduled snapshots of the database.
 
-Each run takes an SQLite online backup (consistent while the app keeps writing)
-into a temp file, then renames it into ``DATA_DIR/backups/``, so a half-written
+Each run copies the database with ``VACUUM INTO`` (compact, and consistent while the app
+keeps writing) into a temp file, then renames it into ``DATA_DIR/backups/``, so a half-written
 snapshot is never mistaken for a good one. Every snapshot of the last 6 hours
 is kept, then the newest of each day for 7 days: longer history belongs off the volume
 (docs/self-hosting.md "Backups"), and each copy kept here is the whole database again.
 After each run the snapshots are dropped from the page cache (_uncache).
+
+With SNAPSHOT_AGE_RECIPIENT set, the temp file is compressed with ``zstd`` and encrypted to
+that public key with ``age``, and only the result (``….db.zst.age``) is kept; older
+``….db.age`` files still list, prune and restore. The private key is never here: restoring
+needs it (scripts/restore_list.py). A failed ``zstd`` or ``age`` is a failed snapshot; nothing
+plain is ever kept in its place.
+
+The app, scripts/admin.py and scripts/restore_list.py all take snapshots. A file lock
+(``backups/.lock``) makes them take turns, pruning included, so two processes never share a
+temp file or delete each other's.
 
 A snapshot that fails is logged and skipped; the next run tries again. Snapshots
 stop, with a warning, while free space is under a floor, so they can never
@@ -15,13 +25,15 @@ starve the live database.
 """
 
 import datetime
+import fcntl
 import logging
 import os
 import shutil
 import sqlite3
+import subprocess
 from pathlib import Path
 
-from backend import common, db
+from backend import common, db, settings
 
 logger = logging.getLogger(__name__)
 
@@ -36,9 +48,17 @@ def backups_dir() -> Path:
     return db.db_path().parent / "backups"
 
 
+def files() -> list[Path]:
+    """Every snapshot, plain and encrypted, oldest first: names sort by time."""
+    out = backups_dir()
+    return sorted([*out.glob("todo-*.db"), *out.glob("todo-*.db.age"), *out.glob("todo-*.db.zst.age")])
+
+
 def _taken(path: Path) -> datetime.datetime | None:
     try:
-        return datetime.datetime.strptime(path.name, _NAME).replace(tzinfo=datetime.timezone.utc)
+        return datetime.datetime.strptime(path.name.removesuffix(".age").removesuffix(".zst"), _NAME).replace(
+            tzinfo=datetime.timezone.utc
+        )
     except ValueError:
         return None
 
@@ -51,7 +71,7 @@ def prune(now: datetime.datetime) -> None:
         stale.unlink(missing_ok=True)
     kept_days = set()
     newest_seen = False
-    for path in sorted(out.glob("todo-*.db"), reverse=True):  # newest first: names sort by time
+    for path in reversed(files()):  # newest first
         taken = _taken(path)
         if taken is None:
             continue
@@ -66,13 +86,13 @@ def prune(now: datetime.datetime) -> None:
         path.unlink(missing_ok=True)
 
 
-def _uncache(out: Path) -> None:
+def _uncache(paths: list[Path]) -> None:
     """Ask the kernel to drop every snapshot from the page cache. Railway bills cached file
     pages as the service's memory (2.3 GB of 2.7 GB on 2026-11-14, nearly all snapshots), and a
     snapshot is read again only to restore it or copy it off. Linux only; elsewhere a no-op."""
     if not hasattr(os, "posix_fadvise"):
         return
-    for path in out.glob("todo-*.db"):
+    for path in paths:
         try:
             fd = os.open(path, os.O_RDONLY)
         except OSError:
@@ -86,31 +106,67 @@ def _uncache(out: Path) -> None:
             os.close(fd)
 
 
+def _seal(plain: Path, sealed: Path, recipient: str) -> None:
+    """``plain`` compressed and encrypted into ``sealed``: zstd piped into age. Arguments as
+    lists, never a shell; both must exit 0. Their own messages go to the app's stderr."""
+    with open(sealed, "wb") as out:
+        # --long=27: a 128 MB window, which finds the repeats a database is full of.
+        zstd = subprocess.Popen(["zstd", "-3", "--long=27", "-q", "-c", str(plain)], stdout=subprocess.PIPE)
+        assert zstd.stdout is not None
+        try:
+            age = subprocess.Popen(["age", "-r", recipient], stdin=zstd.stdout, stdout=out)
+        except BaseException:
+            zstd.kill()
+            raise
+        finally:
+            zstd.stdout.close()  # age holds its own end; zstd sees a broken pipe if age dies
+            zstd.wait()
+        for proc in (age, zstd):
+            if proc.wait():
+                raise subprocess.CalledProcessError(proc.returncode, proc.args)
+
+
 def _snapshot() -> Path | None:
-    source = db.db_path()
     out = backups_dir()
     out.mkdir(parents=True, exist_ok=True)
+    with open(out / ".lock", "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)  # one snapshot at a time, across processes; released on close
+        return _locked_snapshot(out)
+
+
+def _locked_snapshot(out: Path) -> Path | None:
+    source = db.db_path()
     now = common.utcnow()
     prune(now)
-    free, need = shutil.disk_usage(out).free, source.stat().st_size + MIN_FREE_BYTES
+    recipient = settings.snapshot_recipient()
+    # The copy holds what the WAL holds too. Encrypting needs the plain temp file and the
+    # sealed one side by side; compression is not a promise, so the sealed one counts in full.
+    wal = source.with_name(source.name + "-wal")
+    size = source.stat().st_size + (wal.stat().st_size if wal.exists() else 0)
+    free, need = shutil.disk_usage(out).free, size * (2 if recipient else 1) + MIN_FREE_BYTES
     if free < need:
         logger.warning(
             "Snapshots are paused: %d MB free, %d MB needed. Free up or grow the volume.", free // 2**20, need // 2**20
         )
         return None
-    final = out / now.strftime(_NAME)
+    name = now.strftime(_NAME)
+    final = out / (name + ".zst.age" if recipient else name)
     if final.exists():  # names are per second; a snapshot is never overwritten
         raise FileExistsError(f"{final.name} already exists")
-    tmp = out / (final.name + ".tmp")
-    src, dst = sqlite3.connect(source), sqlite3.connect(tmp)
+    plain, sealed = out / (name + ".tmp"), out / (name + ".zst.age.tmp")
     try:
-        src.backup(dst)
-        # A single self-contained file: no -wal/-shm needed to open it read-only.
-        dst.execute("PRAGMA journal_mode=DELETE")
-    finally:
-        dst.close()
-        src.close()
-    os.replace(tmp, final)
+        src = sqlite3.connect(source)
+        try:
+            # A single self-contained file in rollback-journal mode: no -wal/-shm needed to open it.
+            src.execute("VACUUM INTO ?", (str(plain),))
+        finally:
+            src.close()
+        if recipient:
+            _seal(plain, sealed, recipient)
+        os.replace(sealed if recipient else plain, final)
+    finally:  # whatever happened, neither a plain copy nor a partial file stays
+        plain.unlink(missing_ok=True)
+        sealed.unlink(missing_ok=True)
     return final
 
 
@@ -122,7 +178,7 @@ def snapshot() -> Path | None:
         logger.exception("Snapshot failed; skipped until the next run")
         path = None
     try:  # every run, taken or not: an off-site copy reads older ones back in
-        _uncache(backups_dir())
+        _uncache(files())
     except Exception:
         logger.exception("Dropping snapshots from the page cache failed; tried again next run")
     if path:
