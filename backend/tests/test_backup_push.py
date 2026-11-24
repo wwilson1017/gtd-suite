@@ -13,8 +13,9 @@ import httpx2 as httpx
 import pytest
 
 from backend import backup, objectstore
-from backend.tests.test_admin import run  # noqa: F401 (fixture)
-from backend.tests.test_files import store  # noqa: F401 (fixture)
+from backend.tests import test_admin, test_files
+
+run, store = test_admin.run, test_files.store  # their fixtures, used here too
 
 CFG = {
     "endpoint": "https://backups.example",
@@ -185,7 +186,7 @@ def test_snapshots_taken_outside_the_app_do_not_push(bucket, monkeypatch):
     assert backup.snapshot() is not None and backup.sealed() and bucket.calls == []
 
 
-def test_the_files_store_is_signed_as_before(store, bucket, monkeypatch):  # noqa: F811
+def test_the_files_store_is_signed_as_before(store, bucket, monkeypatch):
     """With both stores set, a Files call still goes to the Files bucket with its key
     (FakeStore asserts both), and an unset Files store is still refused."""
     monkeypatch.setattr(objectstore.httpx, "request", store.request)
@@ -199,7 +200,7 @@ def test_the_files_store_is_signed_as_before(store, bucket, monkeypatch):  # noq
         objectstore.head("kept")
 
 
-def test_stats_says_whether_the_newest_encrypted_snapshot_is_in_the_bucket(bucket, monkeypatch, run):  # noqa: F811
+def test_stats_says_whether_the_newest_encrypted_snapshot_is_in_the_bucket(bucket, monkeypatch, run):
     def said():
         code, out = run("stats", "--json")
         assert code == 0
@@ -218,7 +219,7 @@ def test_stats_says_whether_the_newest_encrypted_snapshot_is_in_the_bucket(bucke
     assert said() == "not set up"
 
 
-def test_stats_lists_the_biggest_tables_or_leaves_them_out(todo_db, run, monkeypatch):  # noqa: F811
+def test_stats_lists_the_biggest_tables_or_leaves_them_out(todo_db, run, monkeypatch):
     from scripts import admin
 
     tables = json.loads(run("stats", "--json")[1])["biggest_tables"]
