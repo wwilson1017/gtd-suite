@@ -39,6 +39,7 @@ LEAVES = {
     "brain_changes": ("changes", None),
     "brain_onboard": ("start", None),
     "brain_onboard_done": None,
+    "brain_tickle_record": None,  # refused here (not a question brain_start gave); recorded, it returns the caller's question
     "brain_curate": ("curate", None),
     "brain_forget_link": ("get", "page"),
     "brain_eval": ("get", "page"),
@@ -112,7 +113,7 @@ async def test_initialize_discovery_and_every_brain_tool_leave_their_row(connect
             try:
                 answer = json.dumps(await call(c, name, **arguments))
             except ToolError:
-                assert name == "brain_setup"
+                assert name in ("brain_setup", "brain_tickle_record")
                 answer = ""
             new = rows(account)[before:]
             assert [(r["kind"], r["item_kind"]) for r in new] == ([LEAVES[name]] if LEAVES[name] else []), name
