@@ -39,8 +39,8 @@ import logging
 import re
 import secrets
 
-from backend.paid import billing
-from backend import brain, common, db, keys, objectstore, settings, storage, sites
+from backend.plans import extension
+from backend import brain, common, db, keys, objectstore, readlog, settings, storage, sites
 from backend.common import ConflictError, NotFoundError, ValidationError
 
 logger = logging.getLogger(__name__)
@@ -209,7 +209,7 @@ def _full(quota: dict, used: int, adding: int) -> str:
         return "Files need a confirmed email: add yours in Settings. It's free. Nothing was reserved."
     return (
         f"That needs {_size(adding)}, and {_size(max(0, quota['files'] - used))} of the "
-        f"brain's {_size(quota['files'])} for files is free.{billing.upsell(quota['upsell'])} "
+        f"brain's {_size(quota['files'])} for files is free.{extension.cap_note(quota['raisable'])} "
         "Forget files no longer needed to make room. Nothing was reserved."
     )
 
@@ -398,6 +398,16 @@ def forget(brain_id: int, file_id: int) -> dict:
             f"brain_id = ? AND path = ? AND status IN {SETTLED} AND created_at < ?",
             (brain_id, path, _link_gone()),
         ).fetchall()
+        # Each version's rows in the read log (readlog.py) go too: a download link names one version.
+        readlog.forget_in(
+            conn,
+            brain._list_of(conn, brain_id),
+            "file",
+            [
+                r["id"]
+                for r in conn.execute("SELECT id FROM brain_files WHERE brain_id = ? AND path = ?", (brain_id, path))
+            ],
+        )
         n = conn.execute(
             f"UPDATE brain_files SET status = 'forgotten', updated_at = ? WHERE brain_id = ? "
             f"AND path = ? AND status NOT IN {TOMBSTONES}",

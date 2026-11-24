@@ -14,7 +14,7 @@ from fastapi.responses import PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.datastructures import MutableHeaders
 
-from backend.paid import billing
+from backend.plans import extension
 from backend import (
     api_v1,
     apps,
@@ -29,6 +29,7 @@ from backend import (
     logscrub,
     mcp_server,
     pages,
+    readlog,
     recordings,
     sessions,
     settings,
@@ -54,15 +55,18 @@ _DAILY_SECONDS = 24 * 3600
 
 
 def _expire() -> None:
-    """Sessions idle for a year, sign-in links past their hour, and expired connect codes."""
+    """Sessions idle for a year, sign-in links past their hour, expired connect codes, and
+    read-log rows past 90 days (readlog.py)."""
     try:
         now = common.utcnow()
-        dropped = sessions.expire(now) + signin.expire(now) + connect.expire(now)
+        dropped = sessions.expire(now) + signin.expire(now) + connect.expire(now) + readlog.expire(now)
     except Exception:
-        logger.exception("Expiring old sessions, sign-in links and connect codes failed; skipped until the next run")
+        logger.exception(
+            "Expiring old sessions, sign-in links, connect codes and read-log rows failed; skipped until the next run"
+        )
         return
     if dropped:
-        logger.info("Expired %d session(s), sign-in link(s) and connect code(s)", dropped)
+        logger.info("Expired %d session(s), sign-in link(s), connect code(s) and read-log row(s)", dropped)
 
 
 def _cleanup() -> None:
@@ -153,7 +157,7 @@ async def lifespan(app: FastAPI):
         )
     task = asyncio.create_task(_maintain())
     tick = asyncio.create_task(_tick())
-    sweep = asyncio.create_task(billing.maintain())
+    sweep = asyncio.create_task(extension.maintain())
     # The MCP app's own lifespan starts its session manager; without it every
     # MCP request is a 500.
     async with mcp_server.mcp_app.lifespan(app):

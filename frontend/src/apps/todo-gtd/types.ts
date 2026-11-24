@@ -1,4 +1,4 @@
-import type { Plan } from '../../paid/types';
+import type { Level } from '../../plans/types';
 
 // Todo GTD — shared types (mirrors backend/common.py)
 
@@ -108,6 +108,10 @@ export interface NewList {
 /** GET /api/app/session — the app's first call: which list this browser is in. */
 export interface Session {
   sites_own_host?: boolean;
+  /** Settings › Security's switch: idle expiry of the agent link, end dates on new keys, new-AI email. */
+  enhanced_security?: boolean;
+  /** With the switch on, the agent link went 30 days unused and answers no more. */
+  agent_link_expired?: boolean;
   brains?: import('./brainSelection').BrainSummary[];
   list_id: number;
   /** The account's random number (1234-5678): what a person says to name their account. */
@@ -130,7 +134,7 @@ export interface Session {
     areas: number;
     brains?: number;
     links?: number;
-    upsell?: boolean;
+    raisable?: boolean;
     storage?: number;
     storage_used?: number;
   };
@@ -141,7 +145,7 @@ export interface Session {
    *  Connect your AI, and step 1 of the setup). Empty until one has. */
   ai_tools?: AiTool[];
   /** The account’s plan, as last synced from the payment service. */
-  plan?: Plan;
+  plan?: Level;
 }
 
 /** An AI tool that has called the account's agent link. */

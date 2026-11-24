@@ -7,6 +7,7 @@ import { CopyButton } from '../todo-gtd/components/CopyButton';
 import { createKey, getKeys, revokeKey, type NewProgramKey, type ProgramKey } from './api';
 import { BrainTicks } from './BrainGrants';
 import { brainName, selectedBrain, useBrainSelection } from '../todo-gtd/brainSelection';
+import { useSession } from '../todo-gtd/session';
 import { ago } from './util';
 
 const field = 'rounded-lg border border-line bg-sand px-3 py-2 text-sm text-charcoal placeholder:text-muted';
@@ -26,6 +27,10 @@ export function ProgramKeys({ kind = 'key' }: { kind?: 'key' | 'link' }) {
   const [apps, setApps] = useState<'brain' | 'all'>('brain');
   const [access, setAccess] = useState<'read' | 'write'>('read');
   const [folders, setFolders] = useState('');
+  // Enhanced security (Settings › Security): a new key must end, so 90 days unless chosen.
+  const mustEnd = useSession().session?.enhanced_security ?? false;
+  const [chosenDays, setDays] = useState(0);
+  const days = chosenDays || (mustEnd ? 90 : 0);
   const [made, setMade] = useState<NewProgramKey | null>(null);
   const [error, setError] = useState('');
   const load = useCallback(
@@ -54,6 +59,7 @@ export function ProgramKeys({ kind = 'key' }: { kind?: 'key' | 'link' }) {
           ...(selection.brains.length ? { brains } : {}),
           apps,
           access,
+          ...(days ? { days } : {}),
           folders:
             !link && apps === 'brain' && oneBrain
               ? folders
@@ -130,6 +136,17 @@ export function ProgramKeys({ kind = 'key' }: { kind?: 'key' | 'link' }) {
             <option value="read">Read only</option>
             <option value="write">Read and write</option>
           </select>
+          <select
+            value={days}
+            onChange={(e) => setDays(Number(e.target.value))}
+            aria-label="End date"
+            className={field}
+          >
+            {!mustEnd && <option value={0}>No end date</option>}
+            <option value={30}>Ends in 30 days</option>
+            <option value={90}>Ends in 90 days</option>
+            <option value={365}>Ends in 365 days</option>
+          </select>
         </div>
         {!link && apps === 'brain' && oneBrain && (
           <input
@@ -202,6 +219,14 @@ export function ProgramKeys({ kind = 'key' }: { kind?: 'key' | 'link' }) {
                   {k.folders.length > 0 && ` · writes in ${k.folders.join(', ')}`}
                   {' · '}
                   {k.last_used_at ? `used ${ago(k.last_used_at)}` : 'never used'}
+                  {' · '}
+                  {k.expired ? (
+                    <strong className="text-[#ff9db0]">expired</strong>
+                  ) : k.expires_at ? (
+                    `ends ${new Date(k.expires_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+                  ) : (
+                    'no end date'
+                  )}
                 </p>
               </div>
               <button type="button" onClick={() => void revoke(k)} className="cb-btn-ghost text-xs">

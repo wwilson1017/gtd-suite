@@ -45,10 +45,10 @@ from urllib.parse import urlsplit
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request, Response
 
-from backend.paid import routes as paid_routes
-from backend.paid import plans
-from backend.paid import billing
-from backend.paid import settings as paid_settings
+from backend.plans import routes as plan_routes
+from backend.plans import plans
+from backend.plans import extension
+from backend.plans import settings as plan_settings
 from backend import (
     apps,
     brain,
@@ -60,6 +60,7 @@ from backend import (
     lists,
     project_links,
     ratelimit,
+    readlog,
     service,
     sessions,
     settings,
@@ -426,6 +427,22 @@ def rotate_agent_link(request: Request, owner: int = Depends(active_owner)):
     return _agent_link(request, cast(str, lists.rotate_agent(owner)))
 
 
+@links_router.put("/security")
+def set_security(body: AppSwitch, owner: int = Depends(active_owner)):
+    """Settings › Security's Enhanced security switch (lists.set_enhanced_security). The
+    browser only: no AI tool, command or key changes it."""
+    lists.set_enhanced_security(owner, body.on)
+    row = cast(dict, lists.get_list(owner))
+    return {"enhanced_security": bool(row["enhanced_security"]), "agent_link_expired": lists.agent_link_expired(row)}
+
+
+@links_router.get("/security/reads")
+def get_reads(before: int | None = None, owner: int = Depends(active_owner)):
+    """Settings › Security's read log (readlog.py): Common Brain reads by AI tools, newest
+    first, a page at a time (`before`: the last row's id). The browser only."""
+    return {"reads": readlog.recent(owner, before)}
+
+
 @links_router.get("/ai-tools")
 def get_ai_tools(owner: int = Depends(active_owner)):
     """Which AI tools have called the account, read again by a page that is waiting for
@@ -469,7 +486,7 @@ def list_keys(owner: int = Depends(active_owner)):
 @links_router.post("/keys")
 def create_key(body: KeyCreate, request: Request, owner: int = Depends(active_owner)):
     """A new program key. The answer carries the key itself, the only time it is shown."""
-    made = _call(keys.create, owner, body.name, body.apps, body.access, body.folders, body.brains, body.kind)
+    made = _call(keys.create, owner, body.name, body.apps, body.access, body.folders, body.brains, body.kind, body.days)
     if body.kind == "link":
         made["link"] = agent_url(request, made["key"])
     return made
@@ -554,7 +571,7 @@ def set_email(body: EmailUpdate, request: Request, background: BackgroundTasks, 
     token = None
     with db.transaction() as conn:
         if not email:
-            paid_routes.require_email_in(conn, owner)
+            plan_routes.require_email_in(conn, owner)
         stored, verified = lists.set_email_in(conn, owner, email)
         existing, taken = [], []
         if (
@@ -646,7 +663,7 @@ def sign_out_everywhere(owner: int = Depends(session_owner)):
     return {"ok": True}
 
 
-paid_routes.mount(router, account_router, session_owner, _base_url)
+extension.mount(router, account_router, session_owner, _base_url)
 router.include_router(account_router)
 
 
@@ -665,6 +682,8 @@ def get_session(request: Request, response: Response):
         "list_id": owner,
         "account_no": row["account_no"],
         "sites_own_host": bool(row["sites_own_host"]),
+        "enhanced_security": bool(row["enhanced_security"]),
+        "agent_link_expired": lists.agent_link_expired(row),  # idle too long with the switch on
         "state": lifecycle.state(row),
         "email": row["email"],
         "verified": verified,
@@ -679,7 +698,7 @@ def get_session(request: Request, response: Response):
         "brains": [{k: b[k] for k in ("id", "name", "folder", "status")} for b in brain.brains(owner)],
         "apps": row["apps"],  # the apps turned on (lists.apps_on)
         "ai_tools": lists.ai_tools(owner),  # which AI tools have called: Settings › Connect your AI, the setup steps
-        "plan": paid_routes.session_plan(row),
+        "plan": plan_routes.session_plan(row),
     }
 
 
@@ -701,8 +720,8 @@ def get_config(request: Request, response: Response):
         "claimed": claimed,
         "reset": claimed and bool(settings.reset_code()),
         "signed_in": sessions.resolve(request.cookies.get(sessions.COOKIE)) is not None,
-        "billing": billing.selling(),
-        "free": paid_settings.free_max(),  # a confirmed hosted account gets everything (paid/plans.of)
+        "offers": extension.offers(),
+        "free": plan_settings.free_max(),  # a confirmed hosted account gets everything (plans/plans.py of)
         "signup_closed": settings.signup_closed(),
         # This page's app, and every app's reachable address: the menus offer the way across.
         "app": settings.app_for(request),
@@ -867,9 +886,8 @@ def redeem_signin(token: str, request: Request, response: Response, background: 
     if redeemed is None:
         raise _wrong_token(request)
     sessions.set_cookie(response, redeemed["session_token"])
-    if redeemed["verified"] and billing.syncing():
-        # A customer's receipts follow the confirmed address (billing.push_email).
-        background.add_task(billing.push_email, redeemed["list_id"])
+    if redeemed["verified"]:
+        background.add_task(extension.email_confirmed, redeemed["list_id"])
     response.headers.update(_NO_STORE)
     return {"verified": redeemed["verified"]}
 

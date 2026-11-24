@@ -93,10 +93,10 @@ def test_a_copy_counts_against_the_cap_whole(L, B, monkeypatch):
     for n in range(3):
         make(L, B, "todo", f"T{n}", parent_id=tl["id"])
     have = len(recordings.list_items(L, B, "todolist")) + 3
-    monkeypatch.setattr(common, "recording_cap_for", lambda verified, hosted, pro=False: have + 3)
+    monkeypatch.setattr(common, "recording_cap_for", lambda verified, hosted, plan=None: have + 3)
     with pytest.raises(ValidationError, match="at most|holds"):
         recordings.copy(L, tl["id"])  # 4 more would pass the cap
-    monkeypatch.setattr(common, "recording_cap_for", lambda verified, hosted, pro=False: have + 4)
+    monkeypatch.setattr(common, "recording_cap_for", lambda verified, hosted, plan=None: have + 4)
     assert recordings.copy(L, tl["id"])["title"] == "Big"
 
 
@@ -170,7 +170,7 @@ def test_finishing_a_repeating_to_do_adds_the_next(L, B):
     capped = make(L, B, "todo", "Capped", repeat="every_day")
     have = db.get_db().execute("SELECT COUNT(*) FROM recordings WHERE list_id = ?", (L,)).fetchone()[0]
     real = common.recording_cap_for
-    common.recording_cap_for = lambda verified, hosted, pro=False: have
+    common.recording_cap_for = lambda verified, hosted, plan=None: have
     try:
         with pytest.raises(ValidationError):
             recordings.complete(L, capped["id"])
@@ -207,7 +207,7 @@ def test_finishing_a_repeating_card_adds_the_next_where_it_was(L, B):
     capped = boards.create_card(L, B, "Capped card", repeat="every_day")
     have = db.get_db().execute("SELECT COUNT(*) FROM cards WHERE list_id = ?", (L,)).fetchone()[0]
     real = common.board_caps_for
-    common.board_caps_for = lambda verified, hosted, pro=False: (100, have)
+    common.board_caps_for = lambda verified, hosted, plan=None: (100, have)
     try:
         with pytest.raises(ValidationError):
             boards.move_card(L, capped["id"], "Done")
@@ -218,7 +218,7 @@ def test_finishing_a_repeating_card_adds_the_next_where_it_was(L, B):
     recordings.create(L, None, "step", {"title": "Step"}, card_id=capped["id"])
     have = db.get_db().execute("SELECT COUNT(*) FROM recordings WHERE list_id = ?", (L,)).fetchone()[0]
     real_items = common.recording_cap_for
-    common.recording_cap_for = lambda verified, hosted, pro=False: have
+    common.recording_cap_for = lambda verified, hosted, plan=None: have
     try:
         with pytest.raises(ValidationError):
             boards.move_card(L, capped["id"], "Done")

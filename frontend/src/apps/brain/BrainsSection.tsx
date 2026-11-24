@@ -1,11 +1,11 @@
-import { brainLimitSentence } from '../../paid/features';
+import { brainLimitSentence } from '../../plans/features';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { apiErrorMessage } from '../../core/api/client';
 import { useAutoSave } from '../../shared/autosave/useAutoSave';
 import { InlineTitle } from '../../shared/inline-edit/InlineTitle';
 import { brainName, brainGeneration, refreshBrains, selectBrain, useBrainSelection } from '../todo-gtd/brainSelection';
-import { PlanCard } from '../../paid/PlanCard';
+import { ExtensionCard } from '../../plans/offers';
 import { useSession } from '../todo-gtd/session';
 import { getBrains, saveBrain, setBrainStatus, type Brain, type BrainSettings, type BrainsView } from './api';
 
@@ -68,8 +68,8 @@ export function BrainsSection() {
         <p>Loading…</p>
       ) : creating && full ? (
         <>
-          <p>{brainLimitSentence(data.caps.upsell, session)}</p>
-          <PlanCard />
+          <p>{brainLimitSentence(data.caps.raisable, session)}</p>
+          <ExtensionCard />
         </>
       ) : (
         (creating || current) && (

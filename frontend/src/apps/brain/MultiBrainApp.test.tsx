@@ -74,7 +74,7 @@ function answer(url: string, init: RequestInit = {}) {
     });
   if (path === '/api/config') return json({ app: 'brain', apps: {} });
   if (path === '/api/app/brains')
-    return json({ brains: available, caps: { brains: cap, links: 3, upsell: cap === 1 }, link_brains: [11] });
+    return json({ brains: available, caps: { brains: cap, links: 3, raisable: cap === 1 }, link_brains: [11] });
   if (path === '/api/app/brains/11') return json({ ...brains[0], ...JSON.parse(init.body as string) });
   if (path === '/api/app/brain') return json(overview(brain));
   if (path === '/api/app/brain/pages/3') return json(page(brain));
@@ -245,9 +245,11 @@ it('keeps the old addresses landing in Settings, with the Common Brain group in 
   await wait('Editing Personal');
   expect(window.location.pathname).toBe('/app/connect/brains');
   const menu = [...host.querySelectorAll('nav[aria-label="Settings"] a')].map((a) => a.getAttribute('href'));
-  // mail: false, so no email step; the plan is hidden while the suite is free.
+  // mail: false, so no email step; no level is shown while the suite is free.
   expect(menu).toEqual(
-    ['ai', 'devices', 'install', 'brains', 'every', 'curator', 'export', 'keys'].map((k) => `/app/connect/${k}`),
+    ['ai', 'devices', 'security', 'install', 'brains', 'every', 'curator', 'export', 'keys'].map(
+      (k) => `/app/connect/${k}`,
+    ),
   );
   expect(host.querySelector('a[aria-label="Settings"][aria-current="page"]')).not.toBeNull();
   expect([...host.querySelectorAll('header nav a')].map((a) => a.textContent)).toEqual([

@@ -32,6 +32,8 @@ jobs:
         run: uv run --locked ruff format --check backend scripts
       - name: Python types
         run: uv run --locked pyright
+      # age, zstd: the encrypted-snapshot tests skip themselves without them.
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends age zstd
       - run: uv run --locked pytest backend/tests
 
   frontend:
