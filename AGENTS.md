@@ -141,6 +141,7 @@ backend/
   tests/         pytest, real temp SQLite file per test
 scripts/sites_sync_check.py  stdlib large-deck sync check: agent link from a file or env, never printed
 scripts/restore_list.py   one-list repair from a snapshot
+scripts/restore_drill.py  the restore drill on a downloaded snapshot: same-file check, decrypt, integrity, /healthz, one-list restore
 scripts/smoke.sh          the hosted service's addresses after a deploy, without credentials
 scripts/admin.py          the operator's command line (stats, find, disable, delete, …); docs/self-hosting.md "Admin tool"
 frontend/        Vite + React 19 + Tailwind 4; builds into backend/static. One bundle; the
