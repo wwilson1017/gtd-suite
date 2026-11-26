@@ -1621,3 +1621,14 @@ def test_the_restore_drill_passes_on_a_good_snapshot_and_fails_on_a_different_co
     copy.write_bytes(b"not the same")
     with pytest.raises(SystemExit, match="not the same file"):
         restore_drill.main([str(snapshot), "--same-as", str(copy)])
+
+
+def test_the_restore_drill_does_not_say_a_plain_pass_when_no_list_could_be_restored(new_list, todo_db, capsys, freeze):
+    freeze("2026-10-04T12:00:00")
+    restore_drill.main([str(backup.snapshot())])  # no list at all
+    assert "PASS for steps 1 to 3 only" in capsys.readouterr().out
+    freeze("2026-10-04T13:00:00")
+    new_list()  # a list with no todos: restore_list still runs
+    restore_drill.main([str(backup.snapshot())])
+    out = capsys.readouterr().out
+    assert "restore_list ran on a list" in out and "PASS: todo-" in out

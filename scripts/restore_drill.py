@@ -80,16 +80,19 @@ def _healthz(data: Path, env: dict[str, str]) -> None:
             app.wait()
 
 
-def _one_list(plain: Path, data: Path, env: dict[str, str]) -> str:
-    """Remove a todo from the fullest list in ``data``, restore that list from ``plain``, compare."""
+def _one_list(plain: Path, data: Path, env: dict[str, str]) -> str | None:
+    """Remove a todo from the fullest list in ``data``, restore that list from ``plain``, compare.
+    None when the snapshot holds no list at all, so there was nothing to restore."""
     live = data / "todo.db"
     conn = sqlite3.connect(live)
     try:
         counts = conn.execute(
             "SELECT list_id, COUNT(*) FROM todos GROUP BY list_id ORDER BY COUNT(*) DESC LIMIT 2"
         ).fetchall()
+        if not counts:  # no todos anywhere: restore_list still has to run, on any list
+            counts = conn.execute("SELECT id, 0 FROM lists ORDER BY id LIMIT 1").fetchall()
         if not counts:
-            return "skipped: the snapshot holds no todos"
+            return None
         list_id = counts[0][0]
         other = counts[1][0] if len(counts) > 1 else None
         want = _todos(plain, list_id, "id, title, status")
@@ -98,7 +101,7 @@ def _one_list(plain: Path, data: Path, env: dict[str, str]) -> str:
         conn.commit()
     finally:
         conn.close()
-    if _todos(live, list_id, "id, title, status") == want:
+    if want and _todos(live, list_id, "id, title, status") == want:
         raise SystemExit("FAIL: could not remove a todo to restore")
     done = subprocess.run(
         [sys.executable, "-m", "scripts.restore_list", str(plain), "--list-id", str(list_id)],
@@ -113,6 +116,8 @@ def _one_list(plain: Path, data: Path, env: dict[str, str]) -> str:
         raise SystemExit("FAIL: the list's todos are not what the snapshot has")
     if other and _todos(live, other, "id, title, status, rev") != other_before:
         raise SystemExit("FAIL: restoring one list changed another")
+    if not want:
+        return "restore_list ran on a list; the snapshot holds no todos, so none was removed first"
     return f"{len(want)} todos back" + (", another list unchanged" if other else ", no second list to compare")
 
 
@@ -151,8 +156,10 @@ def drill(snapshot: Path, same_as: Path | None, identity: str | None) -> None:
         env = {"DATA_DIR": str(data), "PATH": os.environ.get("PATH", "")}
         _healthz(data, env)
         print("3. The app starts on it and answers /healthz")
-        print(f"4. One-list restore: {_one_list(plain, data, env)}")
-    print(f"PASS: {snapshot.name}. Every plain copy made by the drill is deleted.")
+        restored = _one_list(plain, data, env)
+        print(f"4. One-list restore: {restored or 'NOT TESTED, the snapshot holds no list'}")
+    verdict = "PASS" if restored else "PASS for steps 1 to 3 only (the one-list restore was not tested)"
+    print(f"{verdict}: {snapshot.name}. Every plain copy made by the drill is deleted.")
 
 
 def main(argv=None) -> None:
