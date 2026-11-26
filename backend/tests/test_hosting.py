@@ -32,7 +32,7 @@ from backend import (
 )
 from backend.tests.conftest import confirm_list
 from backend.tests.test_mcp import INIT, MCP_HEADERS
-from scripts import admin, restore_list
+from scripts import admin, restore_drill, restore_list
 
 
 @pytest.fixture()
@@ -1599,3 +1599,25 @@ def test_signing_out_works_on_a_put_away_list(client, new_list, mail, freeze, da
     _idle(freeze, days=days)
     assert made["client"].post("/api/app/signout").json() == {"ok": True}
     assert made["client"].get("/api/app/session").status_code == 401
+
+
+def test_the_restore_drill_passes_on_a_good_snapshot_and_fails_on_a_different_copy(new_list, capsys, freeze, tmp_path):
+    freeze("2026-10-04T12:00:00")
+    a, b = new_list(), new_list()
+    for title in ("buy paint", "paint the wall"):
+        a["client"].post("/api/app/todos", json={"title": title})
+    b["client"].post("/api/app/todos", json={"title": "B's own"})
+    snapshot = backup.snapshot()
+    copy = tmp_path / "copy.db"
+    copy.write_bytes(snapshot.read_bytes())
+
+    restore_drill.main([str(snapshot), "--same-as", str(copy)])
+    out = capsys.readouterr().out
+    assert "2 todos back, another list unchanged" in out and "PASS" in out
+    # Nothing of the drill is left beside the snapshot, and the live list was not touched.
+    assert [p.name for p in snapshot.parent.iterdir() if p.name.startswith("restore-drill-")] == []
+    assert len(a["client"].get("/api/app/todos").json()["todos"]) == 2
+
+    copy.write_bytes(b"not the same")
+    with pytest.raises(SystemExit, match="not the same file"):
+        restore_drill.main([str(snapshot), "--same-as", str(copy)])

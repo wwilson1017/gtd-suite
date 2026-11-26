@@ -217,6 +217,22 @@ machine and pass the plain file, as above.
 
 `python -m scripts.admin find --link=<agent link>` gives the id.
 
+**Restore drill.** A backup is only known to work once a restore has been tried. On your own
+machine, in a checkout of this repo with `age` and `zstd` installed, download a snapshot from
+your off-site copy (and, if you keep two, the same snapshot from the second place) and run:
+
+```bash
+uv run python -m scripts.restore_drill todo-20261004T120000Z.db.zst.age --same-as second-copy.db.zst.age
+```
+
+It asks for the private key, which goes to `age` and nowhere else. It checks the two copies
+are the same file, decrypts, runs SQLite's integrity check, starts the app on the restored
+database with no setting but `DATA_DIR` (so no file store, bucket or mail is reachable) and
+gets `/healthz`, then removes one todo and puts its list back with `restore_list`. It works in
+a private folder beside the snapshot and deletes it at the end, pass or fail. It does not
+cover the bytes of Files and Simple Sites files, which no snapshot holds. Write down the date
+and the result.
+
 ## Admin tool
 
 There's no admin web page; a page that could see every account would be the best thing on
